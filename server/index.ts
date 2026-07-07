@@ -10,6 +10,12 @@ import xss from 'xss'
 
 const app = new Hono()
 
+app.get('/health', (c) => c.json({
+  status: 'ok',
+  uptime: process.uptime(),
+  timestamp: new Date().toISOString()
+}))
+
 app.use('*', secureHeaders())
 
 const allowedOrigins = (process.env.CORS_ORIGIN || Bun.env.CORS_ORIGIN || 'http://localhost:5173')
