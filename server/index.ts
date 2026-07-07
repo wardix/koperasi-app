@@ -5,6 +5,7 @@ import { jwt, sign } from 'hono/jwt'
 import { secureHeaders } from 'hono/secure-headers'
 import db from './db'
 import { z } from 'zod'
+import xss from 'xss'
 
 const app = new Hono()
 
@@ -52,10 +53,10 @@ const requireAdmin = async (c: any, next: any) => {
 
 // Zod schemas
 const memberSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required").transform(xss),
   role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
   status: z.enum(["Aktif", "Pasif"]),
-  joinDate: z.string().min(1, "Join date is required"),
+  joinDate: z.string().min(1, "Join date is required").transform(xss),
   simpananPokok: z.number().nonnegative().default(0),
   simpananWajib: z.number().nonnegative().default(0),
   simpananSukarela: z.number().nonnegative().default(0),
@@ -71,11 +72,11 @@ const savingsSchema = z.object({
 })
 
 const loanSchema = z.object({
-  memberId: z.string().min(1, "Member ID is required"),
-  name: z.string().min(1, "Name is required"),
+  memberId: z.string().min(1, "Member ID is required").transform(xss),
+  name: z.string().min(1, "Name is required").transform(xss),
   amount: z.number().positive(),
-  tenor: z.string().min(1, "Tenor is required"),
-  purpose: z.string().min(1, "Purpose is required"),
+  tenor: z.string().min(1, "Tenor is required").transform(xss),
+  purpose: z.string().min(1, "Purpose is required").transform(xss),
   status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]).default("Menunggu")
 })
 
@@ -85,7 +86,7 @@ const loanStatusSchema = z.object({
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
-  method: z.string().min(1)
+  method: z.string().min(1).transform(xss)
 })
 
 const loginSchema = z.object({
@@ -93,7 +94,7 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 })
 
-const settingsSchema = z.record(z.union([z.string(), z.boolean(), z.number()]))
+const settingsSchema = z.record(z.union([z.string().transform(xss), z.boolean(), z.number()]))
 
 // Get all members
 app.get('/api/members', (c) => {
