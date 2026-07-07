@@ -31,6 +31,7 @@ import {
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddMemberDialogContent} from './AddMemberDialog.tsx';
 import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
+import {apiUrl} from './config';
 
 interface MemberRow extends Record<string, unknown> {
   id: string;
@@ -69,7 +70,7 @@ export default function MembersTemplate() {
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/members')
+    fetch(apiUrl('/api/members'))
       .then(res => res.json())
       .then(data => setMembers(data))
       .catch(err => console.error("Error fetching members:", err));
@@ -77,7 +78,7 @@ export default function MembersTemplate() {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`http://localhost:3000/api/members/${id}`, { method: 'DELETE' });
+      await fetch(apiUrl(`/api/members/${id}`), { method: 'DELETE' });
       setMembers(members.filter(m => m.id !== id));
     } catch (err) {
       console.error("Error deleting member:", err);
@@ -90,7 +91,7 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onSave={async (additionalSavings) => {
           try {
-            const res = await fetch(`http://localhost:3000/api/members/${id}/savings`, {
+            const res = await fetch(apiUrl(`/api/members/${id}/savings`), {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ additionalSavings })
@@ -184,7 +185,7 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newMember) => {
           try {
-            const res = await fetch('http://localhost:3000/api/members', {
+            const res = await fetch(apiUrl('/api/members'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newMember)
