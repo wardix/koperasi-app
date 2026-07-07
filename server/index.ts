@@ -269,9 +269,15 @@ app.put('/api/settings', async (c) => {
   }
 })
 
+// Verify token
+app.get('/api/auth/verify', (c) => {
+  return c.json({ success: true, message: 'Token is valid' })
+})
+
 console.log('Hono server running on http://localhost:3000')
 
 export default {
   port: 3000,
   fetch: app.fetch,
 }
+
