@@ -621,6 +621,52 @@ app.put('/api/settings', requireAdmin, async (c) => {
   }
 })
 
+// Get SHU
+app.get('/api/shu', (c) => {
+  const year = c.req.query('year') || new Date().getFullYear().toString();
+  
+  const paymentRes = db.query("SELECT COALESCE(SUM(amount), 0) as total FROM loan_payments WHERE strftime('%Y', paymentDate) = ?").get(year) as { total: number };
+  const totalPembayaran = paymentRes.total;
+  
+  const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaRate = parseFloat(bungaSetting?.value || '1.5');
+  
+  // Pendapatan asumsi sederhana dari persentase bunga terhadap total pembayaran
+  const pendapatan = Math.round(totalPembayaran * (bungaRate / 100));
+  const biayaOperasional = Math.round(pendapatan * 0.2); // Asumsi biaya ops 20%
+  const shuNetto = Math.max(0, pendapatan - biayaOperasional);
+  
+  const distribusi = {
+    anggota: Math.round(shuNetto * 0.40),
+    cadangan: Math.round(shuNetto * 0.25),
+    pengurus: Math.round(shuNetto * 0.20),
+    sosial: Math.round(shuNetto * 0.10),
+    pembangunan: Math.round(shuNetto * 0.05),
+  };
+  
+  const members = db.query("SELECT id, name, totalSavings FROM members").all() as any[];
+  const totalSimpananSeluruhAnggota = members.reduce((sum, m) => sum + m.totalSavings, 0);
+  
+  const alokasiAnggota = members.map(m => {
+    const porsi = totalSimpananSeluruhAnggota > 0 ? m.totalSavings / totalSimpananSeluruhAnggota : 0;
+    return {
+      id: m.id,
+      name: m.name,
+      totalSavings: m.totalSavings,
+      shu: Math.round(distribusi.anggota * porsi)
+    };
+  }).sort((a, b) => b.shu - a.shu);
+  
+  return c.json({
+    year,
+    pendapatan,
+    biayaOperasional,
+    shuNetto,
+    distribusi,
+    alokasiAnggota
+  });
+});
+
 // Verify token
 app.get('/api/auth/verify', (c) => {
   return c.json({ success: true, message: 'Token is valid' })

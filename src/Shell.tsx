@@ -28,6 +28,7 @@ const App = React.lazy(() => import('./App.tsx'));
 const Members = React.lazy(() => import('./Members.tsx'));
 const Loans = React.lazy(() => import('./Loans.tsx'));
 const Settings = React.lazy(() => import('./Settings.tsx'));
+const SHU = React.lazy(() => import('./SHU.tsx'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell({ onLogout }: { onLogout: () => void }) {
@@ -153,12 +154,12 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
           <Route path="/members" element={<Members />} />
           <Route path="/loans" element={<Loans />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/shu" element={<SHU />} />
           
           {/* Coming Soon Routes */}
           <Route path="/reports" element={<ComingSoon title="Laporan Koperasi" description="Modul pelaporan keuangan dan aktivitas koperasi sedang dalam tahap pengembangan." />} />
           <Route path="/savings" element={<ComingSoon title="Riwayat Transaksi Simpanan" description="Catatan detail mutasi simpanan anggota sedang dikerjakan." />} />
           <Route path="/loans-tx" element={<ComingSoon title="Riwayat Transaksi Pinjaman" description="Fitur pemantauan jejak angsuran dan pencairan pinjaman segera hadir." />} />
-          <Route path="/shu" element={<ComingSoon title="Kalkulasi SHU" description="Sistem penghitungan dan pembagian Sisa Hasil Usaha akan tersedia pada rilis mendatang." />} />
           <Route path="/cashflow" element={<ComingSoon title="Arus Kas Koperasi" description="Pemantauan keluar-masuk dana koperasi masih dalam proses pembuatan." />} />
           <Route path="/npl" element={<ComingSoon title="Analisis Kredit Macet (NPL)" description="Dashboard khusus penganalisaan Non-Performing Loan sedang dikembangkan." />} />
           <Route path="/roles" element={<ComingSoon title="Manajemen Peran & Akses" description="Fitur pengelolaan akses spesifik untuk pengurus koperasi segera dirilis." />} />
