@@ -7,7 +7,7 @@ import type {LoanRow} from './Loans';
 
 interface Props {
   onClose: () => void;
-  onAdd: (loan: LoanRow) => void;
+  onAdd: (loan: Omit<LoanRow, 'id'>) => void;
 }
 
 export function AddLoanDialogContent({onClose, onAdd}: Props) {
@@ -19,7 +19,6 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   const handleSave = () => {
     if (!name || !amount) return;
     onAdd({
-      id: Date.now().toString(),
       name,
       amount: Number(amount) || 0,
       tenor,
