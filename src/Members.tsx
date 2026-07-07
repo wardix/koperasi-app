@@ -39,6 +39,7 @@ import {AddMemberDialogContent} from './AddMemberDialog.tsx';
 import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
 import {useToast} from '@astryxdesign/core/Toast';
 import {apiFetch} from './config';
+import {useApiQuery} from './hooks/useApiQuery';
 
 interface MemberRow extends Record<string, unknown> {
   id: string;
@@ -71,33 +72,14 @@ const fieldDefs = [
 ] as const;
 
 export default function MembersTemplate() {
-  const [members, setMembers] = useState<MemberRow[]>([]);
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { data: membersData, isLoading, error, refetch: fetchMembers } = useApiQuery<MemberRow[]>('/api/members');
+  const members = membersData || [];
+  
   const toast = useToast();
-
-  const fetchMembers = () => {
-    setIsLoading(true);
-    setError(null);
-    apiFetch('/api/members')
-      .then(res => {
-        if (!res.ok) throw new Error('Gagal mengambil data anggota');
-        return res.json();
-      })
-      .then(data => setMembers(data))
-      .catch(err => {
-        console.error(err);
-        setError(err.message);
-      })
-      .finally(() => setIsLoading(false));
-  };
-
-  useEffect(() => {
-    fetchMembers();
-  }, []);
 
   const handleDelete = (member: MemberRow) => {
     dialog.show(

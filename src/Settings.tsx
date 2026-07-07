@@ -3,6 +3,7 @@
 import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {apiFetch} from './config';
+import {useApiQuery} from './hooks/useApiQuery';
 import {
   VStack,
   HStack,
@@ -75,40 +76,23 @@ export default function SettingsTemplate() {
   
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: settingsData, isLoading, error, refetch: fetchSettings } = useApiQuery<any>('/api/settings');
   const toast = useToast();
 
-  const fetchSettings = () => {
-    setIsLoading(true);
-    setError(null);
-    apiFetch('/api/settings')
-      .then(res => {
-        if (!res.ok) throw new Error('Gagal mengambil data');
-        return res.json();
-      })
-      .then(data => {
-        if (data.koperasiName) setKoperasiName(data.koperasiName);
-        if (data.alamat) setAlamat(data.alamat);
-        if (data.telepon) setTelepon(data.telepon);
-        if (data.email) setEmail(data.email);
-        if (data.bungaPinjaman) setBungaPinjaman(data.bungaPinjaman);
-        if (data.bungaSimpanan) setBungaSimpanan(data.bungaSimpanan);
-        if (data.denda) setDenda(data.denda);
-        if (data.viewReports) setViewReports(data.viewReports === 'true');
-        if (data.selfRegister) setSelfRegister(data.selfRegister === 'true');
-        if (data.twoFactor) setTwoFactor(data.twoFactor === 'true');
-      })
-      .catch(err => {
-        console.error(err);
-        setError(err.message);
-      })
-      .finally(() => setIsLoading(false));
-  };
-
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (settingsData) {
+      if (settingsData.koperasiName) setKoperasiName(settingsData.koperasiName);
+      if (settingsData.alamat) setAlamat(settingsData.alamat);
+      if (settingsData.telepon) setTelepon(settingsData.telepon);
+      if (settingsData.email) setEmail(settingsData.email);
+      if (settingsData.bungaPinjaman) setBungaPinjaman(settingsData.bungaPinjaman);
+      if (settingsData.bungaSimpanan) setBungaSimpanan(settingsData.bungaSimpanan);
+      if (settingsData.denda) setDenda(settingsData.denda);
+      if (settingsData.viewReports) setViewReports(settingsData.viewReports === 'true');
+      if (settingsData.selfRegister) setSelfRegister(settingsData.selfRegister === 'true');
+      if (settingsData.twoFactor) setTwoFactor(settingsData.twoFactor === 'true');
+    }
+  }, [settingsData]);
 
   const saveSettings = async () => {
     try {
