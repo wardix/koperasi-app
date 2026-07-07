@@ -20,14 +20,16 @@ import {
 } from '@heroicons/react/24/outline';
 import {HomeIcon} from '@heroicons/react/24/solid';
 import {CubeIcon} from '@heroicons/react/24/outline';
-import {useState} from 'react';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import App from './App.tsx';
 import Members from './Members.tsx';
 import Loans from './Loans.tsx';
 import Settings from './Settings.tsx';
 
 export default function Shell({ onLogout }: { onLogout: () => void }) {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const path = location.pathname;
   return (
     <AppShell
       contentPadding={6}
@@ -47,9 +49,9 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
           }
           startContent={
             <>
-              <TopNavItem label="Dasbor" isSelected={currentPage === 'dashboard'} onClick={() => setCurrentPage('dashboard')} />
+              <TopNavItem label="Dasbor" isSelected={path === '/dashboard' || path === '/'} onClick={() => navigate('/')} />
               <TopNavItem label="Layanan" />
-              <TopNavItem label="Pengaturan" isSelected={currentPage === 'settings'} onClick={() => setCurrentPage('settings')} />
+              <TopNavItem label="Pengaturan" isSelected={path === '/settings'} onClick={() => navigate('/settings')} />
             </>
           }
         />
@@ -60,14 +62,14 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
             <SideNavItem
               label="Dasbor"
               icon={HomeIcon}
-              isSelected={currentPage === 'dashboard'}
-              onClick={() => setCurrentPage('dashboard')}
+              isSelected={path === '/dashboard' || path === '/'}
+              onClick={() => navigate('/')}
             />
             <SideNavItem 
               label="Data Anggota" 
               icon={UsersIcon} 
-              isSelected={currentPage === 'members'}
-              onClick={() => setCurrentPage('members')}
+              isSelected={path === '/members'}
+              onClick={() => navigate('/members')}
             />
             <SideNavItem label="Laporan" icon={ChartBarIcon} />
           </SideNavSection>
@@ -83,8 +85,8 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
             <SideNavItem 
               label="Persetujuan Pinjaman" 
               icon={ClipboardDocumentCheckIcon} 
-              isSelected={currentPage === 'loans'}
-              onClick={() => setCurrentPage('loans')}
+              isSelected={path === '/loans'}
+              onClick={() => navigate('/loans')}
             />
             <SideNavItem label="Kredit Macet (NPL)" icon={ExclamationTriangleIcon} href="#" />
           </SideNavSection>
@@ -92,23 +94,21 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
             <SideNavItem 
               label="Konfigurasi Koperasi" 
               icon={Cog6ToothIcon} 
-              isSelected={currentPage === 'settings'}
-              onClick={() => setCurrentPage('settings')}
+              isSelected={path === '/settings'}
+              onClick={() => navigate('/settings')}
             />
             <SideNavItem label="Hak Akses" icon={UsersIcon} href="#" />
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={onLogout} />
           </SideNavSection>
         </SideNav>
       }>
-      {currentPage === 'dashboard' ? (
-        <App />
-      ) : currentPage === 'members' ? (
-        <Members />
-      ) : currentPage === 'loans' ? (
-        <Loans />
-      ) : (
-        <Settings />
-      )}
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/dashboard" element={<App />} />
+        <Route path="/members" element={<Members />} />
+        <Route path="/loans" element={<Loans />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
     </AppShell>
   );
 }
