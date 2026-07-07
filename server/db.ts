@@ -104,7 +104,7 @@ if (loanCount.count === 0) {
   const insertLoan = db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
   insertLoan.run("1", "1", "Budi Santoso", 5000000, "12 Bulan", "Modal Usaha Warung", "Menunggu");
   insertLoan.run("2", "2", "Siti Aminah", 2500000, "6 Bulan", "Biaya Pendidikan", "Menunggu");
-  insertLoan.run("3", "Dewi Lestari", 10000000, "24 Bulan", "Renovasi Rumah", "Disetujui");
+  insertLoan.run("3", "3", "Dewi Lestari", 10000000, "24 Bulan", "Renovasi Rumah", "Disetujui");
 }
 
 const adminCount = db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
