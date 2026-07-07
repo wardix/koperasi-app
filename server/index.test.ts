@@ -151,4 +151,60 @@ describe("API Endpoints", () => {
     expect(txBody[0].balanceBefore).toBe(5000);
     expect(txBody[0].balanceAfter).toBe(7000);
   });
+
+  test("POST /api/loans/:id/payments creates payment and GET returns it", async () => {
+    // 1. Create a member
+    const createReq = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({
+        name: "Test Loan Member",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 1000
+      })
+    });
+    const createRes = await server.fetch(createReq);
+    const memberId = (await createRes.json()).id;
+
+    // 2. Create a loan
+    const loanReq = new Request("http://localhost/api/loans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({
+        memberId,
+        name: "Test Loan Member",
+        amount: 10000,
+        tenor: "10 Bulan",
+        purpose: "Test",
+        status: "Disetujui"
+      })
+    });
+    const loanRes = await server.fetch(loanReq);
+    const loanId = (await loanRes.json()).id;
+
+    // 3. Make a payment
+    const payReq = new Request(`http://localhost/api/loans/${loanId}/payments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({
+        amount: 1000,
+        method: "Cash"
+      })
+    });
+    const payRes = await server.fetch(payReq);
+    expect(payRes.status).toBe(201);
+    
+    // 4. Get payments
+    const getReq = new Request(`http://localhost/api/loans/${loanId}/payments`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const getRes = await server.fetch(getReq);
+    expect(getRes.status).toBe(200);
+    const getBody = await getRes.json();
+    expect(Array.isArray(getBody)).toBe(true);
+    expect(getBody.length).toBe(1);
+    expect(getBody[0].amount).toBe(1000);
+  });
 });
