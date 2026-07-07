@@ -38,7 +38,7 @@ import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddMemberDialogContent} from './AddMemberDialog.tsx';
 import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
 import {useToast} from '@astryxdesign/core/Toast';
-import {apiUrl} from './config';
+import {apiFetch} from './config';
 
 interface MemberRow extends Record<string, unknown> {
   id: string;
@@ -82,7 +82,7 @@ export default function MembersTemplate() {
   const fetchMembers = () => {
     setIsLoading(true);
     setError(null);
-    fetch(apiUrl('/api/members'))
+    apiFetch('/api/members')
       .then(res => {
         if (!res.ok) throw new Error('Gagal mengambil data anggota');
         return res.json();
@@ -109,7 +109,7 @@ export default function MembersTemplate() {
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
             <Button color="error" label="Hapus" onClick={async () => {
               try {
-                const res = await fetch(apiUrl(`/api/members/${member.id}`), { method: 'DELETE' });
+                const res = await apiFetch(`/api/members/${member.id}`, { method: 'DELETE' });
                 if (res.ok) {
                   setMembers(members.filter(m => m.id !== member.id));
                   toast.show({body: 'Anggota berhasil dihapus', type: 'info'});
@@ -135,7 +135,7 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onSave={async (additionalSavings) => {
           try {
-            const res = await fetch(apiUrl(`/api/members/${id}/savings`), {
+            const res = await apiFetch(`/api/members/${id}/savings`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ additionalSavings })
@@ -229,7 +229,7 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newMember) => {
           try {
-            const res = await fetch(apiUrl('/api/members'), {
+            const res = await apiFetch('/api/members', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newMember)
