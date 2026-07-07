@@ -25,7 +25,9 @@ export function EditMemberDialogContent({
   const [name, setName] = useState(initialData.name);
   const [role, setRole] = useState(initialData.role);
   const [status, setStatus] = useState(initialData.status);
-  const [deposit, setDeposit] = useState(String(initialData.totalSavings));
+  const [simpananPokok, setSimpananPokok] = useState(String(initialData.simpananPokok ?? 0));
+  const [simpananWajib, setSimpananWajib] = useState(String(initialData.simpananWajib ?? 0));
+  const [simpananSukarela, setSimpananSukarela] = useState(String(initialData.simpananSukarela ?? 0));
 
   const handleSave = () => {
     onEdit({
@@ -33,7 +35,9 @@ export function EditMemberDialogContent({
       name,
       role,
       status,
-      totalSavings: parseInt(deposit, 10) || 0,
+      simpananPokok: parseInt(simpananPokok, 10) || 0,
+      simpananWajib: parseInt(simpananWajib, 10) || 0,
+      simpananSukarela: parseInt(simpananSukarela, 10) || 0,
     });
     onClose();
   };
@@ -69,11 +73,22 @@ export function EditMemberDialogContent({
               placeholder="Aktif / Pasif"
             />
             <TextInput
-              label="Setoran Awal (Simpanan Pokok) (Rp)"
-              value={deposit}
-              onChange={setDeposit}
+              label="Simpanan Pokok (Rp)"
+              value={simpananPokok}
+              onChange={setSimpananPokok}
               type="number"
-              placeholder="Contoh: 500000"
+            />
+            <TextInput
+              label="Simpanan Wajib (Rp)"
+              value={simpananWajib}
+              onChange={setSimpananWajib}
+              type="number"
+            />
+            <TextInput
+              label="Simpanan Sukarela (Rp)"
+              value={simpananSukarela}
+              onChange={setSimpananSukarela}
+              type="number"
             />
           </VStack>
         </LayoutContent>

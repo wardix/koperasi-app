@@ -74,7 +74,7 @@ describe("API Endpoints", () => {
         role: "Anggota",
         status: "Aktif",
         joinDate: "01 Jan 2024",
-        totalSavings: 1000
+        simpananPokok: 1000
       })
     });
     const createRes = await server.fetch(createReq);
@@ -93,7 +93,7 @@ describe("API Endpoints", () => {
         role: "Ketua",
         status: "Pasif",
         joinDate: "01 Jan 2024",
-        totalSavings: 2000
+        simpananPokok: 2000
       })
     });
     const updateRes = await server.fetch(updateReq);
@@ -115,7 +115,7 @@ describe("API Endpoints", () => {
         role: "Anggota",
         status: "Aktif",
         joinDate: "01 Jan 2024",
-        totalSavings: 5000
+        simpananPokok: 5000
       })
     });
     const createRes = await server.fetch(createReq);
@@ -147,7 +147,7 @@ describe("API Endpoints", () => {
     expect(Array.isArray(txBody)).toBe(true);
     expect(txBody.length).toBe(1);
     expect(txBody[0].amount).toBe(2000);
-    expect(txBody[0].type).toBe("setor");
+    expect(txBody[0].type).toBe("setor_sukarela");
     expect(txBody[0].balanceBefore).toBe(5000);
     expect(txBody[0].balanceAfter).toBe(7000);
   });
