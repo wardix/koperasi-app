@@ -12,14 +12,23 @@ app.use('/*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
 }))
 
-const JWT_SECRET = 'koperasi-super-secret-key-2026'
+const JWT_SECRET = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production' || Bun.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is not set in production');
+  }
+  console.warn('WARNING: Using default JWT_SECRET for development. Do not use in production!');
+}
+
+const secretKey = JWT_SECRET || 'koperasi-super-secret-key-2026';
 
 app.use('/api/*', async (c, next) => {
   if (c.req.path === '/api/login' || c.req.path === '/api/logout') {
     return next()
   }
   const jwtMiddleware = jwt({
-    secret: JWT_SECRET,
+    secret: secretKey,
     alg: 'HS256',
   })
   return jwtMiddleware(c, next)
@@ -277,7 +286,7 @@ app.post('/api/login', async (c) => {
           email: admin.email,
           exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24 hours
         }
-        const token = await sign(payload, JWT_SECRET)
+        const token = await sign(payload, secretKey)
         return c.json({ success: true, message: 'Login successful', token })
       }
     }
