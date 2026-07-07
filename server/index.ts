@@ -223,7 +223,7 @@ app.put('/api/members/:id/savings', requireAdmin, async (c) => {
         member.totalSavings,
         newTotal,
         new Date().toISOString(),
-        'admin' // Or extract from jwt
+        (c.get('jwtPayload') as any)?.email || 'admin' // extract from jwt
       )
     })()
     
