@@ -236,7 +236,7 @@ export default function LoansTemplate() {
         <LayoutContent padding={3}>
           {isLoading ? (
             <Center style={{height: '100%'}}>
-              <Spinner size="large" />
+              <Spinner size="lg" />
             </Center>
           ) : error ? (
             <Center style={{height: '100%'}}>
