@@ -195,10 +195,64 @@ app.get('/api/stats', (c) => {
   
   const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M'
   
+  // Distribusi Anggota (berdasarkan Role)
+  const roleDistribution = members.reduce((acc: any, m) => {
+    acc[m.role] = (acc[m.role] || 0) + 1
+    return acc
+  }, {})
+  const roleData = Object.keys(roleDistribution).map((role, i) => ({
+    label: role,
+    value: roleDistribution[role],
+    color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
+  }))
+
+  // Distribusi Pinjaman (berdasarkan Purpose)
+  const loanDistribution = loans.reduce((acc: any, l) => {
+    acc[l.purpose] = (acc[l.purpose] || 0) + 1
+    return acc
+  }, {})
+  const purposeData = Object.keys(loanDistribution).map((purpose, i) => ({
+    label: purpose,
+    value: loanDistribution[purpose],
+    color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
+  }))
+
+  // Tren Bulanan (Mocked based on real totals to show a trend)
+  const monthlyData = [
+    { label: 'Jan', simpanan: totalSavings * 0.5, pinjaman: totalLoans * 0.3 },
+    { label: 'Feb', simpanan: totalSavings * 0.6, pinjaman: totalLoans * 0.4 },
+    { label: 'Mar', simpanan: totalSavings * 0.7, pinjaman: totalLoans * 0.5 },
+    { label: 'Apr', simpanan: totalSavings * 0.8, pinjaman: totalLoans * 0.6 },
+    { label: 'May', simpanan: totalSavings * 0.9, pinjaman: totalLoans * 0.8 },
+    { label: 'Jun', simpanan: totalSavings, pinjaman: totalLoans },
+  ]
+  
+  const recentMembers = members.slice(-5).map(m => ({
+    id: m.id,
+    activity: 'Anggota Baru',
+    name: m.name,
+    amount: m.totalSavings,
+    date: m.joinDate,
+  }))
+
+  const recentLoans = loans.slice(-5).map(l => ({
+    id: l.id,
+    activity: 'Pengajuan Pinjaman',
+    name: l.name,
+    amount: l.amount,
+    date: new Date().toISOString().split('T')[0],
+  }))
+  
+  const recentActivities = [...recentMembers, ...recentLoans].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5)
+
   return c.json({
     activeMembers: activeMembers.toLocaleString('id-ID'),
     totalSavings: formatRp(totalSavings),
-    totalLoans: formatRp(totalLoans)
+    totalLoans: formatRp(totalLoans),
+    roleData,
+    purposeData,
+    monthlyData,
+    recentActivities
   })
 })
 
