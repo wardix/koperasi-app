@@ -380,14 +380,40 @@ app.get('/api/stats', (c) => {
     color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
   }))
 
-  const monthlyData = [
-    { label: 'Jan', simpanan: totalSavings * 0.5, pinjaman: totalLoans * 0.3 },
-    { label: 'Feb', simpanan: totalSavings * 0.6, pinjaman: totalLoans * 0.4 },
-    { label: 'Mar', simpanan: totalSavings * 0.7, pinjaman: totalLoans * 0.5 },
-    { label: 'Apr', simpanan: totalSavings * 0.8, pinjaman: totalLoans * 0.6 },
-    { label: 'May', simpanan: totalSavings * 0.9, pinjaman: totalLoans * 0.8 },
-    { label: 'Jun', simpanan: totalSavings, pinjaman: totalLoans },
-  ]
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const monthStr = d.toISOString().substring(0, 7);
+    months.push(monthStr);
+  }
+
+  const txRows = db.query(`
+    SELECT strftime('%Y-%m', createdAt) as month, SUM(amount) as total
+    FROM transactions 
+    WHERE type LIKE 'setor_%'
+    GROUP BY month
+  `).all() as { month: string, total: number }[];
+
+  const paymentRows = db.query(`
+    SELECT strftime('%Y-%m', paymentDate) as month, SUM(amount) as total
+    FROM loan_payments
+    GROUP BY month
+  `).all() as { month: string, total: number }[];
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const monthlyData = months.map(m => {
+    const d = new Date(m + "-01");
+    const label = monthNames[d.getMonth()];
+    const tx = txRows.find(r => r.month === m);
+    const pm = paymentRows.find(r => r.month === m);
+    return {
+      label,
+      simpanan: tx ? tx.total : 0,
+      pinjaman: pm ? pm.total : 0
+    };
+  });
   
   const recentRows = db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY rowid DESC LIMIT 5").all() as any[];
   const recentActivities = recentRows.map(m => ({
