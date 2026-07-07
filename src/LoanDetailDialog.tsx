@@ -42,7 +42,7 @@ export function LoanDetailDialogContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
 
-  const { data: payments, isLoading, mutate } = useApiQuery<Payment[]>(`/api/loans/${loan.id}/payments`);
+  const { data: payments, isLoading, refetch } = useApiQuery<Payment[]>(`/api/loans/${loan.id}/payments`);
 
   // Calculations
   const tenorBulan = parseInt(loan.tenor) || 1; // Assuming format "X Bulan"
@@ -70,7 +70,7 @@ export function LoanDetailDialogContent({
       if (res.ok) {
         toast.show({body: 'Pembayaran berhasil', type: 'info'});
         setPayAmount('');
-        mutate();
+        refetch();
         onUpdate();
         
         // auto-close if fully paid? We could, or just let user see remaining is 0
