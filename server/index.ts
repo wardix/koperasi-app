@@ -333,6 +333,17 @@ app.post('/api/loans/:id/payments', requireAdmin, async (c) => {
     }
 
     const { amount, method } = parsed.data
+    
+    // validate overpayment
+    const loan = db.query("SELECT amount FROM loans WHERE id = ?").get(loanId) as { amount: number };
+    if (!loan) return c.json({ success: false, message: 'Loan not found' }, 404);
+    
+    const paid = (db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0;
+    
+    if (paid + amount > loan.amount) {
+      return c.json({ success: false, message: 'Total pembayaran melebihi jumlah pinjaman' }, 400);
+    }
+    
     const id = crypto.randomUUID()
     const paymentDate = new Date().toISOString()
 
