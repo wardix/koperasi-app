@@ -60,4 +60,45 @@ describe("API Endpoints", () => {
     }
     expect(status).toBe(429);
   });
+
+  test("PUT /api/members/:id updates member", async () => {
+    // 1. First create a member to get an ID
+    const createReq = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Test Update Member",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        totalSavings: 1000
+      })
+    });
+    const createRes = await server.fetch(createReq);
+    const createBody = await createRes.json();
+    const newId = createBody.id;
+
+    // 2. Now update that member
+    const updateReq = new Request(`http://localhost/api/members/${newId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Updated Name",
+        role: "Ketua",
+        status: "Pasif",
+        joinDate: "01 Jan 2024",
+        totalSavings: 2000
+      })
+    });
+    const updateRes = await server.fetch(updateReq);
+    expect(updateRes.status).toBe(200);
+    const updateBody = await updateRes.json();
+    expect(updateBody.success).toBe(true);
+  });
 });
