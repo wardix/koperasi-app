@@ -1,3 +1,4 @@
+import type { MemberRow, LoanRow, DashboardData, SettingsData } from "../shared/types";
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { jwt, sign } from 'hono/jwt'

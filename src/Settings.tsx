@@ -4,6 +4,7 @@ import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {apiFetch} from './config';
 import {useApiQuery} from './hooks/useApiQuery';
+import type {SettingsData} from '../shared/types';
 import {
   VStack,
   HStack,
@@ -76,7 +77,7 @@ export default function SettingsTemplate() {
   
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
-  const { data: settingsData, isLoading, error, refetch: fetchSettings } = useApiQuery<any>('/api/settings');
+  const { data: settingsData, isLoading, error, refetch: fetchSettings } = useApiQuery<SettingsData>('/api/settings');
   const toast = useToast();
 
   useEffect(() => {
