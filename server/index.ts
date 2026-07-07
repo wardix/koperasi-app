@@ -75,8 +75,19 @@ const settingsSchema = z.record(z.union([z.string(), z.boolean(), z.number()]))
 
 // Get all members
 app.get('/api/members', (c) => {
-  const members = db.query("SELECT * FROM members ORDER BY rowid DESC").all()
-  return c.json(members)
+  const page = parseInt(c.req.query('page') || '1')
+  const limit = parseInt(c.req.query('limit') || '20')
+  const offset = (page - 1) * limit
+  
+  const members = db.query("SELECT * FROM members ORDER BY rowid DESC LIMIT ? OFFSET ?").all(limit, offset)
+  const totalRes = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number }
+  
+  return c.json({
+    data: members,
+    total: totalRes.count,
+    page,
+    limit
+  })
 })
 
 // Delete a member
@@ -142,8 +153,19 @@ app.put('/api/members/:id/savings', async (c) => {
 
 // Get all loans
 app.get('/api/loans', (c) => {
-  const loans = db.query("SELECT * FROM loans ORDER BY rowid DESC").all()
-  return c.json(loans)
+  const page = parseInt(c.req.query('page') || '1')
+  const limit = parseInt(c.req.query('limit') || '20')
+  const offset = (page - 1) * limit
+
+  const loans = db.query("SELECT * FROM loans ORDER BY rowid DESC LIMIT ? OFFSET ?").all(limit, offset)
+  const totalRes = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
+
+  return c.json({
+    data: loans,
+    total: totalRes.count,
+    page,
+    limit
+  })
 })
 
 // Create a new loan
@@ -198,39 +220,24 @@ app.put('/api/loans/:id/status', async (c) => {
 
 // Get dashboard stats
 app.get('/api/stats', (c) => {
-  const members = db.query("SELECT * FROM members").all() as any[]
-  const loans = db.query("SELECT * FROM loans").all() as any[]
-  
-  const activeMembers = members.filter(m => m.status === 'Aktif').length
-  
-  const totalSavings = members.reduce((sum, m) => sum + m.totalSavings, 0)
-  const totalLoans = loans.filter(l => l.status === 'Disetujui').reduce((sum, l) => sum + l.amount, 0)
-  
-  const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M'
-  
-  // Distribusi Anggota (berdasarkan Role)
-  const roleDistribution = members.reduce((acc: any, m) => {
-    acc[m.role] = (acc[m.role] || 0) + 1
-    return acc
-  }, {})
-  const roleData = Object.keys(roleDistribution).map((role, i) => ({
-    label: role,
-    value: roleDistribution[role],
+  const activeMembers = (db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get() as any).c || 0;
+  const totalSavings = (db.query("SELECT SUM(totalSavings) as s FROM members").get() as any).s || 0;
+  const totalLoans = (db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get() as any).s || 0;
+
+  const roleRows = db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all() as any[];
+  const roleData = roleRows.map((r, i) => ({
+    label: r.role,
+    value: r.count,
     color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
   }))
 
-  // Distribusi Pinjaman (berdasarkan Purpose)
-  const loanDistribution = loans.reduce((acc: any, l) => {
-    acc[l.purpose] = (acc[l.purpose] || 0) + 1
-    return acc
-  }, {})
-  const purposeData = Object.keys(loanDistribution).map((purpose, i) => ({
-    label: purpose,
-    value: loanDistribution[purpose],
+  const purposeRows = db.query("SELECT purpose, COUNT(*) as count FROM loans GROUP BY purpose").all() as any[];
+  const purposeData = purposeRows.map((r, i) => ({
+    label: r.purpose,
+    value: r.count,
     color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
   }))
 
-  // Tren Bulanan (Mocked based on real totals to show a trend)
   const monthlyData = [
     { label: 'Jan', simpanan: totalSavings * 0.5, pinjaman: totalLoans * 0.3 },
     { label: 'Feb', simpanan: totalSavings * 0.6, pinjaman: totalLoans * 0.4 },
@@ -240,7 +247,8 @@ app.get('/api/stats', (c) => {
     { label: 'Jun', simpanan: totalSavings, pinjaman: totalLoans },
   ]
   
-  const recentMembers = members.slice(-5).map(m => ({
+  const recentRows = db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY rowid DESC LIMIT 5").all() as any[];
+  const recentActivities = recentRows.map(m => ({
     id: m.id,
     activity: 'Anggota Baru',
     name: m.name,
@@ -248,18 +256,10 @@ app.get('/api/stats', (c) => {
     date: m.joinDate,
   }))
 
-  const recentLoans = loans.slice(-5).map(l => ({
-    id: l.id,
-    activity: 'Pengajuan Pinjaman',
-    name: l.name,
-    amount: l.amount,
-    date: new Date().toISOString().split('T')[0],
-  }))
-  
-  const recentActivities = [...recentMembers, ...recentLoans].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5)
+  const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M'
 
   return c.json({
-    activeMembers: activeMembers.toLocaleString('id-ID'),
+    activeMembers: activeMembers.toString(),
     totalSavings: formatRp(totalSavings),
     totalLoans: formatRp(totalLoans),
     roleData,

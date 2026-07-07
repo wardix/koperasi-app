@@ -76,9 +76,19 @@ export default function MembersTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
   
-  const { data: membersData, isLoading, error, refetch: fetchMembers } = useApiQuery<MemberRow[]>('/api/members');
-  const members = membersData || [];
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+
+  const { data: membersResponse, isLoading, error, refetch: fetchMembers } = useApiQuery<{data: MemberRow[], total: number, page: number, limit: number}>(`/api/members?page=${page}&limit=${limit}`);
   
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  
+  useEffect(() => {
+    if (membersResponse?.data) {
+      setMembers(membersResponse.data);
+    }
+  }, [membersResponse]);
+
   const toast = useToast();
 
   const handleDelete = (member: MemberRow) => {
@@ -117,17 +127,21 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onSave={async (additionalSavings) => {
           try {
-            const res = await apiFetch(`/api/members/${id}/savings`, {
+            const res = await apiFetch(`/api/members/${member.id}/savings`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ additionalSavings })
             });
-            const data = await res.json();
-            if (data.success) {
-              setMembers(members.map(m => m.id === id ? { ...m, totalSavings: data.newTotal } : m));
+            if (res.ok) {
+              const result = await res.json();
+              const updatedTotal = result.newTotal;
+              setMembers(members.map(m => m.id === member.id ? { ...m, totalSavings: updatedTotal } : m));
+              toast.show({body: 'Simpanan berhasil ditambahkan', type: 'info'});
             }
           } catch (err) {
             console.error("Error updating savings:", err);
+          } finally {
+            dialog.hide();
           }
         }}
       />
@@ -186,7 +200,7 @@ export default function MembersTemplate() {
             label="Setor" 
             variant="ghost" 
             size="sm" 
-            onClick={() => handleUpdateSavings(item.id)} 
+            onClick={() => handleUpdateSavings(item)} 
           />
           <IconButton 
             icon={<Icon icon={TrashIcon} />} 
@@ -209,23 +223,24 @@ export default function MembersTemplate() {
     dialog.show(
       <AddMemberDialogContent
         onClose={() => dialog.hide()}
-        onAdd={async (newMember) => {
+        onAdd={async (data) => {
           try {
             const res = await apiFetch('/api/members', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(newMember)
+              body: JSON.stringify(data)
             });
-            const data = await res.json();
-            if (data.success) {
-              setMembers([{ ...newMember, id: data.id } as MemberRow, ...members]);
+            if (res.ok) {
               toast.show({body: 'Anggota berhasil ditambahkan', type: 'info'});
+              fetchMembers();
             } else {
               toast.show({body: 'Gagal menambahkan anggota', type: 'error'});
             }
           } catch (err) {
             console.error("Error saving member:", err);
             toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
+          } finally {
+            dialog.hide();
           }
         }}
       />
@@ -294,6 +309,23 @@ export default function MembersTemplate() {
               dividers="rows"
               hasHover
             />
+            <HStack hAlign="between" vAlign="center" padding={2}>
+              <Text type="body">Halaman {membersResponse?.page || 1} dari {Math.ceil((membersResponse?.total || 0) / (membersResponse?.limit || 20)) || 1}</Text>
+              <HStack gap={2}>
+                <Button 
+                  label="Sebelumnya" 
+                  variant="outline" 
+                  disabled={page <= 1} 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                />
+                <Button 
+                  label="Selanjutnya" 
+                  variant="outline" 
+                  disabled={page >= Math.ceil((membersResponse?.total || 0) / limit)}
+                  onClick={() => setPage(p => p + 1)} 
+                />
+              </HStack>
+            </HStack>
           </VStack>
           )}
         </LayoutContent>

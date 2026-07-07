@@ -63,15 +63,18 @@ export default function LoansTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
   
-  const { data: loansData, isLoading, error, refetch: fetchLoans } = useApiQuery<LoanRow[]>('/api/loans');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+
+  const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<{data: LoanRow[], total: number, page: number, limit: number}>(`/api/loans?page=${page}&limit=${limit}`);
   const [localLoans, setLocalLoans] = useState<LoanRow[]>([]);
   const toast = useToast();
 
   useEffect(() => {
-    if (loansData) {
-      setLocalLoans(loansData);
+    if (loansResponse?.data) {
+      setLocalLoans(loansResponse.data);
     }
-  }, [loansData]);
+  }, [loansResponse]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
@@ -107,10 +110,9 @@ export default function LoansTemplate() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newLoan)
             });
-            const data = await res.json();
-            if (data.success) {
-              setLoans([{ ...newLoan, id: data.id } as LoanRow, ...loans]);
-              toast.show({body: 'Pengajuan pinjaman berhasil ditambahkan', type: 'info'});
+            if (res.ok) {
+              toast.show({body: 'Pinjaman berhasil diajukan', type: 'info'});
+              fetchLoans();
             } else {
               toast.show({body: 'Gagal menambahkan pengajuan pinjaman', type: 'error'});
             }
@@ -237,6 +239,23 @@ export default function LoansTemplate() {
               dividers="rows"
               hasHover
             />
+            <HStack hAlign="between" vAlign="center" padding={2}>
+              <Text type="body">Halaman {loansResponse?.page || 1} dari {Math.ceil((loansResponse?.total || 0) / (loansResponse?.limit || 20)) || 1}</Text>
+              <HStack gap={2}>
+                <Button 
+                  label="Sebelumnya" 
+                  variant="outline" 
+                  disabled={page <= 1} 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                />
+                <Button 
+                  label="Selanjutnya" 
+                  variant="outline" 
+                  disabled={page >= Math.ceil((loansResponse?.total || 0) / limit)}
+                  onClick={() => setPage(p => p + 1)} 
+                />
+              </HStack>
+            </HStack>
           </VStack>
           )}
         </LayoutContent>
