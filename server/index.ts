@@ -269,8 +269,40 @@ app.get('/api/stats', (c) => {
   })
 })
 
+const loginAttempts = new Map<string, { count: number, resetAt: number }>();
+
+function rateLimitLogin(ip: string): boolean {
+  const now = Date.now();
+  const limit = 5;
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+
+  let attempt = loginAttempts.get(ip);
+  if (!attempt) {
+    attempt = { count: 0, resetAt: now + windowMs };
+    loginAttempts.set(ip, attempt);
+  }
+
+  if (now > attempt.resetAt) {
+    attempt.count = 1;
+    attempt.resetAt = now + windowMs;
+    return true;
+  }
+
+  attempt.count++;
+  if (attempt.count > limit) {
+    return false;
+  }
+
+  return true;
+}
+
 // Login authentication
 app.post('/api/login', async (c) => {
+  const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown-ip';
+  if (!rateLimitLogin(ip)) {
+    return c.json({ success: false, message: 'Too many login attempts. Please try again later.' }, 429);
+  }
+
   try {
     const body = await c.req.json()
     const parsed = loginSchema.safeParse(body)
