@@ -33,7 +33,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddLoanDialogContent} from './AddLoanDialog.tsx';
-import {apiUrl} from './config';
+import {apiFetch} from './config';
 
 export interface LoanRow extends Record<string, unknown> {
   id: string;
@@ -68,7 +68,7 @@ export default function LoansTemplate() {
   const fetchLoans = () => {
     setIsLoading(true);
     setError(null);
-    fetch(apiUrl('/api/loans'))
+    apiFetch('/api/loans')
       .then(res => {
         if (!res.ok) throw new Error('Gagal mengambil data pinjaman');
         return res.json();
@@ -87,7 +87,7 @@ export default function LoansTemplate() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const res = await fetch(apiUrl(`/api/loans/${id}/status`), {
+      const res = await apiFetch(`/api/loans/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -114,7 +114,7 @@ export default function LoansTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newLoan) => {
           try {
-            const res = await fetch(apiUrl('/api/loans'), {
+            const res = await apiFetch('/api/loans', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newLoan)
