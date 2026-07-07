@@ -34,11 +34,13 @@ import {
   TrashIcon,
   BanknotesIcon,
   PencilIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddMemberDialogContent} from './AddMemberDialog.tsx';
 import {EditMemberDialogContent} from './EditMemberDialog.tsx';
 import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
+import {TransactionHistoryDialogContent} from './TransactionHistoryDialog.tsx';
 import {useToast} from '@astryxdesign/core/Toast';
 import {apiFetch} from './config';
 import {useApiQuery} from './hooks/useApiQuery';
@@ -116,7 +118,7 @@ export default function MembersTemplate() {
     );
   };
 
-  const handleUpdateSavings = (id: string) => {
+  const handleUpdateSavings = (member: MemberRow) => {
     dialog.show(
       <UpdateSavingsDialogContent 
         onClose={() => dialog.hide()}
@@ -139,6 +141,15 @@ export default function MembersTemplate() {
             dialog.hide();
           }
         }}
+      />
+    );
+  };
+
+  const handleShowHistory = (member: MemberRow) => {
+    dialog.show(
+      <TransactionHistoryDialogContent
+        member={member}
+        onClose={() => dialog.hide()}
       />
     );
   };
@@ -232,6 +243,13 @@ export default function MembersTemplate() {
             variant="ghost" 
             size="sm" 
             onClick={() => handleUpdateSavings(item)} 
+          />
+          <IconButton 
+            icon={<Icon icon={ClockIcon} />} 
+            label="Riwayat" 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleShowHistory(item)} 
           />
           <IconButton 
             icon={<Icon icon={TrashIcon} />} 

@@ -101,4 +101,54 @@ describe("API Endpoints", () => {
     const updateBody = await updateRes.json();
     expect(updateBody.success).toBe(true);
   });
+
+  test("PUT /api/members/:id/savings creates a transaction log and updates savings", async () => {
+    // 1. Create a member
+    const createReq = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Test Transaction",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        totalSavings: 5000
+      })
+    });
+    const createRes = await server.fetch(createReq);
+    const newId = (await createRes.json()).id;
+
+    // 2. Add savings
+    const saveReq = new Request(`http://localhost/api/members/${newId}/savings`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        additionalSavings: 2000
+      })
+    });
+    const saveRes = await server.fetch(saveReq);
+    expect(saveRes.status).toBe(200);
+    const saveBody = await saveRes.json();
+    expect(saveBody.newTotal).toBe(7000);
+
+    // 3. Get transactions
+    const txReq = new Request(`http://localhost/api/members/${newId}/transactions`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const txRes = await server.fetch(txReq);
+    expect(txRes.status).toBe(200);
+    const txBody = await txRes.json();
+    expect(Array.isArray(txBody)).toBe(true);
+    expect(txBody.length).toBe(1);
+    expect(txBody[0].amount).toBe(2000);
+    expect(txBody[0].type).toBe("setor");
+    expect(txBody[0].balanceBefore).toBe(5000);
+    expect(txBody[0].balanceAfter).toBe(7000);
+  });
 });
