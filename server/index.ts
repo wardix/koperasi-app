@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { jwt, sign } from 'hono/jwt'
 import db from './db'
 import { z } from 'zod'
 
@@ -10,6 +11,19 @@ app.use('/*', cors({
   origin: 'http://localhost:5173',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
 }))
+
+const JWT_SECRET = 'koperasi-super-secret-key-2026'
+
+app.use('/api/*', async (c, next) => {
+  if (c.req.path === '/api/login' || c.req.path === '/api/logout') {
+    return next()
+  }
+  const jwtMiddleware = jwt({
+    secret: JWT_SECRET,
+    alg: 'HS256',
+  })
+  return jwtMiddleware(c, next)
+})
 
 // Zod schemas
 const memberSchema = z.object({
@@ -200,12 +214,17 @@ app.post('/api/login', async (c) => {
 
     const { email, password } = parsed.data
     
-    const admin = db.query("SELECT * FROM admins WHERE email = ?").get(email) as {password: string} | undefined
+    const admin = db.query("SELECT * FROM admins WHERE email = ?").get(email) as {password: string, email: string} | undefined
     
     if (admin) {
       const isMatch = await Bun.password.verify(password, admin.password)
       if (isMatch) {
-        return c.json({ success: true, message: 'Login successful' })
+        const payload = {
+          email: admin.email,
+          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24 hours
+        }
+        const token = await sign(payload, JWT_SECRET)
+        return c.json({ success: true, message: 'Login successful', token })
       }
     }
     
@@ -213,6 +232,11 @@ app.post('/api/login', async (c) => {
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
   }
+})
+
+// Logout endpoint
+app.post('/api/logout', (c) => {
+  return c.json({ success: true, message: 'Logout successful' })
 })
 
 // Get settings
