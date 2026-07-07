@@ -30,6 +30,8 @@ export interface LoanRow extends Record<string, unknown> {
   purpose: string;
   status: string;
   paidAmount?: number;
+  interestAmount?: number;
+  totalAmount?: number;
 }
 
 export interface PaginatedResponse<T> {
