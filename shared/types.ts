@@ -14,6 +14,9 @@ export interface MemberRow extends Record<string, unknown> {
   role: string;
   status: string;
   joinDate: string;
+  simpananPokok: number;
+  simpananWajib: number;
+  simpananSukarela: number;
   totalSavings: number;
 }
 
