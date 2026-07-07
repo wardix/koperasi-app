@@ -14,7 +14,6 @@ import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
-import {formatRp} from './utils';
 import {useToast} from '@astryxdesign/core/Toast';
 import {apiFetch} from './config';
 import {useApiQuery} from './hooks/useApiQuery';
