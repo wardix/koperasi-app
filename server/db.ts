@@ -77,6 +77,12 @@ db.query(`
   );
 `).run();
 
+db.run(`
+  CREATE INDEX IF NOT EXISTS idx_transactions_memberId ON transactions(memberId);
+  CREATE INDEX IF NOT EXISTS idx_loans_memberId ON loans(memberId);
+  CREATE INDEX IF NOT EXISTS idx_loan_payments_loanId ON loan_payments(loanId);
+`);
+
 // Insert initial seed data if table is empty
 const memberCount = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number };
 if (memberCount.count === 0) {
