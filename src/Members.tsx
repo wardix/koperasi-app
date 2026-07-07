@@ -41,48 +41,7 @@ interface MemberRow extends Record<string, unknown> {
   totalSavings: string;
 }
 
-const allMembers: MemberRow[] = [
-  {
-    id: '1',
-    name: 'Budi Santoso',
-    role: 'Anggota',
-    status: 'Aktif',
-    joinDate: '12 Jan 2023',
-    totalSavings: 'Rp 15.000.000',
-  },
-  {
-    id: '2',
-    name: 'Siti Aminah',
-    role: 'Bendahara',
-    status: 'Aktif',
-    joinDate: '05 Mar 2021',
-    totalSavings: 'Rp 28.500.000',
-  },
-  {
-    id: '3',
-    name: 'Ahmad Dahlan',
-    role: 'Anggota',
-    status: 'Pasif',
-    joinDate: '22 Nov 2022',
-    totalSavings: 'Rp 2.100.000',
-  },
-  {
-    id: '4',
-    name: 'Dewi Lestari',
-    role: 'Anggota',
-    status: 'Aktif',
-    joinDate: '15 Aug 2023',
-    totalSavings: 'Rp 8.750.000',
-  },
-  {
-    id: '5',
-    name: 'Rudi Hermawan',
-    role: 'Ketua',
-    status: 'Aktif',
-    joinDate: '10 Feb 2020',
-    totalSavings: 'Rp 45.000.000',
-  },
-];
+
 
 const statusValues = [
   {value: 'Aktif', label: 'Aktif'},
