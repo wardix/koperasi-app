@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import server from "./index";
+import server, { secretKey } from "./index";
 
 import { sign } from "hono/jwt";
 
@@ -7,7 +7,7 @@ describe("API Endpoints", () => {
   let token = "";
   
   test("setup token", async () => {
-    token = await sign({ email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, "koperasi-super-secret-key-2026");
+    token = await sign({ email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
   });
 
   test("GET /api/stats returns stats", async () => {
@@ -63,7 +63,7 @@ describe("API Endpoints", () => {
   });
 
   test("RBAC: viewer cannot create member", async () => {
-    const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, "koperasi-super-secret-key-2026");
+    const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
     const req = new Request("http://localhost/api/members", {
       method: "POST",
       headers: {
