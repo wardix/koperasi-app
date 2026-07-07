@@ -64,6 +64,17 @@ try {
   // Ignore if column already exists
 }
 
+db.query(`
+  CREATE TABLE IF NOT EXISTS loan_payments (
+    id TEXT PRIMARY KEY,
+    loanId TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    paymentDate TEXT NOT NULL,
+    method TEXT NOT NULL,
+    FOREIGN KEY(loanId) REFERENCES loans(id) ON DELETE CASCADE
+  );
+`).run();
+
 // Insert initial seed data if table is empty
 const memberCount = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number };
 if (memberCount.count === 0) {
