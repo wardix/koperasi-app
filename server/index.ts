@@ -132,6 +132,33 @@ app.post('/api/members', async (c) => {
   }
 })
 
+// Update member
+app.put('/api/members/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const body = await c.req.json()
+    const parsed = memberSchema.safeParse(body)
+    
+    if (!parsed.success) {
+      return c.json({ success: false, errors: parsed.error.format() }, 400)
+    }
+
+    const { name, role, status, joinDate, totalSavings } = parsed.data
+
+    const update = db.prepare(`
+      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?, totalSavings = ?
+      WHERE id = ?
+    `)
+    
+    update.run(name, role, status, joinDate, totalSavings, id)
+    
+    return c.json({ success: true, message: 'Member updated successfully' })
+  } catch (error) {
+    return c.json({ success: false, message: 'Invalid request' }, 400)
+  }
+})
+
+
 // Update member savings
 app.put('/api/members/:id/savings', async (c) => {
   try {

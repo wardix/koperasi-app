@@ -33,9 +33,11 @@ import {
   PlusIcon,
   TrashIcon,
   BanknotesIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddMemberDialogContent} from './AddMemberDialog.tsx';
+import {EditMemberDialogContent} from './EditMemberDialog.tsx';
 import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
 import {useToast} from '@astryxdesign/core/Toast';
 import {apiFetch} from './config';
@@ -141,6 +143,35 @@ export default function MembersTemplate() {
     );
   };
 
+  const handleEditMember = (member: MemberRow) => {
+    dialog.show(
+      <EditMemberDialogContent
+        initialData={member}
+        onClose={() => dialog.hide()}
+        onEdit={async (data) => {
+          try {
+            const res = await apiFetch(`/api/members/${member.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            if (res.ok) {
+              toast.show({body: 'Anggota berhasil diubah', type: 'info'});
+              fetchMembers();
+            } else {
+              toast.show({body: 'Gagal mengubah anggota', type: 'error'});
+            }
+          } catch (err) {
+            console.error("Error editing member:", err);
+            toast.show({body: 'Gagal mengubah anggota', type: 'error'});
+          } finally {
+            dialog.hide();
+          }
+        }}
+      />
+    );
+  };
+
   const columns: TableColumn<MemberRow>[] = [
     {
       key: 'name',
@@ -188,6 +219,13 @@ export default function MembersTemplate() {
       width: pixel(100),
       renderCell: (item: MemberRow) => (
         <HStack gap={1}>
+          <IconButton 
+            icon={<Icon icon={PencilIcon} />} 
+            label="Edit" 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleEditMember(item)} 
+          />
           <IconButton 
             icon={<Icon icon={BanknotesIcon} />} 
             label="Setor" 
