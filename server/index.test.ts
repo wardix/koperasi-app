@@ -326,4 +326,77 @@ describe("API Endpoints", () => {
     expect(bodyPay.success).toBe(false);
     expect(bodyPay.message).toBe("Total pembayaran melebihi jumlah pinjaman");
   });
+
+  test("POST /api/loans/:id/payments allows paying up to total amount including interest", async () => {
+    // 1. Create a member
+    const createMemReq = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Test Interest Payment",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 1000
+      })
+    });
+    const resMem = await server.fetch(createMemReq);
+    const member = (await resMem.json()) as any;
+
+    // 2. Create a loan for 1,000,000 with 12 months tenor.
+    // Interest is 1.5% per month, so 1.5% * 12 = 18%. Total amount is 1,180,000.
+    const createLoanReq = new Request("http://localhost/api/loans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        memberId: member.id,
+        name: "Test Interest Payment",
+        amount: 1000000,
+        tenor: "12 Bulan",
+        purpose: "Konsumtif",
+        status: "Disetujui"
+      })
+    });
+    const resLoan = await server.fetch(createLoanReq);
+    const loan = (await resLoan.json()) as any;
+
+    // 3. Make a payment of 1,100,000 (exceeds 1,000,000 principal but is within 1,180,000 total amount)
+    const payReq1 = new Request(`http://localhost/api/loans/${loan.id}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        amount: 1100000,
+        method: "Transfer"
+      })
+    });
+    const resPay1 = await server.fetch(payReq1);
+    expect(resPay1.status).toBe(201);
+
+    // 4. Try another payment of 100,000 (making total paid 1,200,000, which exceeds 1,180,000)
+    const payReq2 = new Request(`http://localhost/api/loans/${loan.id}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        amount: 100000,
+        method: "Transfer"
+      })
+    });
+    const resPay2 = await server.fetch(payReq2);
+    expect(resPay2.status).toBe(400);
+    const bodyPay2 = (await resPay2.json()) as any;
+    expect(bodyPay2.success).toBe(false);
+    expect(bodyPay2.message).toBe("Total pembayaran melebihi jumlah pinjaman");
+  });
 });

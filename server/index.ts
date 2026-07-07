@@ -367,12 +367,18 @@ app.post('/api/loans/:id/payments', requireAdmin, async (c) => {
     const { amount, method } = parsed.data
     
     // validate overpayment
-    const loan = db.query("SELECT amount FROM loans WHERE id = ?").get(loanId) as { amount: number };
+    const loan = db.query("SELECT amount, tenor FROM loans WHERE id = ?").get(loanId) as { amount: number, tenor: string } | null;
     if (!loan) return c.json({ success: false, message: 'Loan not found' }, 404);
+
+    const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+    const bungaRate = parseFloat(bungaSetting?.value || '0');
+    const tenorMonths = parseInt(loan.tenor) || 1;
+    const interestAmount = Math.round(loan.amount * (bungaRate / 100) * tenorMonths);
+    const totalAmount = loan.amount + interestAmount;
     
     const paid = (db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0;
     
-    if (paid + amount > loan.amount) {
+    if (paid + amount > totalAmount) {
       return c.json({ success: false, message: 'Total pembayaran melebihi jumlah pinjaman' }, 400);
     }
     
