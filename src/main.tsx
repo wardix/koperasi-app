@@ -49,11 +49,14 @@ function Root() {
 }
 
 import { BrowserRouter } from 'react-router-dom'
+import { ErrorBoundary } from './ErrorBoundary.tsx'
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Root />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Root />
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 )
