@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import server, { secretKey } from "./index";
+import server, { secretKey, _test } from "./index";
 
 import { sign } from "hono/jwt";
 
@@ -415,5 +415,21 @@ describe("API Endpoints", () => {
     expect(body.distribusi).toBeDefined();
     expect(body.distribusi.anggota).toBe(Math.round(body.shuNetto * 0.40));
     expect(Array.isArray(body.alokasiAnggota)).toBe(true);
+  });
+
+  test("rate limit cleanup deletes expired entries", () => {
+    const now = Date.now();
+    
+    // Add one expired and one non-expired attempt
+    _test.loginAttempts.set("1.1.1.1", { count: 3, resetAt: now - 1000 }); // expired
+    _test.loginAttempts.set("2.2.2.2", { count: 2, resetAt: now + 60000 }); // not expired
+    
+    _test.cleanupAttempts();
+    
+    expect(_test.loginAttempts.has("1.1.1.1")).toBe(false);
+    expect(_test.loginAttempts.has("2.2.2.2")).toBe(true);
+    
+    // Clean up
+    _test.loginAttempts.delete("2.2.2.2");
   });
 });
