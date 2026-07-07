@@ -261,6 +261,9 @@ app.get('/api/loans', (c) => {
   const limit = parseInt(c.req.query('limit') || '20')
   const offset = (page - 1) * limit
 
+  const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaRate = parseFloat(bungaSetting?.value || '0');
+
   const loans = db.query(`
     SELECT l.*, COALESCE(SUM(p.amount), 0) as paidAmount 
     FROM loans l
@@ -268,11 +271,25 @@ app.get('/api/loans', (c) => {
     GROUP BY l.id
     ORDER BY l.rowid DESC 
     LIMIT ? OFFSET ?
-  `).all(limit, offset)
+  `).all(limit, offset) as any[]
+  
+  const mappedLoans = loans.map(loan => {
+    const tenorMonths = parseInt(loan.tenor) || 1;
+    // Flat interest calculation: (pokok * (bungaRate / 100)) * tenor
+    const interestAmount = Math.round(loan.amount * (bungaRate / 100) * tenorMonths);
+    const totalAmount = loan.amount + interestAmount;
+    
+    return {
+      ...loan,
+      interestAmount,
+      totalAmount
+    }
+  });
+
   const totalRes = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
 
   return c.json({
-    data: loans,
+    data: mappedLoans,
     total: totalRes.count,
     page,
     limit

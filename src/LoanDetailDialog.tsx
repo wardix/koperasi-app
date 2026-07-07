@@ -46,11 +46,13 @@ export function LoanDetailDialogContent({
 
   // Calculations
   const tenorBulan = parseInt(loan.tenor) || 1; // Assuming format "X Bulan"
-  const bunga = 0; // if there's interest, calculate here
-  const angsuranPerBulan = Math.ceil((loan.amount + bunga) / tenorBulan);
+  const pokok = loan.amount;
+  const bunga = loan.interestAmount || 0;
+  const totalHutang = loan.totalAmount || (pokok + bunga);
+  const angsuranPerBulan = Math.ceil(totalHutang / tenorBulan);
   
   const totalPaid = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const remainingDebt = loan.amount + bunga - totalPaid;
+  const remainingDebt = totalHutang - totalPaid;
 
   const handlePay = async () => {
     const amount = parseInt(payAmount, 10);
@@ -136,8 +138,18 @@ export function LoanDetailDialogContent({
           <VStack gap={6}>
             <HStack gap={4}>
               <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
-                <Text type="supporting" color="secondary">Total Pinjaman</Text>
-                <Heading level={3}>Rp {loan.amount.toLocaleString('id-ID')}</Heading>
+                <Text type="supporting" color="secondary">Pokok</Text>
+                <Heading level={3}>Rp {pokok.toLocaleString('id-ID')}</Heading>
+              </VStack>
+              <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
+                <Text type="supporting" color="secondary">Bunga</Text>
+                <Heading level={3}>Rp {bunga.toLocaleString('id-ID')}</Heading>
+              </VStack>
+            </HStack>
+            <HStack gap={4}>
+              <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
+                <Text type="supporting" color="secondary">Total Hutang</Text>
+                <Heading level={3}>Rp {totalHutang.toLocaleString('id-ID')}</Heading>
               </VStack>
               <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
                 <Text type="supporting" color="secondary">Sisa Hutang</Text>
