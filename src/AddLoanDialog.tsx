@@ -21,7 +21,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
     onAdd({
       id: Date.now().toString(),
       name,
-      amount: `Rp ${Number(amount).toLocaleString('id-ID')}`,
+      amount: Number(amount) || 0,
       tenor,
       purpose,
       status: 'Menunggu',

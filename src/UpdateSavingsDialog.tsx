@@ -6,7 +6,7 @@ import {Button} from '@astryxdesign/core/Button';
 
 interface Props {
   onClose: () => void;
-  onSave: (additionalSavings: string) => void;
+  onSave: (additionalSavings: number) => void;
 }
 
 export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
@@ -14,7 +14,7 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
 
   const handleSave = () => {
     if (!amount) return;
-    onSave(amount);
+    onSave(parseInt(amount, 10) || 0);
     onClose();
   };
 

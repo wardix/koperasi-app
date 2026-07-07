@@ -38,7 +38,7 @@ interface MemberRow extends Record<string, unknown> {
   role: string;
   status: string;
   joinDate: string;
-  totalSavings: string;
+  totalSavings: number;
 }
 
 
@@ -146,7 +146,7 @@ export default function MembersTemplate() {
       key: 'totalSavings',
       header: 'Total Simpanan',
       width: proportional(1),
-      renderCell: (item: MemberRow) => <Text type="body">{item.totalSavings}</Text>,
+      renderCell: (item: MemberRow) => <Text type="body">{'Rp ' + item.totalSavings.toLocaleString('id-ID')}</Text>,
     },
     {
       key: 'actions',
