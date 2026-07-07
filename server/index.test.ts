@@ -171,6 +171,7 @@ describe("API Endpoints", () => {
     expect(txBody[0].type).toBe("setor_sukarela");
     expect(txBody[0].balanceBefore).toBe(5000);
     expect(txBody[0].balanceAfter).toBe(7000);
+    expect(txBody[0].createdBy).toBe("test@example.com");
   });
   
   test("PUT /api/members/:id/savings prevents negative balance", async () => {
