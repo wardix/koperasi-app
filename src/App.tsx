@@ -16,8 +16,8 @@ import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
-import {useEffect, useState} from 'react';
-import {apiFetch} from './config';
+import {useState, useEffect} from 'react';
+import {useApiQuery} from './hooks/useApiQuery';
 import {
   BarChart,
   Bar,
@@ -328,38 +328,18 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
 
 export default function DashboardTemplate() {
   const [metrics, setMetrics] = useState(defaultMetrics);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStats = () => {
-    setIsLoading(true);
-    setError(null);
-    apiFetch('/api/stats')
-      .then(res => {
-        if (!res.ok) throw new Error('Gagal mengambil data dasbor');
-        return res.json();
-      })
-      .then((data: DashboardData) => {
-        setDashboardData(data);
-        setMetrics([
-          { ...defaultMetrics[0], value: data.activeMembers },
-          { ...defaultMetrics[1], value: data.totalSavings },
-          { ...defaultMetrics[2], value: data.totalLoans },
-          defaultMetrics[3] // NPL remains static
-        ]);
-      })
-      .catch(err => {
-        console.error(err);
-        setError(err.message);
-      })
-      .finally(() => setIsLoading(false));
-  };
+  const { data: dashboardData, isLoading, error, refetch: fetchStats } = useApiQuery<DashboardData>('/api/stats');
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (dashboardData) {
+      setMetrics([
+        { ...defaultMetrics[0], value: dashboardData.activeMembers },
+        { ...defaultMetrics[1], value: dashboardData.totalSavings },
+        { ...defaultMetrics[2], value: dashboardData.totalLoans },
+        defaultMetrics[3] // NPL remains static
+      ]);
+    }
+  }, [dashboardData]);
 
   return (
     <Layout
