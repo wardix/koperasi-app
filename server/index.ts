@@ -65,11 +65,16 @@ const loanSchema = z.object({
   amount: z.number().positive(),
   tenor: z.string().min(1, "Tenor is required"),
   purpose: z.string().min(1, "Purpose is required"),
-  status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]),
+  status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]).default("Menunggu")
 })
 
 const loanStatusSchema = z.object({
   status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]),
+})
+
+const paymentSchema = z.object({
+  amount: z.number().positive(),
+  method: z.string().min(1)
 })
 
 const loginSchema = z.object({
@@ -229,7 +234,14 @@ app.get('/api/loans', (c) => {
   const limit = parseInt(c.req.query('limit') || '20')
   const offset = (page - 1) * limit
 
-  const loans = db.query("SELECT * FROM loans ORDER BY rowid DESC LIMIT ? OFFSET ?").all(limit, offset)
+  const loans = db.query(`
+    SELECT l.*, COALESCE(SUM(p.amount), 0) as paidAmount 
+    FROM loans l
+    LEFT JOIN loan_payments p ON l.id = p.loanId
+    GROUP BY l.id
+    ORDER BY l.rowid DESC 
+    LIMIT ? OFFSET ?
+  `).all(limit, offset)
   const totalRes = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
 
   return c.json({
@@ -285,6 +297,41 @@ app.put('/api/loans/:id/status', async (c) => {
     update.run(status, id)
     
     return c.json({ success: true, message: 'Loan status updated' })
+  } catch (error) {
+    return c.json({ success: false, message: 'Invalid request' }, 400)
+  }
+})
+
+// Get loan payments
+app.get('/api/loans/:id/payments', (c) => {
+  const id = c.req.param('id')
+  const payments = db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
+  return c.json(payments)
+})
+
+// Create loan payment
+app.post('/api/loans/:id/payments', async (c) => {
+  try {
+    const loanId = c.req.param('id')
+    const body = await c.req.json()
+    const parsed = paymentSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return c.json({ success: false, errors: parsed.error.format() }, 400)
+    }
+
+    const { amount, method } = parsed.data
+    const id = crypto.randomUUID()
+    const paymentDate = new Date().toISOString()
+
+    const insert = db.prepare(`
+      INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
+      VALUES (?, ?, ?, ?, ?)
+    `)
+    
+    insert.run(id, loanId, amount, paymentDate, method)
+    
+    return c.json({ success: true, message: 'Payment recorded successfully', id }, 201)
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
   }

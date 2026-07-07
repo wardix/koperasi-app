@@ -33,9 +33,11 @@ import {
   CheckIcon,
   XMarkIcon,
   PlusIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddLoanDialogContent} from './AddLoanDialog.tsx';
+import {LoanDetailDialogContent} from './LoanDetailDialog.tsx';
 
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';
@@ -139,7 +141,16 @@ export default function LoansTemplate() {
       key: 'amount',
       header: 'Jumlah Pinjaman',
       width: proportional(1),
-      renderCell: (item: LoanRow) => <Text type="body">{'Rp ' + item.amount.toLocaleString('id-ID')}</Text>,
+      renderCell: (item: LoanRow) => (
+        <VStack gap={1}>
+          <Text type="body">{'Rp ' + item.amount.toLocaleString('id-ID')}</Text>
+          {item.status === 'Disetujui' && (
+            <Text type="supporting" color={item.amount - (item.paidAmount || 0) > 0 ? 'error' : 'success'} style={{ fontSize: '12px' }}>
+              Sisa: Rp {Math.max(0, item.amount - (item.paidAmount || 0)).toLocaleString('id-ID')}
+            </Text>
+          )}
+        </VStack>
+      ),
     },
     {
       key: 'tenor',
@@ -164,11 +175,31 @@ export default function LoansTemplate() {
       header: 'Aksi',
       width: pixel(120),
       renderCell: (item: LoanRow) => {
-        if (item.status !== 'Menunggu') return null;
         return (
           <HStack gap={2}>
-            <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Disetujui')} />
-            <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Ditolak')} />
+            {item.status === 'Menunggu' && (
+              <>
+                <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Disetujui')} />
+                <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Ditolak')} />
+              </>
+            )}
+            {(item.status === 'Disetujui' || item.status === 'Lunas') && (
+              <IconButton 
+                icon={<Icon icon={EyeIcon} />} 
+                label="Detail" 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  dialog.show(
+                    <LoanDetailDialogContent 
+                      loan={item} 
+                      onClose={() => dialog.hide()} 
+                      onUpdate={() => fetchLoans()} 
+                    />
+                  );
+                }} 
+              />
+            )}
           </HStack>
         );
       },

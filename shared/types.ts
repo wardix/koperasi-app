@@ -28,6 +28,7 @@ export interface LoanRow extends Record<string, unknown> {
   tenor: string;
   purpose: string;
   status: string;
+  paidAmount?: number;
 }
 
 export interface PaginatedResponse<T> {
