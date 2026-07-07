@@ -625,14 +625,25 @@ app.put('/api/settings', requireAdmin, async (c) => {
 app.get('/api/shu', (c) => {
   const year = c.req.query('year') || new Date().getFullYear().toString();
   
-  const paymentRes = db.query("SELECT COALESCE(SUM(amount), 0) as total FROM loan_payments WHERE strftime('%Y', paymentDate) = ?").get(year) as { total: number };
-  const totalPembayaran = paymentRes.total;
-  
   const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
   const bungaRate = parseFloat(bungaSetting?.value || '1.5');
+
+  const payments = db.query(`
+    SELECT lp.amount as paymentAmount, l.amount as principalAmount, l.tenor
+    FROM loan_payments lp
+    JOIN loans l ON lp.loanId = l.id
+    WHERE strftime('%Y', lp.paymentDate) = ?
+  `).all(year) as any[];
+
+  let pendapatan = 0;
+  for (const p of payments) {
+    const tenorMonths = parseInt(p.tenor) || 1;
+    const interestAmount = Math.round(p.principalAmount * (bungaRate / 100) * tenorMonths);
+    const totalAmount = p.principalAmount + interestAmount;
+    const interestPaid = totalAmount > 0 ? Math.round(p.paymentAmount * (interestAmount / totalAmount)) : 0;
+    pendapatan += interestPaid;
+  }
   
-  // Pendapatan asumsi sederhana dari persentase bunga terhadap total pembayaran
-  const pendapatan = Math.round(totalPembayaran * (bungaRate / 100));
   const biayaOperasional = Math.round(pendapatan * 0.2); // Asumsi biaya ops 20%
   const shuNetto = Math.max(0, pendapatan - biayaOperasional);
   

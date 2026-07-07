@@ -399,4 +399,21 @@ describe("API Endpoints", () => {
     expect(bodyPay2.success).toBe(false);
     expect(bodyPay2.message).toBe("Total pembayaran melebihi jumlah pinjaman");
   });
+
+  test("GET /api/shu returns correct SHU calculations and allocations", async () => {
+    const shuReq = new Request("http://localhost/api/shu?year=2026", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const res = await server.fetch(shuReq);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    
+    expect(body.year).toBe("2026");
+    expect(typeof body.pendapatan).toBe("number");
+    expect(typeof body.biayaOperasional).toBe("number");
+    expect(typeof body.shuNetto).toBe("number");
+    expect(body.distribusi).toBeDefined();
+    expect(body.distribusi.anggota).toBe(Math.round(body.shuNetto * 0.40));
+    expect(Array.isArray(body.alokasiAnggota)).toBe(true);
+  });
 });
