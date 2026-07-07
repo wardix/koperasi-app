@@ -19,6 +19,7 @@ export interface MemberRow extends Record<string, unknown> {
 
 export interface LoanRow extends Record<string, unknown> {
   id: string;
+  memberId: string;
   name: string;
   amount: number;
   tenor: string;

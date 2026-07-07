@@ -1,8 +1,12 @@
-import {useState} from 'react';
+import {useState, useMemo} from 'react';
 import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
+import {Typeahead} from '@astryxdesign/core/Typeahead';
+import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
+import {useApiQuery} from './hooks/useApiQuery';
+import type {PaginatedResponse, MemberRow} from '../shared/types';
 import type {LoanRow} from './Loans';
 
 interface Props {
@@ -11,15 +15,31 @@ interface Props {
 }
 
 export function AddLoanDialogContent({onClose, onAdd}: Props) {
-  const [name, setName] = useState('');
+  const [selectedMember, setSelectedMember] = useState<SearchableItem | null>(null);
   const [amount, setAmount] = useState('');
   const [tenor, setTenor] = useState('12 Bulan');
   const [purpose, setPurpose] = useState('');
 
+  const { data: membersRes } = useApiQuery<PaginatedResponse<MemberRow>>('/api/members?page=1&limit=1000');
+  const members = membersRes?.data || [];
+
+  const memberItems: SearchableItem[] = useMemo(() => {
+    return members.map(m => ({ id: m.id, label: m.name }));
+  }, [members]);
+
+  const memberSearchSource: SearchSource<SearchableItem> = {
+    search: (query: string) =>
+      memberItems.filter(item =>
+        item.label.toLowerCase().includes(query.toLowerCase()),
+      ),
+    bootstrap: () => memberItems,
+  };
+
   const handleSave = () => {
-    if (!name || !amount) return;
+    if (!selectedMember || !amount) return;
     onAdd({
-      name,
+      memberId: selectedMember.id,
+      name: selectedMember.label,
       amount: Number(amount) || 0,
       tenor,
       purpose,
@@ -38,11 +58,13 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
       </VStack>
       
       <VStack gap={3}>
-        <TextInput
-          label="Nama Peminjam"
-          value={name}
-          onChange={setName}
-          placeholder="Nama Anggota"
+        <Typeahead
+          label="Pilih Anggota"
+          placeholder="Cari anggota..."
+          searchSource={memberSearchSource}
+          value={selectedMember}
+          onChange={setSelectedMember}
+          hasEntriesOnFocus
         />
         <TextInput
           label="Jumlah Pinjaman (Rp)"
