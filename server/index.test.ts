@@ -268,4 +268,61 @@ describe("API Endpoints", () => {
     expect(getBody.length).toBe(1);
     expect(getBody[0].amount).toBe(1000);
   });
+  
+  test("POST /api/loans/:id/payments prevents overpayment", async () => {
+    // 1. Create a member
+    const createMemReq = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Test Overpayment",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 1000
+      })
+    });
+    const resMem = await server.fetch(createMemReq);
+    const member = (await resMem.json()) as any;
+
+    // 2. Create a loan for 1,000,000
+    const createLoanReq = new Request("http://localhost/api/loans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        memberId: member.id,
+        name: "Test Overpayment",
+        amount: 1000000,
+        tenor: "12 Bulan",
+        purpose: "Konsumtif",
+        status: "Disetujui"
+      })
+    });
+    const resLoan = await server.fetch(createLoanReq);
+    const loan = (await resLoan.json()) as any;
+
+    // 3. Make a payment of 1,500,000 (exceeds 1,000,000)
+    const payReq = new Request(`http://localhost/api/loans/${loan.id}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        amount: 1500000,
+        method: "Transfer"
+      })
+    });
+    const resPay = await server.fetch(payReq);
+    expect(resPay.status).toBe(400);
+    const bodyPay = (await resPay.json()) as any;
+    expect(bodyPay.success).toBe(false);
+    expect(bodyPay.message).toBe("Total pembayaran melebihi jumlah pinjaman");
+  });
 });
