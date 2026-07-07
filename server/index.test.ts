@@ -28,7 +28,8 @@ describe("API Endpoints", () => {
     const res = await server.fetch(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveProperty("data");
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   test("GET /api/loans returns loans array", async () => {
@@ -38,7 +39,8 @@ describe("API Endpoints", () => {
     const res = await server.fetch(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveProperty("data");
+    expect(Array.isArray(body.data)).toBe(true);
   });
   
   test("POST /api/login rate limit works", async () => {
