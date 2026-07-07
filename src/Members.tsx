@@ -12,6 +12,7 @@ import {
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
+import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
@@ -31,6 +32,7 @@ import {
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddMemberDialogContent} from './AddMemberDialog.tsx';
 import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
+import {useToast} from '@astryxdesign/core/Toast';
 import {apiUrl} from './config';
 
 interface MemberRow extends Record<string, unknown> {
@@ -68,6 +70,7 @@ export default function MembersTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
+  const toast = useToast();
 
   useEffect(() => {
     fetch(apiUrl('/api/members'))
@@ -76,13 +79,34 @@ export default function MembersTemplate() {
       .catch(err => console.error("Error fetching members:", err));
   }, []);
 
-  const handleDelete = async (id: string) => {
-    try {
-      await fetch(apiUrl(`/api/members/${id}`), { method: 'DELETE' });
-      setMembers(members.filter(m => m.id !== id));
-    } catch (err) {
-      console.error("Error deleting member:", err);
-    }
+  const handleDelete = (member: MemberRow) => {
+    dialog.show(
+      <Card style={{ padding: '24px', width: '100%', boxSizing: 'border-box' }}>
+        <VStack gap={4}>
+          <Heading level={4}>Konfirmasi Hapus</Heading>
+          <Text type="body">Apakah Anda yakin ingin menghapus anggota {member.name}?</Text>
+          <HStack gap={2} hAlign="end">
+            <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
+            <Button color="error" label="Hapus" onClick={async () => {
+              try {
+                const res = await fetch(apiUrl(`/api/members/${member.id}`), { method: 'DELETE' });
+                if (res.ok) {
+                  setMembers(members.filter(m => m.id !== member.id));
+                  toast.show({body: 'Anggota berhasil dihapus', type: 'info'});
+                } else {
+                  toast.show({body: 'Gagal menghapus anggota', type: 'error'});
+                }
+              } catch (err) {
+                console.error("Error deleting member:", err);
+                toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
+              } finally {
+                dialog.hide();
+              }
+            }} />
+          </HStack>
+        </VStack>
+      </Card>
+    );
   };
 
   const handleUpdateSavings = (id: string) => {
@@ -168,7 +192,7 @@ export default function MembersTemplate() {
             variant="ghost" 
             color="error" 
             size="sm" 
-            onClick={() => handleDelete(item.id)} 
+            onClick={() => handleDelete(item)} 
           />
         </HStack>
       ),
