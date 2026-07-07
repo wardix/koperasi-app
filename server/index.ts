@@ -2,10 +2,13 @@ import type { MemberRow, LoanRow, DashboardData, SettingsData } from "../shared/
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { jwt, sign } from 'hono/jwt'
+import { secureHeaders } from 'hono/secure-headers'
 import db from './db'
 import { z } from 'zod'
 
 const app = new Hono()
+
+app.use('*', secureHeaders())
 
 const allowedOrigins = (process.env.CORS_ORIGIN || Bun.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')
