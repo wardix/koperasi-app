@@ -8,7 +8,13 @@ import {
   Layout,
   LayoutContent,
   LayoutHeader,
+
 } from '@astryxdesign/core/Layout';
+import {Spinner} from '@astryxdesign/core/Spinner';
+import {Center} from '@astryxdesign/core/Center';
+import {EmptyState} from '@astryxdesign/core/EmptyState';
+import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
+import {useToast} from '@astryxdesign/core/Toast';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -55,11 +61,24 @@ export default function LoansTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+
   const fetchLoans = () => {
+    setIsLoading(true);
+    setError(null);
     fetch(apiUrl('/api/loans'))
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Gagal mengambil data pinjaman');
+        return res.json();
+      })
       .then(data => setLoans(data))
-      .catch(err => console.error("Error fetching loans:", err));
+      .catch(err => {
+        console.error(err);
+        setError(err.message);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -68,15 +87,20 @@ export default function LoansTemplate() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      await fetch(apiUrl(`/api/loans/${id}/status`), {
+      const res = await fetch(apiUrl(`/api/loans/${id}/status`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      // Update local state directly for immediate feedback
-      setLoans(loans.map(loan => loan.id === id ? { ...loan, status } : loan));
+      if (res.ok) {
+        setLoans(loans.map(loan => loan.id === id ? { ...loan, status } : loan));
+        toast.show({body: 'Status pinjaman berhasil diperbarui', type: 'info'});
+      } else {
+        toast.show({body: 'Gagal memperbarui status', type: 'error'});
+      }
     } catch (err) {
       console.error("Error updating loan status:", err);
+      toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
     }
   };
 
@@ -98,9 +122,13 @@ export default function LoansTemplate() {
             const data = await res.json();
             if (data.success) {
               setLoans([{ ...newLoan, id: data.id } as LoanRow, ...loans]);
+              toast.show({body: 'Pengajuan pinjaman berhasil ditambahkan', type: 'info'});
+            } else {
+              toast.show({body: 'Gagal menambahkan pengajuan pinjaman', type: 'error'});
             }
           } catch (err) {
             console.error("Error saving loan:", err);
+            toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
           }
         }}
       />
@@ -189,6 +217,20 @@ export default function LoansTemplate() {
       }
       content={
         <LayoutContent padding={3}>
+          {isLoading ? (
+            <Center style={{height: '100%'}}>
+              <Spinner size="large" />
+            </Center>
+          ) : error ? (
+            <Center style={{height: '100%'}}>
+              <EmptyState
+                icon={<ExclamationCircleIcon width={48} height={48} />}
+                title="Gagal Memuat Data Pinjaman"
+                description={error}
+                actions={<Button label="Coba Lagi" onClick={fetchLoans} />}
+              />
+            </Center>
+          ) : (
           <VStack gap={4}>
             <PowerSearch
               config={config}
@@ -208,6 +250,7 @@ export default function LoansTemplate() {
               hasHover
             />
           </VStack>
+          )}
         </LayoutContent>
       }
     />

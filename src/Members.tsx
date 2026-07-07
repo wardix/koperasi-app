@@ -10,7 +10,12 @@ import {
   Layout,
   LayoutContent,
   LayoutHeader,
+
 } from '@astryxdesign/core/Layout';
+import {Spinner} from '@astryxdesign/core/Spinner';
+import {Center} from '@astryxdesign/core/Center';
+import {EmptyState} from '@astryxdesign/core/EmptyState';
+import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
@@ -70,13 +75,28 @@ export default function MembersTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const toast = useToast();
 
-  useEffect(() => {
+  const fetchMembers = () => {
+    setIsLoading(true);
+    setError(null);
     fetch(apiUrl('/api/members'))
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Gagal mengambil data anggota');
+        return res.json();
+      })
       .then(data => setMembers(data))
-      .catch(err => console.error("Error fetching members:", err));
+      .catch(err => {
+        console.error(err);
+        setError(err.message);
+      })
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchMembers();
   }, []);
 
   const handleDelete = (member: MemberRow) => {
@@ -216,10 +236,14 @@ export default function MembersTemplate() {
             });
             const data = await res.json();
             if (data.success) {
-              setMembers([{ ...newMember, id: data.id }, ...members]);
+              setMembers([{ ...newMember, id: data.id } as MemberRow, ...members]);
+              toast.show({body: 'Anggota berhasil ditambahkan', type: 'info'});
+            } else {
+              toast.show({body: 'Gagal menambahkan anggota', type: 'error'});
             }
           } catch (err) {
             console.error("Error saving member:", err);
+            toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
           }
         }}
       />
@@ -256,6 +280,20 @@ export default function MembersTemplate() {
       }
       content={
         <LayoutContent padding={3}>
+          {isLoading ? (
+            <Center style={{height: '100%'}}>
+              <Spinner size="large" />
+            </Center>
+          ) : error ? (
+            <Center style={{height: '100%'}}>
+              <EmptyState
+                icon={<ExclamationCircleIcon width={48} height={48} />}
+                title="Gagal Memuat Data Anggota"
+                description={error}
+                actions={<Button label="Coba Lagi" onClick={fetchMembers} />}
+              />
+            </Center>
+          ) : (
           <VStack gap={4}>
             <PowerSearch
               config={config}
@@ -275,6 +313,7 @@ export default function MembersTemplate() {
               hasHover
             />
           </VStack>
+          )}
         </LayoutContent>
       }
     />
