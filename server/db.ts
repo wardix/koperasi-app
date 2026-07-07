@@ -42,8 +42,10 @@ db.run(`
   );
 
   CREATE TABLE IF NOT EXISTS admins (
-    email TEXT PRIMARY KEY,
-    password TEXT NOT NULL
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'viewer'
   );
 
   CREATE TABLE IF NOT EXISTS settings (
@@ -107,9 +109,9 @@ if (loanCount.count === 0) {
 
 const adminCount = db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
 if (adminCount.count === 0) {
-  const insertAdmin = db.prepare("INSERT INTO admins (email, password) VALUES (?, ?)");
+  const insert = db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)");
   const hashedPassword = await Bun.password.hash("admin123");
-  insertAdmin.run("admin@koperasi.com", hashedPassword);
+  insert.run("1", "admin@koperasi.com", hashedPassword, "superadmin");
 }
 
 const settingsCount = db.query("SELECT COUNT(*) as count FROM settings").get() as { count: number };
