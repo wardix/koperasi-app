@@ -204,6 +204,10 @@ app.put('/api/members/:id/savings', requireAdmin, async (c) => {
     else if (savingsType === 'wajib') newWajib += additionalSavingsNum
     else newSukarela += additionalSavingsNum
     
+    if (newPokok < 0 || newWajib < 0 || newSukarela < 0) {
+      return c.json({ success: false, message: "Saldo tidak mencukupi" }, 400)
+    }
+    
     const newTotal = newPokok + newWajib + newSukarela
 
     db.transaction(() => {
