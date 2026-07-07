@@ -89,12 +89,15 @@ export default function LoansTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newLoan) => {
           try {
-            await fetch('http://localhost:3000/api/loans', {
+            const res = await fetch('http://localhost:3000/api/loans', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newLoan)
             });
-            setLoans([newLoan, ...loans]);
+            const data = await res.json();
+            if (data.success) {
+              setLoans([{ ...newLoan, id: data.id } as LoanRow, ...loans]);
+            }
           } catch (err) {
             console.error("Error saving loan:", err);
           }
@@ -161,6 +164,7 @@ export default function LoansTemplate() {
   ];
 
   return (
+    <>
     <Layout
       height="auto"
       header={
