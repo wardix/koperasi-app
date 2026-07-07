@@ -172,6 +172,46 @@ describe("API Endpoints", () => {
     expect(txBody[0].balanceBefore).toBe(5000);
     expect(txBody[0].balanceAfter).toBe(7000);
   });
+  
+  test("PUT /api/members/:id/savings prevents negative balance", async () => {
+    // 1. Create member
+    const createReq = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Test Negative Savings",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 100
+      })
+    });
+    const createRes = await server.fetch(createReq);
+    const createdMember = (await createRes.json()) as any;
+    const id = createdMember.id;
+
+    // 2. Withdraw 500 from simpananPokok (which only has 100)
+    const txReq = new Request(`http://localhost/api/members/${id}/savings`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        additionalSavings: -500,
+        savingsType: "pokok"
+      })
+    });
+    
+    const txRes = await server.fetch(txReq);
+    expect(txRes.status).toBe(400);
+    const body = (await txRes.json()) as any;
+    expect(body.success).toBe(false);
+    expect(body.message).toBe("Saldo tidak mencukupi");
+  });
 
   test("POST /api/loans/:id/payments creates payment and GET returns it", async () => {
     // 1. Create a member
