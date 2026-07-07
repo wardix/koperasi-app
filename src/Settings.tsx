@@ -11,7 +11,13 @@ import {
   LayoutContent,
   LayoutHeader,
   LayoutPanel,
+
 } from '@astryxdesign/core/Layout';
+import {Spinner} from '@astryxdesign/core/Spinner';
+import {Center} from '@astryxdesign/core/Center';
+import {EmptyState} from '@astryxdesign/core/EmptyState';
+import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
+import {useToast} from '@astryxdesign/core/Toast';
 import {Grid} from '@astryxdesign/core/Grid';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {TabList, Tab} from '@astryxdesign/core/TabList';
@@ -69,9 +75,18 @@ export default function SettingsTemplate() {
   
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
-  useEffect(() => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+
+  const fetchSettings = () => {
+    setIsLoading(true);
+    setError(null);
     fetch(apiUrl('/api/settings'))
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Gagal mengambil data');
+        return res.json();
+      })
       .then(data => {
         if (data.koperasiName) setKoperasiName(data.koperasiName);
         if (data.alamat) setAlamat(data.alamat);
@@ -83,20 +98,34 @@ export default function SettingsTemplate() {
         if (data.viewReports) setViewReports(data.viewReports === 'true');
         if (data.selfRegister) setSelfRegister(data.selfRegister === 'true');
         if (data.twoFactor) setTwoFactor(data.twoFactor === 'true');
-      });
+      })
+      .catch(err => {
+        console.error(err);
+        setError(err.message);
+      })
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchSettings();
   }, []);
 
   const saveSettings = async () => {
-    await fetch(apiUrl('/api/settings'), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        koperasiName, alamat, telepon, email,
-        bungaPinjaman, bungaSimpanan, denda,
-        viewReports, selfRegister, twoFactor
-      })
-    });
-    alert('Pengaturan berhasil disimpan!');
+    try {
+      const res = await fetch(apiUrl('/api/settings'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          koperasiName, alamat, telepon, email,
+          bungaPinjaman, bungaSimpanan, denda,
+          viewReports, selfRegister, twoFactor
+        })
+      });
+      if (!res.ok) throw new Error('Gagal menyimpan');
+      toast.show({body: 'Pengaturan berhasil disimpan!', type: 'info'});
+    } catch (err) {
+      toast.show({body: 'Terjadi kesalahan saat menyimpan pengaturan', type: 'error'});
+    }
   };
 
   return (
@@ -140,6 +169,20 @@ export default function SettingsTemplate() {
       }
       content={
         <LayoutContent padding={4}>
+          {isLoading ? (
+            <Center style={{height: '100%'}}>
+              <Spinner size="large" />
+            </Center>
+          ) : error ? (
+            <Center style={{height: '100%'}}>
+              <EmptyState
+                icon={<ExclamationCircleIcon width={48} height={48} />}
+                title="Gagal Memuat Pengaturan"
+                description={error}
+                actions={<Button label="Coba Lagi" onClick={fetchSettings} />}
+              />
+            </Center>
+          ) : (
           <VStack gap={4}>
             {isNarrow && (
               <VStack hAlign="center">
@@ -253,6 +296,7 @@ export default function SettingsTemplate() {
               </VStack>
             </Grid>
           </VStack>
+          )}
         </LayoutContent>
       }
     />

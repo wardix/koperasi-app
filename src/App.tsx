@@ -7,7 +7,12 @@ import {
   HStack,
   Layout,
   LayoutContent,
+
 } from '@astryxdesign/core/Layout';
+import {Spinner} from '@astryxdesign/core/Spinner';
+import {Center} from '@astryxdesign/core/Center';
+import {EmptyState} from '@astryxdesign/core/EmptyState';
+import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
@@ -325,9 +330,17 @@ export default function DashboardTemplate() {
   const [metrics, setMetrics] = useState(defaultMetrics);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const fetchStats = () => {
+    setIsLoading(true);
+    setError(null);
     fetch(apiUrl('/api/stats'))
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Gagal mengambil data dasbor');
+        return res.json();
+      })
       .then((data: DashboardData) => {
         setDashboardData(data);
         setMetrics([
@@ -337,7 +350,11 @@ export default function DashboardTemplate() {
           defaultMetrics[3] // NPL remains static
         ]);
       })
-      .catch(err => console.error("Error fetching stats:", err));
+      .catch(err => {
+        console.error(err);
+        setError(err.message);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -349,6 +366,20 @@ export default function DashboardTemplate() {
       height="auto"
       content={
         <LayoutContent padding={6}>
+          {isLoading ? (
+            <Center style={{height: '100%'}}>
+              <Spinner size="large" />
+            </Center>
+          ) : error ? (
+            <Center style={{height: '100%'}}>
+              <EmptyState
+                icon={<ExclamationCircleIcon width={48} height={48} />}
+                title="Gagal Memuat Dasbor"
+                description={error}
+                actions={<Button label="Coba Lagi" onClick={fetchStats} />}
+              />
+            </Center>
+          ) : (
           <VStack gap={6}>
             {/* Trend Chart */}
             <VStack gap={6}>
@@ -401,6 +432,7 @@ export default function DashboardTemplate() {
               <RecentActivitiesTable data={dashboardData?.recentActivities || []} />
             </VStack>
           </VStack>
+          )}
         </LayoutContent>
       }
     />
