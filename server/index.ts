@@ -41,8 +41,8 @@ app.use('/api/*', async (c, next) => {
 // Zod schemas
 const memberSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  role: z.string().min(1, "Role is required"),
-  status: z.string().min(1, "Status is required"),
+  role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
+  status: z.enum(["Aktif", "Pasif"]),
   joinDate: z.string().min(1, "Join date is required"),
   totalSavings: z.number().nonnegative(),
 })
@@ -59,11 +59,11 @@ const loanSchema = z.object({
   amount: z.number().positive(),
   tenor: z.string().min(1, "Tenor is required"),
   purpose: z.string().min(1, "Purpose is required"),
-  status: z.string().min(1, "Status is required"),
+  status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]),
 })
 
 const loanStatusSchema = z.object({
-  status: z.string().min(1, "Status is required"),
+  status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]),
 })
 
 const loginSchema = z.object({
