@@ -2,7 +2,7 @@
 
 import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
-import {apiUrl} from './config';
+import {apiFetch} from './config';
 import {
   VStack,
   HStack,
@@ -82,7 +82,7 @@ export default function SettingsTemplate() {
   const fetchSettings = () => {
     setIsLoading(true);
     setError(null);
-    fetch(apiUrl('/api/settings'))
+    apiFetch('/api/settings')
       .then(res => {
         if (!res.ok) throw new Error('Gagal mengambil data');
         return res.json();
@@ -112,7 +112,7 @@ export default function SettingsTemplate() {
 
   const saveSettings = async () => {
     try {
-      const res = await fetch(apiUrl('/api/settings'), {
+      const res = await apiFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

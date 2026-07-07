@@ -17,7 +17,7 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
 import {useEffect, useState} from 'react';
-import {apiUrl} from './config';
+import {apiFetch} from './config';
 import {
   BarChart,
   Bar,
@@ -336,7 +336,7 @@ export default function DashboardTemplate() {
   const fetchStats = () => {
     setIsLoading(true);
     setError(null);
-    fetch(apiUrl('/api/stats'))
+    apiFetch('/api/stats')
       .then(res => {
         if (!res.ok) throw new Error('Gagal mengambil data dasbor');
         return res.json();
