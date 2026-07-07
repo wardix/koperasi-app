@@ -23,7 +23,9 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       role,
       status: 'Aktif',
       joinDate: new Date().toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}),
-      totalSavings: parseInt(deposit, 10) || 0,
+      simpananPokok: parseInt(deposit, 10) || 0,
+      simpananWajib: 0,
+      simpananSukarela: 0,
     });
     onClose();
   };

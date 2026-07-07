@@ -45,14 +45,18 @@ const memberSchema = z.object({
   role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
   status: z.enum(["Aktif", "Pasif"]),
   joinDate: z.string().min(1, "Join date is required"),
-  totalSavings: z.number().nonnegative(),
+  simpananPokok: z.number().nonnegative().default(0),
+  simpananWajib: z.number().nonnegative().default(0),
+  simpananSukarela: z.number().nonnegative().default(0),
+  totalSavings: z.number().nonnegative().optional(),
 })
 
 const savingsSchema = z.object({
   additionalSavings: z.union([
-    z.number().nonnegative(),
-    z.string().regex(/^\d+$/).transform(val => parseInt(val, 10))
-  ])
+    z.number(),
+    z.string().regex(/^-?\d+$/).transform(val => parseInt(val, 10))
+  ]),
+  savingsType: z.enum(["pokok", "wajib", "sukarela"]).default("sukarela")
 })
 
 const loanSchema = z.object({
@@ -116,15 +120,16 @@ app.post('/api/members', async (c) => {
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
 
-    const { name, role, status, joinDate, totalSavings } = parsed.data
+    const { name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela } = parsed.data
+    const totalSavings = simpananPokok + simpananWajib + simpananSukarela
     const id = crypto.randomUUID()
 
     const insert = db.prepare(`
-      INSERT INTO members (id, name, role, status, joinDate, totalSavings)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
-    insert.run(id, name, role, status, joinDate, totalSavings)
+    insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
     
     return c.json({ success: true, message: 'Member created successfully', id }, 201)
   } catch (error) {
@@ -143,14 +148,15 @@ app.put('/api/members/:id', async (c) => {
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
 
-    const { name, role, status, joinDate, totalSavings } = parsed.data
+    const { name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela } = parsed.data
+    const totalSavings = simpananPokok + simpananWajib + simpananSukarela
 
     const update = db.prepare(`
-      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?, totalSavings = ?
+      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?, simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ?
       WHERE id = ?
     `)
     
-    update.run(name, role, status, joinDate, totalSavings, id)
+    update.run(name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, id)
     
     return c.json({ success: true, message: 'Member updated successfully' })
   } catch (error) {
@@ -170,27 +176,34 @@ app.put('/api/members/:id/savings', async (c) => {
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
 
-    const { additionalSavings } = parsed.data
+    const { additionalSavings, savingsType } = parsed.data
 
     // get current
-    const member = db.query("SELECT totalSavings FROM members WHERE id = ?").get(id) as {totalSavings: number}
+    const member = db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?").get(id) as {simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number}
     if (!member) return c.json({success: false, message: 'Not found'}, 404)
 
-    const current = Number(member.totalSavings)
     const additionalSavingsNum = Number(additionalSavings)
-    const newTotal = current + additionalSavingsNum
+    let newPokok = member.simpananPokok
+    let newWajib = member.simpananWajib
+    let newSukarela = member.simpananSukarela
+    
+    if (savingsType === 'pokok') newPokok += additionalSavingsNum
+    else if (savingsType === 'wajib') newWajib += additionalSavingsNum
+    else newSukarela += additionalSavingsNum
+    
+    const newTotal = newPokok + newWajib + newSukarela
 
     db.transaction(() => {
-      db.query("UPDATE members SET totalSavings = ? WHERE id = ?").run(newTotal, id)
+      db.query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?").run(newPokok, newWajib, newSukarela, newTotal, id)
       db.query(`
         INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         crypto.randomUUID(),
         id,
-        additionalSavingsNum >= 0 ? 'setor' : 'tarik',
+        additionalSavingsNum >= 0 ? `setor_${savingsType}` : `tarik_${savingsType}`,
         Math.abs(additionalSavingsNum),
-        current,
+        member.totalSavings,
         newTotal,
         new Date().toISOString(),
         'admin' // Or extract from jwt

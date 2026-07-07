@@ -14,6 +14,9 @@ db.run(`
     role TEXT NOT NULL,
     status TEXT NOT NULL,
     joinDate TEXT NOT NULL,
+    simpananPokok INTEGER DEFAULT 0,
+    simpananWajib INTEGER DEFAULT 0,
+    simpananSukarela INTEGER DEFAULT 0,
     totalSavings INTEGER NOT NULL
   );
 
@@ -68,6 +71,19 @@ if (memberCount.count === 0) {
   insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
   insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
   insert.run("3", "Joko Widodo", "Anggota", "Pasif", "10 Mar 2024", 1000000);
+}
+
+// 2. Migration for members table: simpananPokok, simpananWajib, simpananSukarela
+try {
+  db.query('ALTER TABLE members ADD COLUMN simpananPokok INTEGER DEFAULT 0').run();
+  db.query('ALTER TABLE members ADD COLUMN simpananWajib INTEGER DEFAULT 0').run();
+  db.query('ALTER TABLE members ADD COLUMN simpananSukarela INTEGER DEFAULT 0').run();
+  
+  // If we want to safely distribute existing totalSavings into simpananPokok as default for old data:
+  db.query('UPDATE members SET simpananPokok = totalSavings WHERE simpananPokok = 0 AND simpananWajib = 0 AND simpananSukarela = 0').run();
+  console.log('Migrated members table: Added simpanan columns.');
+} catch (err) {
+  // Columns already exist
 }
 
 const loanCount = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };

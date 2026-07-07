@@ -122,18 +122,16 @@ export default function MembersTemplate() {
     dialog.show(
       <UpdateSavingsDialogContent 
         onClose={() => dialog.hide()}
-        onSave={async (additionalSavings) => {
+        onSave={async (additionalSavings, savingsType) => {
           try {
             const res = await apiFetch(`/api/members/${member.id}/savings`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ additionalSavings })
+              body: JSON.stringify({ additionalSavings, savingsType })
             });
             if (res.ok) {
-              const result = await res.json();
-              const updatedTotal = result.newTotal;
-              setMembers(members.map(m => m.id === member.id ? { ...m, totalSavings: updatedTotal } : m));
-              toast.show({body: 'Simpanan berhasil ditambahkan', type: 'info'});
+              toast.show({body: 'Mutasi simpanan berhasil', type: 'info'});
+              fetchMembers();
             }
           } catch (err) {
             console.error("Error updating savings:", err);
@@ -221,8 +219,21 @@ export default function MembersTemplate() {
     {
       key: 'totalSavings',
       header: 'Total Simpanan',
-      width: proportional(1),
-      renderCell: (item: MemberRow) => <Text type="body">{'Rp ' + item.totalSavings.toLocaleString('id-ID')}</Text>,
+      width: proportional(1.5),
+      renderCell: (item: MemberRow) => (
+        <VStack gap={1}>
+          <Text type="body">{'Rp ' + item.totalSavings.toLocaleString('id-ID')}</Text>
+          <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
+            Pokok: Rp {item.simpananPokok.toLocaleString('id-ID')}
+          </Text>
+          <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
+            Wajib: Rp {item.simpananWajib.toLocaleString('id-ID')}
+          </Text>
+          <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
+            Sukarela: Rp {item.simpananSukarela.toLocaleString('id-ID')}
+          </Text>
+        </VStack>
+      ),
     },
     {
       key: 'actions',

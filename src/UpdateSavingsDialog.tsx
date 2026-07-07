@@ -6,34 +6,52 @@ import {Button} from '@astryxdesign/core/Button';
 
 interface Props {
   onClose: () => void;
-  onSave: (additionalSavings: number) => void;
+  onSave: (additionalSavings: number, savingsType: "pokok" | "wajib" | "sukarela") => void;
 }
 
 export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
   const [amount, setAmount] = useState('');
+  const [savingsType, setSavingsType] = useState<"pokok" | "wajib" | "sukarela">("sukarela");
 
   const handleSave = () => {
     if (!amount) return;
-    onSave(parseInt(amount, 10) || 0);
+    onSave(parseInt(amount, 10) || 0, savingsType);
     onClose();
   };
 
   return (
     <VStack padding={4} gap={4}>
       <VStack gap={1}>
-        <Heading level={3}>Setor Simpanan</Heading>
+        <Heading level={3}>Mutasi Simpanan</Heading>
         <Text type="supporting" color="secondary">
-          Masukkan nominal tambahan yang disetorkan oleh anggota.
+          Masukkan nominal setor (positif) atau tarik (negatif) beserta jenis simpanannya.
         </Text>
       </VStack>
       
       <VStack gap={3}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>Jenis Simpanan</label>
+          <select 
+            value={savingsType} 
+            onChange={(e) => setSavingsType(e.target.value as any)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #d1d5db',
+              fontSize: '14px'
+            }}
+          >
+            <option value="sukarela">Simpanan Sukarela</option>
+            <option value="wajib">Simpanan Wajib</option>
+            <option value="pokok">Simpanan Pokok</option>
+          </select>
+        </div>
         <TextInput
-          label="Nominal Setoran (Rp)"
+          label="Nominal (Rp)"
           type="number"
           value={amount}
           onChange={setAmount}
-          placeholder="Contoh: 100000"
+          placeholder="Contoh: 100000 (Setor) atau -50000 (Tarik)"
         />
       </VStack>
 
