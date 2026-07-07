@@ -328,7 +328,7 @@ export default function DashboardTemplate() {
         { ...defaultMetrics[0], value: dashboardData.activeMembers },
         { ...defaultMetrics[1], value: dashboardData.totalSavings },
         { ...defaultMetrics[2], value: dashboardData.totalLoans },
-        defaultMetrics[3] // NPL remains static
+        { ...defaultMetrics[3], value: dashboardData.npl }
       ]);
     }
   }, [dashboardData]);

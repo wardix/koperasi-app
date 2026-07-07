@@ -2,6 +2,7 @@ export interface DashboardData {
   activeMembers: string;
   totalSavings: string;
   totalLoans: string;
+  npl: string;
   roleData: Array<{label: string; value: number; color: string}>;
   purposeData: Array<{label: string; value: number; color: string}>;
   monthlyData: Array<{label: string; simpanan: number; pinjaman: number}>;

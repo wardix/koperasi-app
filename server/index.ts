@@ -365,6 +365,10 @@ app.get('/api/stats', (c) => {
   const activeMembers = (db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get() as any).c || 0;
   const totalSavings = (db.query("SELECT SUM(totalSavings) as s FROM members").get() as any).s || 0;
   const totalLoans = (db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get() as any).s || 0;
+  
+  const totalMacet = (db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get() as any).s || 0;
+  const totalActiveLoans = totalLoans + totalMacet;
+  const nplValue = totalActiveLoans > 0 ? ((totalMacet / totalActiveLoans) * 100).toFixed(1) + '%' : '0.0%';
 
   const roleRows = db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all() as any[];
   const roleData = roleRows.map((r, i) => ({
@@ -430,6 +434,7 @@ app.get('/api/stats', (c) => {
     activeMembers: activeMembers.toString(),
     totalSavings: formatRp(totalSavings),
     totalLoans: formatRp(totalLoans),
+    npl: nplValue,
     roleData,
     purposeData,
     monthlyData,
