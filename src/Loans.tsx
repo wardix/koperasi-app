@@ -146,8 +146,8 @@ export default function LoansTemplate() {
         <VStack gap={1}>
           <Text type="body">{'Rp ' + item.amount.toLocaleString('id-ID')}</Text>
           {item.status === 'Disetujui' && (
-            <Text type="supporting" color={item.amount - (item.paidAmount || 0) > 0 ? 'error' : 'success'} style={{ fontSize: '12px' }}>
-              Sisa: Rp {Math.max(0, item.amount - (item.paidAmount || 0)).toLocaleString('id-ID')}
+            <Text type="supporting" color={(item.totalAmount ?? item.amount) - (item.paidAmount || 0) > 0 ? 'error' : 'success'} style={{ fontSize: '12px' }}>
+              Sisa: Rp {Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0)).toLocaleString('id-ID')}
             </Text>
           )}
         </VStack>
