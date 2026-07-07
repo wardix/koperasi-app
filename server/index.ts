@@ -6,9 +6,13 @@ import { z } from 'zod'
 
 const app = new Hono()
 
+const allowedOrigins = (process.env.CORS_ORIGIN || Bun.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim());
+
 // Use CORS middleware to allow requests from Vite
 app.use('/*', cors({
-  origin: 'http://localhost:5173',
+  origin: allowedOrigins,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
 }))
 
