@@ -26,7 +26,8 @@ app.delete('/api/members/:id', (c) => {
 // Create a new member
 app.post('/api/members', async (c) => {
   const body = await c.req.json()
-  const { id, name, role, status, joinDate, totalSavings } = body
+  const { name, role, status, joinDate, totalSavings } = body
+  const id = crypto.randomUUID()
 
   const insert = db.prepare(`
     INSERT INTO members (id, name, role, status, joinDate, totalSavings)
@@ -35,7 +36,7 @@ app.post('/api/members', async (c) => {
   
   insert.run(id, name, role, status, joinDate, totalSavings)
   
-  return c.json({ success: true, message: 'Member created successfully' }, 201)
+  return c.json({ success: true, message: 'Member created successfully', id }, 201)
 })
 
 // Update member savings
@@ -65,7 +66,8 @@ app.get('/api/loans', (c) => {
 // Create a new loan
 app.post('/api/loans', async (c) => {
   const body = await c.req.json()
-  const { id, name, amount, tenor, purpose, status } = body
+  const { name, amount, tenor, purpose, status } = body
+  const id = crypto.randomUUID()
 
   const insert = db.prepare(`
     INSERT INTO loans (id, name, amount, tenor, purpose, status)
@@ -74,7 +76,7 @@ app.post('/api/loans', async (c) => {
   
   insert.run(id, name, amount, tenor, purpose, status)
   
-  return c.json({ success: true, message: 'Loan created successfully' }, 201)
+  return c.json({ success: true, message: 'Loan created successfully', id }, 201)
 })
 
 // Update loan status

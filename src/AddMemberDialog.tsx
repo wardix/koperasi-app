@@ -19,7 +19,6 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
 
   const handleSave = () => {
     onAdd({
-      id: Math.random().toString(),
       name,
       role,
       status: 'Aktif',

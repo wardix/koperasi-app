@@ -184,12 +184,15 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newMember) => {
           try {
-            await fetch('http://localhost:3000/api/members', {
+            const res = await fetch('http://localhost:3000/api/members', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newMember)
             });
-            setMembers([newMember, ...members]);
+            const data = await res.json();
+            if (data.success) {
+              setMembers([{ ...newMember, id: data.id }, ...members]);
+            }
           } catch (err) {
             console.error("Error saving member:", err);
           }
