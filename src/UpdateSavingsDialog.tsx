@@ -3,6 +3,7 @@ import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
+import {Selector} from '@astryxdesign/core/Selector';
 
 interface Props {
   onClose: () => void;
@@ -29,23 +30,16 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
       </VStack>
       
       <VStack gap={3}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>Jenis Simpanan</label>
-          <select 
-            value={savingsType} 
-            onChange={(e) => setSavingsType(e.target.value as any)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
-              fontSize: '14px'
-            }}
-          >
-            <option value="sukarela">Simpanan Sukarela</option>
-            <option value="wajib">Simpanan Wajib</option>
-            <option value="pokok">Simpanan Pokok</option>
-          </select>
-        </div>
+        <Selector
+          label="Jenis Simpanan"
+          value={savingsType}
+          onChange={(val) => setSavingsType(val as any)}
+          options={[
+            {value: 'sukarela', label: 'Simpanan Sukarela'},
+            {value: 'wajib', label: 'Simpanan Wajib'},
+            {value: 'pokok', label: 'Simpanan Pokok'}
+          ]}
+        />
         <TextInput
           label="Nominal (Rp)"
           type="number"
