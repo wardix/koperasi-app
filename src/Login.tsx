@@ -99,6 +99,7 @@ export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => 
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
         setIsSuccess(true);
         setTimeout(onLoginSuccess, 1000);
       } else {

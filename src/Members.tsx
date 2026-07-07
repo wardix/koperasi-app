@@ -72,6 +72,9 @@ export default function MembersTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
+  const toast = useToast();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
+  const isAdmin = role === 'admin' || role === 'superadmin';
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -85,8 +88,6 @@ export default function MembersTemplate() {
       setMembers(membersResponse.data);
     }
   }, [membersResponse]);
-
-  const toast = useToast();
 
   const handleDelete = (member: MemberRow) => {
     dialog.show(
@@ -241,20 +242,24 @@ export default function MembersTemplate() {
       width: pixel(100),
       renderCell: (item: MemberRow) => (
         <HStack gap={1}>
-          <IconButton 
-            icon={<Icon icon={PencilIcon} />} 
-            label="Edit" 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => handleEditMember(item)} 
-          />
-          <IconButton 
-            icon={<Icon icon={BanknotesIcon} />} 
-            label="Setor" 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => handleUpdateSavings(item)} 
-          />
+          {isAdmin && (
+            <>
+              <IconButton 
+                icon={<Icon icon={PencilIcon} />} 
+                label="Edit" 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleEditMember(item)} 
+              />
+              <IconButton 
+                icon={<Icon icon={BanknotesIcon} />} 
+                label="Setor" 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleUpdateSavings(item)} 
+              />
+            </>
+          )}
           <IconButton 
             icon={<Icon icon={ClockIcon} />} 
             label="Riwayat" 
@@ -262,14 +267,16 @@ export default function MembersTemplate() {
             size="sm" 
             onClick={() => handleShowHistory(item)} 
           />
-          <IconButton 
-            icon={<Icon icon={TrashIcon} />} 
-            label="Hapus" 
-            variant="ghost" 
-            color="error" 
-            size="sm" 
-            onClick={() => handleDelete(item)} 
-          />
+          {isAdmin && (
+            <IconButton 
+              icon={<Icon icon={TrashIcon} />} 
+              label="Hapus" 
+              variant="ghost" 
+              color="error" 
+              size="sm" 
+              onClick={() => handleDelete(item)} 
+            />
+          )}
         </HStack>
       ),
     },
@@ -327,11 +334,13 @@ export default function MembersTemplate() {
               icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
               variant="ghost"
             />
-            <Button
-              label="Tambah Anggota"
-              icon={<Icon icon={PlusIcon} size="sm" />}
-              onClick={handleAddMember}
-            />
+            {isAdmin && (
+              <Button
+                label="Tambah Anggota"
+                icon={<Icon icon={PlusIcon} size="sm" />}
+                onClick={handleAddMember}
+              />
+            )}
           </HStack>
         </LayoutHeader>
       }

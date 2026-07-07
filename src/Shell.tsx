@@ -28,8 +28,11 @@ import Settings from './Settings.tsx';
 import ComingSoon from './ComingSoon.tsx';
 
 export default function Shell({ onLogout }: { onLogout: () => void }) {
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
+  const isAdmin = role === 'admin' || role === 'superadmin';
+
   const path = location.pathname;
   return (
     <AppShell
@@ -128,12 +131,14 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
               isSelected={path === '/settings'}
               onClick={() => navigate('/settings')}
             />
-            <SideNavItem 
-              label="Hak Akses" 
-              icon={UsersIcon} 
-              isSelected={path === '/roles'}
-              onClick={() => navigate('/roles')}
-            />
+            {isAdmin && (
+              <SideNavItem 
+                label="Hak Akses" 
+                icon={UsersIcon} 
+                isSelected={path === '/roles'}
+                onClick={() => navigate('/roles')}
+              />
+            )}
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={onLogout} />
           </SideNavSection>
         </SideNav>
