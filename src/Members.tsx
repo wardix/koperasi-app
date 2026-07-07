@@ -41,14 +41,7 @@ import {useToast} from '@astryxdesign/core/Toast';
 import {apiFetch} from './config';
 import {useApiQuery} from './hooks/useApiQuery';
 
-interface MemberRow extends Record<string, unknown> {
-  id: string;
-  name: string;
-  role: string;
-  status: string;
-  joinDate: string;
-  totalSavings: number;
-}
+import type {MemberRow, PaginatedResponse} from '../shared/types';
 
 
 
@@ -79,7 +72,7 @@ export default function MembersTemplate() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  const { data: membersResponse, isLoading, error, refetch: fetchMembers } = useApiQuery<{data: MemberRow[], total: number, page: number, limit: number}>(`/api/members?page=${page}&limit=${limit}`);
+  const { data: membersResponse, isLoading, error, refetch: fetchMembers } = useApiQuery<PaginatedResponse<MemberRow>>(`/api/members?page=${page}&limit=${limit}`);
   
   const [members, setMembers] = useState<MemberRow[]>([]);
   
