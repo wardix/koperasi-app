@@ -56,6 +56,7 @@ const savingsSchema = z.object({
 })
 
 const loanSchema = z.object({
+  memberId: z.string().min(1, "Member ID is required"),
   name: z.string().min(1, "Name is required"),
   amount: z.number().positive(),
   tenor: z.string().min(1, "Tenor is required"),
@@ -94,8 +95,15 @@ app.get('/api/members', (c) => {
 // Delete a member
 app.delete('/api/members/:id', (c) => {
   const id = c.req.param('id')
-  db.query("DELETE FROM members WHERE id = ?").run(id)
-  return c.json({ success: true })
+  try {
+    db.query("DELETE FROM members WHERE id = ?").run(id)
+    return c.json({ success: true })
+  } catch (err: any) {
+    if (err.message && err.message.includes("FOREIGN KEY constraint failed")) {
+      return c.json({ success: false, message: 'Anggota memiliki pinjaman, hapus pinjaman terlebih dahulu.' }, 400)
+    }
+    return c.json({ success: false, message: 'Gagal menghapus anggota' }, 500)
+  }
 })
 
 // Create a new member
@@ -179,15 +187,15 @@ app.post('/api/loans', async (c) => {
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
 
-    const { name, amount, tenor, purpose, status } = parsed.data
+    const { memberId, name, amount, tenor, purpose, status } = parsed.data
     const id = crypto.randomUUID()
 
     const insert = db.prepare(`
-      INSERT INTO loans (id, name, amount, tenor, purpose, status)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
     
-    insert.run(id, name, amount, tenor, purpose, status)
+    insert.run(id, memberId, name, amount, tenor, purpose, status)
     
     return c.json({ success: true, message: 'Loan created successfully', id }, 201)
   } catch (error) {
