@@ -13,6 +13,7 @@ import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
 import {ProgressBar} from '@astryxdesign/core/ProgressBar';
 import {useEffect, useState} from 'react';
+import {apiUrl} from './config';
 import {
   BarChart,
   Bar,
@@ -731,7 +732,7 @@ export default function DashboardTemplate() {
   const [metrics, setMetrics] = useState(defaultMetrics);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/stats')
+    fetch(apiUrl('/api/stats'))
       .then(res => res.json())
       .then(data => {
         setMetrics([
