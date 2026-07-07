@@ -482,15 +482,25 @@ app.get('/api/stats', (c) => {
 
 const loginAttempts = new Map<string, { count: number, resetAt: number }>();
 
-// Cleanup expired login attempts to prevent memory leaks
-setInterval(() => {
+const cleanupAttempts = () => {
   const now = Date.now();
   for (const [ip, attempt] of loginAttempts.entries()) {
     if (now > attempt.resetAt) {
       loginAttempts.delete(ip);
     }
   }
-}, 15 * 60 * 1000); // run every 15 minutes
+};
+
+// Cleanup expired login attempts to prevent memory leaks
+const cleanupInterval = setInterval(cleanupAttempts, 15 * 60 * 1000); // run every 15 minutes
+if (typeof cleanupInterval.unref === 'function') {
+  cleanupInterval.unref();
+}
+
+export const _test = {
+  loginAttempts,
+  cleanupAttempts
+};
 
 function rateLimitLogin(ip: string): boolean {
   const now = Date.now();
