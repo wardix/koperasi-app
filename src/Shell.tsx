@@ -21,11 +21,14 @@ import {
 import {HomeIcon} from '@heroicons/react/24/solid';
 import {CubeIcon} from '@heroicons/react/24/outline';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import App from './App.tsx';
-import Members from './Members.tsx';
-import Loans from './Loans.tsx';
-import Settings from './Settings.tsx';
-import ComingSoon from './ComingSoon.tsx';
+import React, { Suspense } from 'react';
+import { Spinner } from '@astryxdesign/core/Spinner';
+
+const App = React.lazy(() => import('./App.tsx'));
+const Members = React.lazy(() => import('./Members.tsx'));
+const Loans = React.lazy(() => import('./Loans.tsx'));
+const Settings = React.lazy(() => import('./Settings.tsx'));
+const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
@@ -143,22 +146,24 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
           </SideNavSection>
         </SideNav>
       }>
-      <Routes>
-        <Route path="/" element={<App />} />
-        <Route path="/dashboard" element={<App />} />
-        <Route path="/members" element={<Members />} />
-        <Route path="/loans" element={<Loans />} />
-        <Route path="/settings" element={<Settings />} />
-        
-        {/* Coming Soon Routes */}
-        <Route path="/reports" element={<ComingSoon title="Laporan Koperasi" description="Modul pelaporan keuangan dan aktivitas koperasi sedang dalam tahap pengembangan." />} />
-        <Route path="/savings" element={<ComingSoon title="Riwayat Transaksi Simpanan" description="Catatan detail mutasi simpanan anggota sedang dikerjakan." />} />
-        <Route path="/loans-tx" element={<ComingSoon title="Riwayat Transaksi Pinjaman" description="Fitur pemantauan jejak angsuran dan pencairan pinjaman segera hadir." />} />
-        <Route path="/shu" element={<ComingSoon title="Kalkulasi SHU" description="Sistem penghitungan dan pembagian Sisa Hasil Usaha akan tersedia pada rilis mendatang." />} />
-        <Route path="/cashflow" element={<ComingSoon title="Arus Kas Koperasi" description="Pemantauan keluar-masuk dana koperasi masih dalam proses pembuatan." />} />
-        <Route path="/npl" element={<ComingSoon title="Analisis Kredit Macet (NPL)" description="Dashboard khusus penganalisaan Non-Performing Loan sedang dikembangkan." />} />
-        <Route path="/roles" element={<ComingSoon title="Manajemen Peran & Akses" description="Fitur pengelolaan akses spesifik untuk pengurus koperasi segera dirilis." />} />
-      </Routes>
+      <Suspense fallback={<Spinner size="lg" />}>
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/dashboard" element={<App />} />
+          <Route path="/members" element={<Members />} />
+          <Route path="/loans" element={<Loans />} />
+          <Route path="/settings" element={<Settings />} />
+          
+          {/* Coming Soon Routes */}
+          <Route path="/reports" element={<ComingSoon title="Laporan Koperasi" description="Modul pelaporan keuangan dan aktivitas koperasi sedang dalam tahap pengembangan." />} />
+          <Route path="/savings" element={<ComingSoon title="Riwayat Transaksi Simpanan" description="Catatan detail mutasi simpanan anggota sedang dikerjakan." />} />
+          <Route path="/loans-tx" element={<ComingSoon title="Riwayat Transaksi Pinjaman" description="Fitur pemantauan jejak angsuran dan pencairan pinjaman segera hadir." />} />
+          <Route path="/shu" element={<ComingSoon title="Kalkulasi SHU" description="Sistem penghitungan dan pembagian Sisa Hasil Usaha akan tersedia pada rilis mendatang." />} />
+          <Route path="/cashflow" element={<ComingSoon title="Arus Kas Koperasi" description="Pemantauan keluar-masuk dana koperasi masih dalam proses pembuatan." />} />
+          <Route path="/npl" element={<ComingSoon title="Analisis Kredit Macet (NPL)" description="Dashboard khusus penganalisaan Non-Performing Loan sedang dikembangkan." />} />
+          <Route path="/roles" element={<ComingSoon title="Manajemen Peran & Akses" description="Fitur pengelolaan akses spesifik untuk pengurus koperasi segera dirilis." />} />
+        </Routes>
+      </Suspense>
     </AppShell>
   );
 }
