@@ -44,15 +44,12 @@ app.put('/api/members/:id/savings', async (c) => {
   const { additionalSavings } = await c.req.json()
 
   // get current
-  const member = db.query("SELECT totalSavings FROM members WHERE id = ?").get(id) as {totalSavings: string}
+  const member = db.query("SELECT totalSavings FROM members WHERE id = ?").get(id) as {totalSavings: number}
   if (!member) return c.json({success: false, message: 'Not found'}, 404)
 
-  const parseRp = (val: string) => parseInt(val.replace(/\D/g, ''), 10) || 0
-  const formatRp = (val: number) => 'Rp ' + val.toLocaleString('id-ID')
-
-  const current = parseRp(member.totalSavings)
-  const addition = parseRp(additionalSavings)
-  const newTotal = formatRp(current + addition)
+  const current = member.totalSavings
+  const addition = typeof additionalSavings === 'string' ? parseInt(additionalSavings.replace(/\D/g, ''), 10) || 0 : additionalSavings
+  const newTotal = current + addition
 
   db.query("UPDATE members SET totalSavings = ? WHERE id = ?").run(newTotal, id)
   
@@ -100,10 +97,8 @@ app.get('/api/stats', (c) => {
   
   const activeMembers = members.filter(m => m.status === 'Aktif').length
   
-  const parseRp = (val: string) => parseInt(val.replace(/\D/g, ''), 10) || 0
-  
-  const totalSavings = members.reduce((sum, m) => sum + parseRp(m.totalSavings), 0)
-  const totalLoans = loans.filter(l => l.status === 'Disetujui').reduce((sum, l) => sum + parseRp(l.amount), 0)
+  const totalSavings = members.reduce((sum, m) => sum + m.totalSavings, 0)
+  const totalLoans = loans.filter(l => l.status === 'Disetujui').reduce((sum, l) => sum + l.amount, 0)
   
   const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M'
   

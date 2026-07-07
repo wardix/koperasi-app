@@ -15,7 +15,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: any) => void}) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('Anggota');
-  const [deposit, setDeposit] = useState('Rp 500.000');
+  const [deposit, setDeposit] = useState('500000');
 
   const handleSave = () => {
     onAdd({
@@ -24,7 +24,7 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       role,
       status: 'Aktif',
       joinDate: new Date().toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}),
-      totalSavings: deposit,
+      totalSavings: parseInt(deposit, 10) || 0,
     });
     onClose();
   };
@@ -54,10 +54,11 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
               placeholder="Contoh: Anggota, Pengurus"
             />
             <TextInput
-              label="Setoran Awal (Simpanan Pokok)"
+              label="Setoran Awal (Simpanan Pokok) (Rp)"
               value={deposit}
               onChange={setDeposit}
-              placeholder="Contoh: Rp 500.000"
+              type="number"
+              placeholder="Contoh: 500000"
             />
           </VStack>
         </LayoutContent>
