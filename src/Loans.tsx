@@ -31,7 +31,7 @@ import {AddLoanDialogContent} from './AddLoanDialog.tsx';
 export interface LoanRow extends Record<string, unknown> {
   id: string;
   name: string;
-  amount: string;
+  amount: number;
   tenor: string;
   purpose: string;
   status: string;
@@ -124,7 +124,7 @@ export default function LoansTemplate() {
       key: 'amount',
       header: 'Jumlah Pinjaman',
       width: proportional(1),
-      renderCell: (item: LoanRow) => <Text type="body">{item.amount}</Text>,
+      renderCell: (item: LoanRow) => <Text type="body">{'Rp ' + item.amount.toLocaleString('id-ID')}</Text>,
     },
     {
       key: 'tenor',
