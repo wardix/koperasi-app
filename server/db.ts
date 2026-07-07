@@ -17,6 +17,17 @@ db.run(`
     totalSavings INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS transactions (
+    id TEXT PRIMARY KEY,
+    memberId TEXT REFERENCES members(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    balanceBefore INTEGER NOT NULL,
+    balanceAfter INTEGER NOT NULL,
+    createdAt TEXT NOT NULL,
+    createdBy TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS loans (
     id TEXT PRIMARY KEY,
     memberId TEXT REFERENCES members(id) ON DELETE RESTRICT,

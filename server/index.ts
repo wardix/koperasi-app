@@ -176,15 +176,38 @@ app.put('/api/members/:id/savings', async (c) => {
     const member = db.query("SELECT totalSavings FROM members WHERE id = ?").get(id) as {totalSavings: number}
     if (!member) return c.json({success: false, message: 'Not found'}, 404)
 
-    const current = member.totalSavings
-    const newTotal = current + additionalSavings
+    const current = Number(member.totalSavings)
+    const additionalSavingsNum = Number(additionalSavings)
+    const newTotal = current + additionalSavingsNum
 
-    db.query("UPDATE members SET totalSavings = ? WHERE id = ?").run(newTotal, id)
+    db.transaction(() => {
+      db.query("UPDATE members SET totalSavings = ? WHERE id = ?").run(newTotal, id)
+      db.query(`
+        INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        crypto.randomUUID(),
+        id,
+        additionalSavingsNum >= 0 ? 'setor' : 'tarik',
+        Math.abs(additionalSavingsNum),
+        current,
+        newTotal,
+        new Date().toISOString(),
+        'admin' // Or extract from jwt
+      )
+    })()
     
     return c.json({ success: true, newTotal })
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
   }
+})
+
+// Get member transactions
+app.get('/api/members/:id/transactions', (c) => {
+  const id = c.req.param('id')
+  const rows = db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC").all(id)
+  return c.json(rows)
 })
 
 // Get all loans
