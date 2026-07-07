@@ -340,7 +340,7 @@ export default function DashboardTemplate() {
         <LayoutContent padding={6}>
           {isLoading ? (
             <Center style={{height: '100%'}}>
-              <Spinner size="large" />
+              <Spinner size="lg" />
             </Center>
           ) : error ? (
             <Center style={{height: '100%'}}>

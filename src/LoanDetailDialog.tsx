@@ -175,7 +175,7 @@ export function LoanDetailDialogContent({
             <VStack gap={4}>
               <Heading level={4}>Riwayat Pembayaran</Heading>
               {isLoading ? (
-                <Center style={{height: 100}}><Spinner size="large" /></Center>
+                <Center style={{height: 100}}><Spinner size="lg" /></Center>
               ) : payments && payments.length > 0 ? (
                 <Table<Payment>
                   data={payments}

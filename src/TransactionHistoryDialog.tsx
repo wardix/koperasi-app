@@ -95,7 +95,7 @@ export function TransactionHistoryDialogContent({
           <VStack gap={4}>
             {isLoading ? (
               <Center style={{height: 200}}>
-                <Spinner size="large" />
+                <Spinner size="lg" />
               </Center>
             ) : error ? (
               <EmptyState
