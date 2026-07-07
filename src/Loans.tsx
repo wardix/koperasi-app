@@ -57,13 +57,15 @@ export default function LoansTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
+  const toast = useToast();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
+  const isAdmin = role === 'admin' || role === 'superadmin';
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
   const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<PaginatedResponse<LoanRow>>(`/api/loans?page=${page}&limit=${limit}`);
   const [localLoans, setLocalLoans] = useState<LoanRow[]>([]);
-  const toast = useToast();
 
   useEffect(() => {
     if (loansResponse?.data) {
@@ -177,7 +179,7 @@ export default function LoansTemplate() {
       renderCell: (item: LoanRow) => {
         return (
           <HStack gap={2}>
-            {item.status === 'Menunggu' && (
+            {isAdmin && item.status === 'Menunggu' && (
               <>
                 <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Disetujui')} />
                 <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Ditolak')} />
@@ -221,11 +223,13 @@ export default function LoansTemplate() {
               icon={<Icon icon={FunnelIcon} size="sm" />}
               variant="ghost"
             />
-            <Button
-              label="Tambah Pengajuan"
-              icon={<Icon icon={PlusIcon} size="sm" />}
-              onClick={handleAddLoan}
-            />
+            {isAdmin && (
+              <Button
+                label="Tambah Pengajuan"
+                icon={<Icon icon={PlusIcon} size="sm" />}
+                onClick={handleAddLoan}
+              />
+            )}
           </HStack>
         </LayoutHeader>
       }

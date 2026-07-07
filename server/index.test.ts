@@ -7,7 +7,7 @@ describe("API Endpoints", () => {
   let token = "";
   
   test("setup token", async () => {
-    token = await sign({ email: "test@example.com", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, "koperasi-super-secret-key-2026");
+    token = await sign({ email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, "koperasi-super-secret-key-2026");
   });
 
   test("GET /api/stats returns stats", async () => {
@@ -58,7 +58,28 @@ describe("API Endpoints", () => {
       const res = await server.fetch(req);
       status = res.status;
     }
+    // Expect 429 after 5 requests, but we loop 7 times, so final is 429
     expect(status).toBe(429);
+  });
+
+  test("RBAC: viewer cannot create member", async () => {
+    const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, "koperasi-super-secret-key-2026");
+    const req = new Request("http://localhost/api/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${viewerToken}`
+      },
+      body: JSON.stringify({
+        name: "Test Viewer",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 1000
+      })
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(403);
   });
 
   test("PUT /api/members/:id updates member", async () => {

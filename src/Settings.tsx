@@ -61,6 +61,8 @@ const settingsSearchSource: SearchSource<SearchableItem> = {
 export default function SettingsTemplate() {
   const isNarrow = useMediaQuery('(max-width: 768px)');
   const [activeNav, setActiveNav] = useState('Profil Koperasi');
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
+  const isAdmin = role === 'admin' || role === 'superadmin';
   
   const [koperasiName, setKoperasiName] = useState('Koperasi Maju Bersama');
   const [alamat, setAlamat] = useState('Jl. Jend. Sudirman No. 123, Jakarta');
@@ -187,29 +189,17 @@ export default function SettingsTemplate() {
                 </Text>
               </VStack>
               <VStack gap={4}>
-                <TextInput
-                  label="Nama Koperasi"
-                  value={koperasiName}
-                  onChange={setKoperasiName}
-                />
-                <TextInput
-                  label="Alamat"
-                  value={alamat}
-                  onChange={setAlamat}
-                />
-                <TextInput
-                  label="No. Telepon"
-                  value={telepon}
-                  onChange={setTelepon}
-                />
-                <TextInput
-                  label="Email Resmi"
-                  value={email}
-                  onChange={setEmail}
-                />
-                <HStack>
-                  <Button label="Simpan Perubahan" variant="primary" onClick={saveSettings} />
-                </HStack>
+                <TextInput label="Nama Koperasi" value={koperasiName} onChange={setKoperasiName} disabled={!isAdmin} />
+                <TextInput label="Alamat Lengkap" value={alamat} onChange={setAlamat} disabled={!isAdmin} />
+                <Grid columns={2} gap={4}>
+                  <TextInput label="No. Telepon" value={telepon} onChange={setTelepon} disabled={!isAdmin} />
+                  <TextInput label="Email Resmi" type="email" value={email} onChange={setEmail} disabled={!isAdmin} />
+                </Grid>
+                {isAdmin && (
+                  <HStack hAlign="start">
+                    <Button label="Simpan Perubahan" variant="primary" onClick={saveSettings} />
+                  </HStack>
+                )}
               </VStack>
             </Grid>
 
@@ -223,27 +213,34 @@ export default function SettingsTemplate() {
                 </Text>
               </VStack>
               <VStack gap={4}>
-                <TextInput
-                  label="Bunga Pinjaman per Bulan (%)"
-                  type="number"
-                  value={bungaPinjaman}
-                  onChange={setBungaPinjaman}
-                />
-                <TextInput
-                  label="Bunga Simpanan per Tahun (%)"
-                  type="number"
-                  value={bungaSimpanan}
-                  onChange={setBungaSimpanan}
-                />
-                <TextInput
-                  label="Denda Keterlambatan (%)"
-                  type="number"
-                  value={denda}
-                  onChange={setDenda}
-                />
-                <HStack>
-                  <Button label="Simpan Parameter" variant="primary" onClick={saveSettings} />
-                </HStack>
+                <Grid columns={3} gap={4}>
+                  <TextInput 
+                    label="Bunga Pinjaman (%)" 
+                    type="number" 
+                    value={bungaPinjaman} 
+                    onChange={setBungaPinjaman}
+                    disabled={!isAdmin} 
+                  />
+                  <TextInput 
+                    label="Bunga Simpanan (%)" 
+                    type="number" 
+                    value={bungaSimpanan} 
+                    onChange={setBungaSimpanan}
+                    disabled={!isAdmin} 
+                  />
+                  <TextInput 
+                    label="Denda Keterlambatan (%)" 
+                    type="number" 
+                    value={denda} 
+                    onChange={setDenda}
+                    disabled={!isAdmin} 
+                  />
+                </Grid>
+                {isAdmin && (
+                  <HStack>
+                    <Button label="Simpan Parameter" variant="primary" onClick={saveSettings} />
+                  </HStack>
+                )}
               </VStack>
             </Grid>
 

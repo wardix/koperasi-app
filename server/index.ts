@@ -39,6 +39,14 @@ app.use('/api/*', async (c, next) => {
   return jwtMiddleware(c, next)
 })
 
+const requireAdmin = async (c: any, next: any) => {
+  const payload = c.get('jwtPayload')
+  if (!payload || (payload.role !== 'admin' && payload.role !== 'superadmin')) {
+    return c.json({ success: false, message: 'Forbidden: admin access required' }, 403)
+  }
+  return next()
+}
+
 // Zod schemas
 const memberSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -102,7 +110,7 @@ app.get('/api/members', (c) => {
 })
 
 // Delete a member
-app.delete('/api/members/:id', (c) => {
+app.delete('/api/members/:id', requireAdmin, (c) => {
   const id = c.req.param('id')
   try {
     db.query("DELETE FROM members WHERE id = ?").run(id)
@@ -116,7 +124,7 @@ app.delete('/api/members/:id', (c) => {
 })
 
 // Create a new member
-app.post('/api/members', async (c) => {
+app.post('/api/members', requireAdmin, async (c) => {
   try {
     const body = await c.req.json()
     const parsed = memberSchema.safeParse(body)
@@ -143,7 +151,7 @@ app.post('/api/members', async (c) => {
 })
 
 // Update member
-app.put('/api/members/:id', async (c) => {
+app.put('/api/members/:id', requireAdmin, async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
@@ -171,7 +179,7 @@ app.put('/api/members/:id', async (c) => {
 
 
 // Update member savings
-app.put('/api/members/:id/savings', async (c) => {
+app.put('/api/members/:id/savings', requireAdmin, async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
@@ -253,7 +261,7 @@ app.get('/api/loans', (c) => {
 })
 
 // Create a new loan
-app.post('/api/loans', async (c) => {
+app.post('/api/loans', requireAdmin, async (c) => {
   try {
     const body = await c.req.json()
     const parsed = loanSchema.safeParse(body)
@@ -279,7 +287,7 @@ app.post('/api/loans', async (c) => {
 })
 
 // Update loan status
-app.put('/api/loans/:id/status', async (c) => {
+app.put('/api/loans/:id/status', requireAdmin, async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
@@ -310,7 +318,7 @@ app.get('/api/loans/:id/payments', (c) => {
 })
 
 // Create loan payment
-app.post('/api/loans/:id/payments', async (c) => {
+app.post('/api/loans/:id/payments', requireAdmin, async (c) => {
   try {
     const loanId = c.req.param('id')
     const body = await c.req.json()
@@ -432,21 +440,24 @@ app.post('/api/login', async (c) => {
 
     const { email, password } = parsed.data
     
-    const admin = db.query("SELECT * FROM admins WHERE email = ?").get(email) as {password: string, email: string} | undefined
-    
-    if (admin) {
-      const isMatch = await Bun.password.verify(password, admin.password)
-      if (isMatch) {
-        const payload = {
-          email: admin.email,
-          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24 hours
-        }
-        const token = await sign(payload, secretKey)
-        return c.json({ success: true, message: 'Login successful', token })
-      }
+    const admin = db.query("SELECT * FROM admins WHERE email = ?").get(email) as any
+    if (!admin) {
+      return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
-    
-    return c.json({ success: false, message: 'Invalid credentials' }, 401)
+
+    const isMatch = await Bun.password.verify(password, admin.password)
+    if (!isMatch) {
+      return c.json({ success: false, message: 'Invalid credentials' }, 401)
+    }
+
+    const payload = {
+      sub: admin.id,
+      email: admin.email,
+      role: admin.role,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
+    }
+    const token = await sign(payload, secretKey)
+    return c.json({ success: true, message: 'Login successful', token, role: admin.role })
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
   }
@@ -468,7 +479,7 @@ app.get('/api/settings', (c) => {
 })
 
 // Update settings
-app.put('/api/settings', async (c) => {
+app.put('/api/settings', requireAdmin, async (c) => {
   try {
     const body = await c.req.json()
     const parsed = settingsSchema.safeParse(body)
