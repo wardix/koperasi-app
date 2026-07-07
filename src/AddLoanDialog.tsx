@@ -6,8 +6,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {Typeahead} from '@astryxdesign/core/Typeahead';
 import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
 import {useApiQuery} from './hooks/useApiQuery';
-import type {PaginatedResponse, MemberRow} from '../shared/types';
-import type {LoanRow} from './Loans';
+import type {PaginatedResponse, MemberRow, LoanRow} from '../shared/types';
 
 interface Props {
   onClose: () => void;
