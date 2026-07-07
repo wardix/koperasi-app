@@ -26,7 +26,7 @@ if (!JWT_SECRET) {
   console.warn('WARNING: Using default JWT_SECRET for development. Do not use in production!');
 }
 
-const secretKey = JWT_SECRET || 'koperasi-super-secret-key-2026';
+export const secretKey = JWT_SECRET || 'koperasi-super-secret-key-2026';
 
 app.use('/api/*', async (c, next) => {
   if (c.req.path === '/api/login' || c.req.path === '/api/logout') {
