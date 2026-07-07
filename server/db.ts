@@ -3,6 +3,9 @@ import { Database } from "bun:sqlite";
 // Create or open the SQLite database file
 const db = new Database("koperasi.sqlite", { create: true });
 
+// Enable foreign keys
+db.run("PRAGMA foreign_keys = ON;");
+
 // Initialize schema if not exists
 db.run(`
   CREATE TABLE IF NOT EXISTS members (
@@ -16,6 +19,7 @@ db.run(`
 
   CREATE TABLE IF NOT EXISTS loans (
     id TEXT PRIMARY KEY,
+    memberId TEXT REFERENCES members(id) ON DELETE RESTRICT,
     name TEXT NOT NULL,
     amount INTEGER NOT NULL,
     tenor TEXT NOT NULL,
@@ -34,6 +38,18 @@ db.run(`
   );
 `);
 
+try {
+  db.run("ALTER TABLE loans ADD COLUMN memberId TEXT REFERENCES members(id) ON DELETE RESTRICT");
+  db.run(`
+    UPDATE loans 
+    SET memberId = (
+      SELECT id FROM members WHERE members.name = loans.name LIMIT 1
+    )
+  `);
+} catch (e) {
+  // Ignore if column already exists
+}
+
 // Insert initial seed data if table is empty
 const memberCount = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number };
 if (memberCount.count === 0) {
@@ -45,9 +61,9 @@ if (memberCount.count === 0) {
 
 const loanCount = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };
 if (loanCount.count === 0) {
-  const insertLoan = db.prepare("INSERT INTO loans (id, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?)");
-  insertLoan.run("1", "Budi Santoso", 5000000, "12 Bulan", "Modal Usaha Warung", "Menunggu");
-  insertLoan.run("2", "Siti Aminah", 2500000, "6 Bulan", "Biaya Pendidikan", "Menunggu");
+  const insertLoan = db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  insertLoan.run("1", "1", "Budi Santoso", 5000000, "12 Bulan", "Modal Usaha Warung", "Menunggu");
+  insertLoan.run("2", "2", "Siti Aminah", 2500000, "6 Bulan", "Biaya Pendidikan", "Menunggu");
   insertLoan.run("3", "Dewi Lestari", 10000000, "24 Bulan", "Renovasi Rumah", "Disetujui");
 }
 
