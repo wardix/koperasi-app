@@ -54,7 +54,8 @@ if (loanCount.count === 0) {
 const adminCount = db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
 if (adminCount.count === 0) {
   const insertAdmin = db.prepare("INSERT INTO admins (email, password) VALUES (?, ?)");
-  insertAdmin.run("admin@koperasi.com", "admin123");
+  const hashedPassword = await Bun.password.hash("admin123");
+  insertAdmin.run("admin@koperasi.com", hashedPassword);
 }
 
 const settingsCount = db.query("SELECT COUNT(*) as count FROM settings").get() as { count: number };
@@ -95,6 +96,20 @@ try {
   }
 } catch (e) {
   console.error("Migration error:", e);
+}
+
+// Migrate plaintext admin passwords to hash
+try {
+  const admins = db.query("SELECT email, password FROM admins").all() as {email: string, password: string}[];
+  const updateAdmin = db.prepare("UPDATE admins SET password = ? WHERE email = ?");
+  for (const admin of admins) {
+    if (!admin.password.startsWith('$argon2id$')) {
+      const hashed = await Bun.password.hash(admin.password);
+      updateAdmin.run(hashed, admin.email);
+    }
+  }
+} catch (e) {
+  console.error("Admin password migration error:", e);
 }
 
 export default db;

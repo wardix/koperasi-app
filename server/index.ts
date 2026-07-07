@@ -115,13 +115,16 @@ app.get('/api/stats', (c) => {
 app.post('/api/login', async (c) => {
   const { email, password } = await c.req.json()
   
-  const admin = db.query("SELECT * FROM admins WHERE email = ? AND password = ?").get(email, password)
+  const admin = db.query("SELECT * FROM admins WHERE email = ?").get(email) as {password: string} | undefined
   
   if (admin) {
-    return c.json({ success: true, message: 'Login successful' })
-  } else {
-    return c.json({ success: false, message: 'Invalid credentials' }, 401)
+    const isMatch = await Bun.password.verify(password, admin.password)
+    if (isMatch) {
+      return c.json({ success: true, message: 'Login successful' })
+    }
   }
+  
+  return c.json({ success: false, message: 'Invalid credentials' }, 401)
 })
 
 // Get settings
