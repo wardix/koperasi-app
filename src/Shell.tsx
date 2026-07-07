@@ -25,6 +25,7 @@ import App from './App.tsx';
 import Members from './Members.tsx';
 import Loans from './Loans.tsx';
 import Settings from './Settings.tsx';
+import ComingSoon from './ComingSoon.tsx';
 
 export default function Shell({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
@@ -71,15 +72,40 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
               isSelected={path === '/members'}
               onClick={() => navigate('/members')}
             />
-            <SideNavItem label="Laporan" icon={ChartBarIcon} />
+            <SideNavItem 
+              label="Laporan" 
+              icon={ChartBarIcon} 
+              isSelected={path === '/reports'}
+              onClick={() => navigate('/reports')}
+            />
           </SideNavSection>
           <SideNavSection title="Transaksi">
-            <SideNavItem label="Simpanan" icon={FolderIcon} />
-            <SideNavItem label="Pinjaman" icon={FolderIcon} />
+            <SideNavItem 
+              label="Simpanan" 
+              icon={FolderIcon} 
+              isSelected={path === '/savings'}
+              onClick={() => navigate('/savings')}
+            />
+            <SideNavItem 
+              label="Pinjaman" 
+              icon={FolderIcon} 
+              isSelected={path === '/loans-tx'}
+              onClick={() => navigate('/loans-tx')}
+            />
           </SideNavSection>
           <SideNavSection title="Keuangan">
-            <SideNavItem label="Sisa Hasil Usaha (SHU)" icon={BanknotesIcon} href="#" />
-            <SideNavItem label="Arus Kas" icon={BanknotesIcon} href="#" />
+            <SideNavItem 
+              label="Sisa Hasil Usaha (SHU)" 
+              icon={BanknotesIcon} 
+              isSelected={path === '/shu'}
+              onClick={() => navigate('/shu')}
+            />
+            <SideNavItem 
+              label="Arus Kas" 
+              icon={BanknotesIcon} 
+              isSelected={path === '/cashflow'}
+              onClick={() => navigate('/cashflow')}
+            />
           </SideNavSection>
           <SideNavSection title="Kredit & Persetujuan">
             <SideNavItem 
@@ -88,7 +114,12 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
               isSelected={path === '/loans'}
               onClick={() => navigate('/loans')}
             />
-            <SideNavItem label="Kredit Macet (NPL)" icon={ExclamationTriangleIcon} href="#" />
+            <SideNavItem 
+              label="Kredit Macet (NPL)" 
+              icon={ExclamationTriangleIcon} 
+              isSelected={path === '/npl'}
+              onClick={() => navigate('/npl')}
+            />
           </SideNavSection>
           <SideNavSection title="Pengaturan">
             <SideNavItem 
@@ -97,7 +128,12 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
               isSelected={path === '/settings'}
               onClick={() => navigate('/settings')}
             />
-            <SideNavItem label="Hak Akses" icon={UsersIcon} href="#" />
+            <SideNavItem 
+              label="Hak Akses" 
+              icon={UsersIcon} 
+              isSelected={path === '/roles'}
+              onClick={() => navigate('/roles')}
+            />
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={onLogout} />
           </SideNavSection>
         </SideNav>
@@ -108,6 +144,15 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
         <Route path="/members" element={<Members />} />
         <Route path="/loans" element={<Loans />} />
         <Route path="/settings" element={<Settings />} />
+        
+        {/* Coming Soon Routes */}
+        <Route path="/reports" element={<ComingSoon />} />
+        <Route path="/savings" element={<ComingSoon />} />
+        <Route path="/loans-tx" element={<ComingSoon />} />
+        <Route path="/shu" element={<ComingSoon />} />
+        <Route path="/cashflow" element={<ComingSoon />} />
+        <Route path="/npl" element={<ComingSoon />} />
+        <Route path="/roles" element={<ComingSoon />} />
       </Routes>
     </AppShell>
   );
