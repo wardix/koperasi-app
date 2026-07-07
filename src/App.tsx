@@ -46,15 +46,7 @@ import {StopIcon} from '@heroicons/react/24/solid';
 
 // ============= DATA & INTERFACES =============
 
-interface DashboardData {
-  activeMembers: string;
-  totalSavings: string;
-  totalLoans: string;
-  roleData: Array<{label: string; value: number; color: string}>;
-  purposeData: Array<{label: string; value: number; color: string}>;
-  monthlyData: Array<{label: string; simpanan: number; pinjaman: number}>;
-  recentActivities: Array<{id: string; activity: string; name: string; amount: number; date: string}>;
-}
+import type {DashboardData} from '../shared/types';
 
 const defaultMetrics = [
   {

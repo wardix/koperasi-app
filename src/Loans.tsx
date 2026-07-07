@@ -38,14 +38,7 @@ import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddLoanDialogContent} from './AddLoanDialog.tsx';
 
 
-export interface LoanRow extends Record<string, unknown> {
-  id: string;
-  name: string;
-  amount: number;
-  tenor: string;
-  purpose: string;
-  status: string;
-}
+import type {LoanRow, PaginatedResponse} from '../shared/types';
 
 const statusValues = [
   {value: 'Menunggu', label: 'Menunggu'},
@@ -66,7 +59,7 @@ export default function LoansTemplate() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<{data: LoanRow[], total: number, page: number, limit: number}>(`/api/loans?page=${page}&limit=${limit}`);
+  const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<PaginatedResponse<LoanRow>>(`/api/loans?page=${page}&limit=${limit}`);
   const [localLoans, setLocalLoans] = useState<LoanRow[]>([]);
   const toast = useToast();
 
