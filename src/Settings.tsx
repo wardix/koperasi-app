@@ -2,6 +2,7 @@
 
 import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
+import {apiUrl} from './config';
 import {
   VStack,
   HStack,
@@ -69,7 +70,7 @@ export default function SettingsTemplate() {
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/settings')
+    fetch(apiUrl('/api/settings'))
       .then(res => res.json())
       .then(data => {
         if (data.koperasiName) setKoperasiName(data.koperasiName);
@@ -86,7 +87,7 @@ export default function SettingsTemplate() {
   }, []);
 
   const saveSettings = async () => {
-    await fetch('http://localhost:3000/api/settings', {
+    await fetch(apiUrl('/api/settings'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

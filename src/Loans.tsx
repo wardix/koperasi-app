@@ -27,6 +27,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddLoanDialogContent} from './AddLoanDialog.tsx';
+import {apiUrl} from './config';
 
 export interface LoanRow extends Record<string, unknown> {
   id: string;
@@ -55,7 +56,7 @@ export default function LoansTemplate() {
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
 
   const fetchLoans = () => {
-    fetch('http://localhost:3000/api/loans')
+    fetch(apiUrl('/api/loans'))
       .then(res => res.json())
       .then(data => setLoans(data))
       .catch(err => console.error("Error fetching loans:", err));
@@ -67,7 +68,7 @@ export default function LoansTemplate() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      await fetch(`http://localhost:3000/api/loans/${id}/status`, {
+      await fetch(apiUrl(`/api/loans/${id}/status`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -89,7 +90,7 @@ export default function LoansTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newLoan) => {
           try {
-            const res = await fetch('http://localhost:3000/api/loans', {
+            const res = await fetch(apiUrl('/api/loans'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(newLoan)
