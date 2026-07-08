@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "bun test",
+    "test": "JWT_SECRET=test-secret-key-123 bun test",
     "start": "bun run server/index.ts"
   },
   "dependencies": {

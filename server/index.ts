@@ -44,16 +44,11 @@ app.use('/*', cors({
   credentials: true,
 }))
 
-const JWT_SECRET = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
+const secretKey = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
 
-if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production' || Bun.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET is not set in production');
-  }
-  console.warn('WARNING: Using default JWT_SECRET for development. Do not use in production!');
+if (!secretKey) {
+  throw new Error('JWT_SECRET environment variable is required');
 }
-
-export const secretKey = JWT_SECRET || 'koperasi-super-secret-key-2026';
 const tokenBlacklist = new Set<string>();
 
 app.use('/api/*', async (c, next) => {
