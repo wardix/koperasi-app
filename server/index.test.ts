@@ -485,4 +485,14 @@ describe("API Endpoints", () => {
     // Clean up
     _test.tokenBlacklist.delete("valid-token-abc");
   });
+
+  test("GET /api/members caps pagination limit at 100", async () => {
+    const req = new Request("http://localhost/api/members?limit=1000", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.limit).toBe(100);
+  });
 });
