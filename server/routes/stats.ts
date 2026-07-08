@@ -90,12 +90,10 @@ stats.get('/', async (c) => {
     date: m.joinDate,
   }))
 
-  const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M'
-
   cachedStats = {
     activeMembers: activeMembers.toString(),
-    totalSavings: formatRp(totalSavings),
-    totalLoans: formatRp(totalLoans),
+    totalSavings,
+    totalLoans,
     npl: nplValue,
     roleData,
     purposeData,

@@ -1,7 +1,7 @@
 export interface DashboardData {
   activeMembers: string;
-  totalSavings: string;
-  totalLoans: string;
+  totalSavings: number;
+  totalLoans: number;
   npl: string;
   roleData: Array<{label: string; value: number; color: string}>;
   purposeData: Array<{label: string; value: number; color: string}>;
@@ -26,7 +26,7 @@ export interface LoanRow extends Record<string, unknown> {
   memberId: string;
   name: string;
   amount: number;
-  tenor: string;
+  tenor: number;
   purpose: string;
   status: string;
   paidAmount?: number;

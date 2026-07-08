@@ -24,7 +24,7 @@ export const loanSchema = z.object({
   memberId: z.string().min(1, "Member ID is required").transform(xss),
   name: z.string().min(1, "Name is required").transform(xss),
   amount: z.number().positive(),
-  tenor: z.string().min(1, "Tenor is required").transform(xss),
+  tenor: z.number().positive(),
   purpose: z.string().min(1, "Purpose is required").transform(xss),
   status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]).default("Menunggu")
 })
