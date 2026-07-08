@@ -1,4 +1,5 @@
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret-key-123";
+process.env.DATABASE_PATH = "koperasi_test.sqlite";
 
 (globalThis as any).NativeRequest = Request;
 (globalThis as any).NativeHeaders = Headers;
