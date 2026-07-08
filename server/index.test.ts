@@ -1,5 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import server, { _test } from "./index";
+import db from "./db";
 
 const secretKey = process.env.JWT_SECRET as string;
 
@@ -494,5 +495,67 @@ describe("API Endpoints", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.limit).toBe(100);
+  });
+
+  test("POST /api/refresh validates user existence and syncs updated role", async () => {
+    const adminId = "temp-admin-refresh-test";
+    const RequestConstructor = (globalThis as any).NativeRequest || Request;
+
+    try {
+      // 1. Create a temporary admin in DB
+      db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+        adminId,
+        "refresh-test@example.com",
+        "hashed_password",
+        "viewer"
+      );
+
+      // 2. Generate a refresh token for this admin with old role "viewer"
+      const refreshToken = await sign(
+        { sub: adminId, email: "refresh-test@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 },
+        secretKey
+      );
+
+      // 3. Update the role of the admin in the database to "admin"
+      db.prepare("UPDATE admins SET role = ? WHERE id = ?").run("admin", adminId);
+
+      // 4. Request token refresh
+      const req = new RequestConstructor("http://localhost/api/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cookie": `refreshToken=${refreshToken}`
+        }
+      });
+      const res = await server.fetch(req);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as any;
+      expect(body.success).toBe(true);
+      expect(body.token).toBeDefined();
+
+      // Verify the new access token has the updated role "admin"
+      const { verify } = require("hono/jwt");
+      const newPayload = await verify(body.token, secretKey, 'HS256');
+      expect(newPayload.role).toBe("admin");
+
+      // 5. Delete the admin from DB (simulate deactivation)
+      db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
+
+      // 6. Request token refresh again (should fail with 401 since user no longer exists)
+      const reqFailed = new RequestConstructor("http://localhost/api/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cookie": `refreshToken=${refreshToken}`
+        }
+      });
+      const resFailed = await server.fetch(reqFailed);
+      expect(resFailed.status).toBe(401);
+      const bodyFailed = (await resFailed.json()) as any;
+      expect(bodyFailed.success).toBe(false);
+    } finally {
+      // Always cleanup database
+      db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
+    }
   });
 });
