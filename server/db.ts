@@ -141,8 +141,11 @@ db.query(`
 
 db.run(`
   CREATE INDEX IF NOT EXISTS idx_transactions_memberId ON transactions(memberId);
+  CREATE INDEX IF NOT EXISTS idx_transactions_createdAt ON transactions(createdAt);
   CREATE INDEX IF NOT EXISTS idx_loans_memberId ON loans(memberId);
   CREATE INDEX IF NOT EXISTS idx_loan_payments_loanId ON loan_payments(loanId);
+  CREATE INDEX IF NOT EXISTS idx_loan_payments_paymentDate ON loan_payments(paymentDate);
+  CREATE INDEX IF NOT EXISTS idx_members_status ON members(status);
   CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires_at ON token_blacklist(expires_at);
   CREATE INDEX IF NOT EXISTS idx_rate_limits_reset_at ON rate_limits(reset_at);
 `);
