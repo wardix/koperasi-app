@@ -156,7 +156,8 @@ if (memberCount.count === 0) {
   const insert = db.prepare("INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)");
   insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
   insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
-  insert.run("3", "Joko Widodo", "Anggota", "Pasif", "10 Mar 2024", 1000000);
+  insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 2000000);
+  insert.run("4", "Joko Widodo", "Anggota", "Pasif", "10 Apr 2024", 1000000);
 }
 
 // Seed data goes below
