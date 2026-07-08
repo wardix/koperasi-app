@@ -4,7 +4,7 @@
 
 import {useState, type CSSProperties} from 'react';
 import {VStack, HStack, StackItem} from '@astryxdesign/core/Layout';
-import {apiFetch} from '../config';
+import {api} from '../services/api';
 import {Grid} from '@astryxdesign/core/Grid';
 import {Center} from '@astryxdesign/core/Center';
 import {Card} from '@astryxdesign/core/Card';
@@ -90,21 +90,12 @@ export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => 
     setLoginFailed(false);
     
     try {
-      const res = await apiFetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      const data = await api.post('/api/login', { email, password });
       
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('role', data.role);
-        setIsSuccess(true);
-        setTimeout(onLoginSuccess, 1000);
-      } else {
-        setLoginFailed(true);
-      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('role', data.role);
+      setIsSuccess(true);
+      setTimeout(onLoginSuccess, 1000);
     } catch (err) {
       console.error(err);
       setLoginFailed(true);

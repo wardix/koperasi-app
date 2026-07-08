@@ -15,7 +15,7 @@ import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {useToast} from '@astryxdesign/core/Toast';
-import {apiFetch} from '../config';
+import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
@@ -74,17 +74,9 @@ export default function LoansTemplate() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const res = await apiFetch(`/api/loans/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      if (res.ok) {
-        setLocalLoans(localLoans.map(loan => loan.id === id ? { ...loan, status } : loan));
-        toast.show({body: 'Status pinjaman berhasil diperbarui', type: 'info'});
-      } else {
-        toast.show({body: 'Gagal memperbarui status', type: 'error'});
-      }
+      await api.put(`/api/loans/${id}/status`, { status });
+      setLocalLoans(localLoans.map(loan => loan.id === id ? { ...loan, status } : loan));
+      toast.show({body: 'Status pinjaman berhasil diperbarui', type: 'info'});
     } catch (err) {
       console.error("Error updating loan status:", err);
       toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
@@ -101,17 +93,9 @@ export default function LoansTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (newLoan) => {
           try {
-            const res = await apiFetch('/api/loans', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(newLoan)
-            });
-            if (res.ok) {
-              toast.show({body: 'Pinjaman berhasil diajukan', type: 'info'});
-              fetchLoans();
-            } else {
-              toast.show({body: 'Gagal menambahkan pengajuan pinjaman', type: 'error'});
-            }
+            await api.post('/api/loans', newLoan);
+            toast.show({body: 'Pinjaman berhasil diajukan', type: 'info'});
+            fetchLoans();
           } catch (err) {
             console.error("Error saving loan:", err);
             toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});

@@ -15,7 +15,7 @@ import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {Badge} from '@astryxdesign/core/Badge';
 import {useApiQuery} from '../hooks/useApiQuery';
-import {apiFetch} from '../config';
+import {api} from '../services/api';
 import {useToast} from '@astryxdesign/core/Toast';
 import type {LoanRow} from '../shared/types';
 import {Spinner} from '@astryxdesign/core/Spinner';
@@ -60,32 +60,21 @@ export function LoanDetailDialogContent({
     
     setIsSubmitting(true);
     try {
-      const res = await apiFetch(`/api/loans/${loan.id}/payments`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          amount,
-          method: 'Transfer' // hardcoded or add select
-        })
+      await api.post(`/api/loans/${loan.id}/payments`, {
+        amount,
+        method: 'Transfer'
       });
       
-      if (res.ok) {
-        toast.show({body: 'Pembayaran berhasil', type: 'info'});
+      toast.show({body: 'Pembayaran berhasil', type: 'info'});
         setPayAmount('');
         refetch();
         onUpdate();
         
         // auto-close if fully paid? We could, or just let user see remaining is 0
         if (remainingDebt - amount <= 0) {
-           // We might want to call PUT /api/loans/:id/status { status: 'Lunas' } here
-           await apiFetch(`/api/loans/${loan.id}/status`, {
-             method: 'PUT',
-             headers: {'Content-Type': 'application/json'},
-             body: JSON.stringify({ status: 'Lunas' })
-           });
+           await api.put(`/api/loans/${loan.id}/status`, { status: 'Lunas' });
            onUpdate();
         }
-      }
     } catch (err) {
       toast.show({body: 'Gagal melakukan pembayaran', type: 'error'});
     } finally {

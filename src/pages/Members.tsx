@@ -42,7 +42,7 @@ import {EditMemberDialogContent} from '../components/EditMemberDialog';
 import {UpdateSavingsDialogContent} from '../components/UpdateSavingsDialog';
 import {TransactionHistoryDialogContent} from '../components/TransactionHistoryDialog';
 import {useToast} from '@astryxdesign/core/Toast';
-import {apiFetch} from '../config';
+import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
@@ -98,18 +98,14 @@ export default function MembersTemplate() {
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
             <Button color="error" label="Hapus" onClick={async () => {
-              try {
-                const res = await apiFetch(`/api/members/${member.id}`, { method: 'DELETE' });
-                if (res.ok) {
+                try {
+                  await api.delete(`/api/members/${member.id}`);
                   setMembers(members.filter(m => m.id !== member.id));
                   toast.show({body: 'Anggota berhasil dihapus', type: 'info'});
-                } else {
+                } catch (err) {
+                  console.error("Error deleting member:", err);
                   toast.show({body: 'Gagal menghapus anggota', type: 'error'});
-                }
-              } catch (err) {
-                console.error("Error deleting member:", err);
-                toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
-              } finally {
+                } finally {
                 dialog.hide();
               }
             }} />
@@ -125,15 +121,9 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onSave={async (additionalSavings, savingsType) => {
           try {
-            const res = await apiFetch(`/api/members/${member.id}/savings`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ additionalSavings, savingsType })
-            });
-            if (res.ok) {
-              toast.show({body: 'Mutasi simpanan berhasil', type: 'info'});
-              fetchMembers();
-            }
+            await api.put(`/api/members/${member.id}/savings`, { additionalSavings, savingsType });
+            toast.show({body: 'Mutasi simpanan berhasil', type: 'info'});
+            fetchMembers();
           } catch (err) {
             console.error("Error updating savings:", err);
           } finally {
@@ -160,17 +150,9 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onEdit={async (data) => {
           try {
-            const res = await apiFetch(`/api/members/${member.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data)
-            });
-            if (res.ok) {
-              toast.show({body: 'Anggota berhasil diubah', type: 'info'});
-              fetchMembers();
-            } else {
-              toast.show({body: 'Gagal mengubah anggota', type: 'error'});
-            }
+            await api.put(`/api/members/${member.id}`, data);
+            toast.show({body: 'Anggota berhasil diubah', type: 'info'});
+            fetchMembers();
           } catch (err) {
             console.error("Error editing member:", err);
             toast.show({body: 'Gagal mengubah anggota', type: 'error'});
@@ -292,20 +274,12 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onAdd={async (data) => {
           try {
-            const res = await apiFetch('/api/members', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data)
-            });
-            if (res.ok) {
-              toast.show({body: 'Anggota berhasil ditambahkan', type: 'info'});
-              fetchMembers();
-            } else {
-              toast.show({body: 'Gagal menambahkan anggota', type: 'error'});
-            }
+            await api.post('/api/members', data);
+            toast.show({body: 'Anggota berhasil ditambahkan', type: 'info'});
+            fetchMembers();
           } catch (err) {
             console.error("Error saving member:", err);
-            toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
+            toast.show({body: 'Gagal menambahkan anggota', type: 'error'});
           } finally {
             dialog.hide();
           }

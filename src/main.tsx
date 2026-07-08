@@ -5,7 +5,7 @@ import '@astryxdesign/core/astryx.css'
 import './index.css'
 import Shell from './components/Shell'
 import Login from './pages/Login'
-import {apiFetch} from './config'
+import {api} from './services/api'
 
 function Root() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,16 +14,13 @@ function Root() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      apiFetch('/api/auth/verify')
-        .then((res) => {
-          if (res.ok) {
-            setIsAuthenticated(true);
-          } else {
-            localStorage.removeItem('token');
-          }
+      api.get('/api/auth/verify')
+        .then(() => {
+          setIsAuthenticated(true);
         })
         .catch((err) => {
           console.error(err);
+          localStorage.removeItem('token');
         })
         .finally(() => {
           setIsChecking(false);
@@ -43,7 +40,7 @@ function Root() {
   
   return <Shell onLogout={() => {
     localStorage.removeItem('token');
-    apiFetch('/api/logout', { method: 'POST' }).catch(console.error);
+    api.post('/api/logout').catch(console.error);
     setIsAuthenticated(false);
   }} />;
 }

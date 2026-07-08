@@ -2,7 +2,7 @@
 
 import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
-import {apiFetch} from '../config';
+import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
 import type {SettingsData} from '../shared/types';
 import {
@@ -99,16 +99,11 @@ export default function SettingsTemplate() {
 
   const saveSettings = async () => {
     try {
-      const res = await apiFetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          koperasiName, alamat, telepon, email,
-          bungaPinjaman, bungaSimpanan, denda,
-          viewReports, selfRegister, twoFactor
-        })
+      await api.put('/api/settings', {
+        koperasiName, alamat, telepon, email,
+        bungaPinjaman, bungaSimpanan, denda,
+        viewReports, selfRegister, twoFactor
       });
-      if (!res.ok) throw new Error('Gagal menyimpan');
       toast.show({body: 'Pengaturan berhasil disimpan!', type: 'info'});
     } catch (err) {
       toast.show({body: 'Terjadi kesalahan saat menyimpan pengaturan', type: 'error'});
