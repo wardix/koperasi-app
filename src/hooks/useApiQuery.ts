@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../config';
+import { api } from '../services/api';
 
 interface UseApiQueryResult<T> {
   data: T | null;
@@ -17,11 +17,7 @@ export function useApiQuery<T>(path: string): UseApiQueryResult<T> {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiFetch(path);
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.message || 'Failed to fetch data');
-      }
+      const json = await api.get(path);
       setData(json as T);
     } catch (err: any) {
       setError(err.message || 'An error occurred');

@@ -1,0 +1,105 @@
+--- server/index.ts
++++ server/index.ts
+@@ -2,6 +2,7 @@
+ import { Hono } from 'hono'
+ import { cors } from 'hono/cors'
+-import { jwt, sign } from 'hono/jwt'
++import { jwt, sign, verify } from 'hono/jwt'
+ import { secureHeaders } from 'hono/secure-headers'
++import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
+ import db from './db'
+ import { z } from 'zod'
+ import xss from 'xss'
+@@ -19,7 +20,8 @@
+ // Use CORS middleware to allow requests from Vite
+ app.use('/*', cors({
+   origin: allowedOrigins,
+   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
++  credentials: true,
+ }))
+ 
+ const JWT_SECRET = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
+@@ -32,15 +34,26 @@
+ 
+ export const secretKey = JWT_SECRET || 'koperasi-super-secret-key-2026';
++const tokenBlacklist = new Set<string>();
+ 
+ app.use('/api/*', async (c, next) => {
+-  if (c.req.path === '/api/login' || c.req.path === '/api/logout') {
++  if (c.req.path === '/api/login' || c.req.path === '/api/logout' || c.req.path === '/api/refresh') {
+     return next()
+   }
++  const authHeader = c.req.header('Authorization');
++  if (authHeader && authHeader.startsWith('Bearer ')) {
++    const token = authHeader.split(' ')[1];
++    if (tokenBlacklist.has(token)) {
++      return c.json({ success: false, message: 'Token is blacklisted' }, 401);
++    }
++  }
++
+   const jwtMiddleware = jwt({
+     secret: secretKey,
+     alg: 'HS256',
+   })
+   return jwtMiddleware(c, next)
+ })
+@@ -499,16 +512,50 @@
+     const payload = {
+       sub: admin.id,
+       email: admin.email,
+       role: admin.role,
+-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
++      exp: Math.floor(Date.now() / 1000) + 15 * 60 // 15 minutes
+     }
+-    const token = await sign(payload, secretKey)
+-    return c.json({ success: true, message: 'Login successful', token, role: admin.role })
++    const accessToken = await sign(payload, secretKey)
++    
++    const refreshPayload = {
++      sub: admin.id,
++      email: admin.email,
++      role: admin.role,
++      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
++    }
++    const refreshToken = await sign(refreshPayload, secretKey)
++    
++    setCookie(c, 'refreshToken', refreshToken, {
++      httpOnly: true,
++      secure: process.env.NODE_ENV === 'production',
++      sameSite: 'Strict',
++      maxAge: 60 * 60 * 24 * 7,
++      path: '/'
++    })
++
++    return c.json({ success: true, message: 'Login successful', token: accessToken, role: admin.role })
+   } catch (error) {
+     return c.json({ success: false, message: 'Invalid request' }, 400)
+   }
+ })
+ 
++// Refresh endpoint
++app.post('/api/refresh', async (c) => {
++  const refreshToken = getCookie(c, 'refreshToken')
++  if (!refreshToken) {
++    return c.json({ success: false, message: 'No refresh token' }, 401)
++  }
++  try {
++    const payload = await verify(refreshToken, secretKey)
++    const newPayload = { ...payload, exp: Math.floor(Date.now() / 1000) + 15 * 60 }
++    const newAccessToken = await sign(newPayload, secretKey)
++    return c.json({ success: true, token: newAccessToken })
++  } catch (err) {
++    return c.json({ success: false, message: 'Invalid or expired refresh token' }, 401)
++  }
++})
++
+ // Logout endpoint
+ app.post('/api/logout', (c) => {
++  const authHeader = c.req.header('Authorization');
++  if (authHeader && authHeader.startsWith('Bearer ')) {
++    const token = authHeader.split(' ')[1];
++    tokenBlacklist.add(token);
++  }
++  deleteCookie(c, 'refreshToken', { path: '/' })
+   return c.json({ success: true, message: 'Logout successful' })
+ })
