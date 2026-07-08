@@ -1,16 +1,52 @@
-# React + Vite
+# Sistem Informasi Koperasi Maju Bersama
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplikasi web modern untuk manajemen koperasi yang dibangun dengan arsitektur Full-Stack menggunakan **React**, **Hono**, **Vite**, dan **SQLite**. Aplikasi ini mempermudah pencatatan simpanan, pengajuan pinjaman, kalkulasi Sisa Hasil Usaha (SHU), dan pengaturan anggota koperasi secara terpadu.
 
-Currently, two official plugins are available:
+## Fitur Utama
+- Dashboard Ringkasan (Total Anggota, Simpanan, Pinjaman, NPL)
+- Manajemen Anggota Koperasi
+- Manajemen Pengajuan Pinjaman (Disetujui/Ditolak/Lunas)
+- Pencatatan Mutasi Simpanan
+- Kalkulasi dan Pembagian SHU
+- Pengaturan Aplikasi
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Prasyarat
+- **Bun**: Aplikasi ini menggunakan Bun sebagai *runtime* dan *package manager*. Pastikan Anda telah menginstal Bun.
+  - Untuk menginstal Bun: `curl -fsSL https://bun.sh/install | bash`
+  - Verifikasi instalasi: `bun --version`
 
-## React Compiler
+## Persiapan Environment
+1. Salin `.env.example` menjadi `.env`.
+   ```bash
+   cp .env.example .env
+   ```
+2. Sesuaikan konfigurasi *environment variables* di dalam file `.env`:
+   - `JWT_SECRET`: Secret key untuk penandatanganan token JWT.
+   - Variabel lain (jika ada) sesuai kebutuhan.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Instalasi Dependensi
+Jalankan perintah berikut di direktori root proyek untuk menginstal semua dependensi:
+```bash
+bun install
+```
 
-## Expanding the Oxlint configuration
+## Menjalankan Development Server
+Aplikasi ini menggunakan ekosistem terpadu dari Vite untuk frontend dan Bun untuk backend server.
+Untuk menjalankan *development server*:
+```bash
+bun run dev
+```
+Setelah jalan, server akan tersedia di alamat lokal Anda (contoh: `http://localhost:5173`).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Testing
+Untuk menjalankan testing (*unit tests*, dll.):
+```bash
+bun run test
+```
+
+## Build untuk Production
+Untuk membuat *production build*:
+```bash
+bun run build
+```
+Selanjutnya, Anda dapat menjalankan server dengan menggunakan *entry point* produksi atau docker image yang tersedia.
