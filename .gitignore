@@ -26,3 +26,12 @@ dist-ssr
 # Database
 *.sqlite
 *.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+data/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
