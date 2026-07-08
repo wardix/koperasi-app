@@ -4,6 +4,7 @@ import { cors } from 'hono/cors'
 import { jwt, sign, verify, decode } from 'hono/jwt'
 import { secureHeaders } from 'hono/secure-headers'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
+import { getConnInfo } from 'hono/bun'
 import db from './db'
 import { z } from 'zod'
 import xss from 'xss'
@@ -568,7 +569,14 @@ function rateLimitLogin(ip: string): boolean {
 
 // Login authentication
 app.post('/api/login', async (c) => {
-  const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown-ip';
+  let ip = 'unknown-ip';
+  try {
+    const info = getConnInfo(c);
+    ip = info?.remote?.address || 'unknown-ip';
+  } catch (e) {
+    // fallback if getConnInfo fails in some environments
+  }
+  
   if (!rateLimitLogin(ip)) {
     return c.json({ success: false, message: 'Too many login attempts. Please try again later.' }, 429);
   }
