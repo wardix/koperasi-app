@@ -50,7 +50,7 @@ export default function SHU() {
     ];
   }, [data]);
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<any>[] = useMemo(() => [
     {
       key: 'name',
       header: 'Nama Anggota',
@@ -69,7 +69,7 @@ export default function SHU() {
       width: proportional(1),
       renderCell: (item) => <Text type="body" color="success">+{formatRp(item.shu)}</Text>,
     },
-  ];
+  ], []);
 
   return (
     <Layout>

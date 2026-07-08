@@ -184,7 +184,7 @@ function Sparkline({data}: {data: number[]}) {
 
 // ============= CARD COMPONENTS =============
 
-function MetricCard({
+const MetricCard = React.memo(function MetricCard({
   label,
   value,
   change,
@@ -221,9 +221,9 @@ function MetricCard({
       </VStack>
     </Card>
   );
-}
+});
 
-function StackedBarCard({
+const StackedBarCard = React.memo(function StackedBarCard({
   title,
   data,
 }: {
@@ -284,12 +284,12 @@ function StackedBarCard({
       </VStack>
     </Card>
   );
-}
+});
 
 // ============= TABLE COMPONENTS =============
 
 function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities'] }) {
-  const columns: TableColumn<DashboardData['recentActivities'][0]>[] = [
+  const columns: TableColumn<DashboardData['recentActivities'][0]>[] = React.useMemo(() => [
     {key: 'activity', header: 'Aktivitas', width: pixel(160)},
     {key: 'name', header: 'Nama / Subjek', width: proportional(1)},
     {
@@ -299,7 +299,7 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
       renderCell: (item) => formatRp(item.amount)
     },
     {key: 'date', header: 'Tanggal', width: pixel(120)},
-  ];
+  ], []);
 
   return (
     <Card>
