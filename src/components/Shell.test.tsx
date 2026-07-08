@@ -2,7 +2,7 @@ import { expect, test, describe, afterEach, spyOn } from "bun:test";
 import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Shell from "./Shell";
-import * as config from "./config";
+import * as config from "../config";
 
 describe("Shell Component", () => {
   afterEach(() => {

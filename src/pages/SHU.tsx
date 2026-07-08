@@ -6,7 +6,7 @@ import { Table, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Center } from '@astryxdesign/core/Center';
-import { useApiQuery } from './hooks/useApiQuery';
+import { useApiQuery } from '../hooks/useApiQuery';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface SHUData {

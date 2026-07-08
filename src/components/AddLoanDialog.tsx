@@ -3,9 +3,10 @@ import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
+import {apiFetch} from '../config';
 import {Typeahead} from '@astryxdesign/core/Typeahead';
 import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
-import {useApiQuery} from './hooks/useApiQuery';
+import {useApiQuery} from '../hooks/useApiQuery';
 import type {PaginatedResponse, MemberRow, LoanRow} from '../shared/types';
 
 interface Props {

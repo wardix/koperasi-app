@@ -24,11 +24,11 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
 
-const App = React.lazy(() => import('./App.tsx'));
-const Members = React.lazy(() => import('./Members.tsx'));
-const Loans = React.lazy(() => import('./Loans.tsx'));
-const Settings = React.lazy(() => import('./Settings.tsx'));
-const SHU = React.lazy(() => import('./SHU.tsx'));
+const App = React.lazy(() => import('../App'));
+const Members = React.lazy(() => import('../pages/Members'));
+const Loans = React.lazy(() => import('../pages/Loans'));
+const Settings = React.lazy(() => import('../pages/Settings'));
+const SHU = React.lazy(() => import('../pages/SHU'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell({ onLogout }: { onLogout: () => void }) {

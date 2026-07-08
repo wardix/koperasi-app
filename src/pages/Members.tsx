@@ -37,13 +37,13 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
-import {AddMemberDialogContent} from './AddMemberDialog.tsx';
-import {EditMemberDialogContent} from './EditMemberDialog.tsx';
-import {UpdateSavingsDialogContent} from './UpdateSavingsDialog.tsx';
-import {TransactionHistoryDialogContent} from './TransactionHistoryDialog.tsx';
+import {AddMemberDialogContent} from '../components/AddMemberDialog';
+import {EditMemberDialogContent} from '../components/EditMemberDialog';
+import {UpdateSavingsDialogContent} from '../components/UpdateSavingsDialog';
+import {TransactionHistoryDialogContent} from '../components/TransactionHistoryDialog';
 import {useToast} from '@astryxdesign/core/Toast';
-import {apiFetch} from './config';
-import {useApiQuery} from './hooks/useApiQuery';
+import {apiFetch} from '../config';
+import {useApiQuery} from '../hooks/useApiQuery';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
 
