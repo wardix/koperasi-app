@@ -568,6 +568,40 @@ describe("API Endpoints", () => {
     expect(applied).toContain("0004_hash_admin_passwords");
   });
 
+  test("PUT /api/settings allows valid keys and rejects invalid ones", async () => {
+    // 1. Valid settings update
+    const reqValid = new Request("http://localhost/api/settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ koperasiName: "Koperasi Baru" })
+    });
+    const resValid = await server.fetch(reqValid);
+    expect(resValid.status).toBe(200);
+    const bodyValid = (await resValid.json()) as any;
+    expect(bodyValid.success).toBe(true);
+
+    // Verify it updated in DB
+    const setting = db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string };
+    expect(setting.value).toBe("Koperasi Baru");
+
+    // 2. Invalid settings update (injection attempt)
+    const reqInvalid = new Request("http://localhost/api/settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ maliciousKey: "someValue" })
+    });
+    const resInvalid = await server.fetch(reqInvalid);
+    expect(resInvalid.status).toBe(400);
+    const bodyInvalid = (await resInvalid.json()) as any;
+    expect(bodyInvalid.success).toBe(false);
+  });
+
   afterAll(() => {
     const testDb = process.env.DATABASE_PATH || "koperasi_test.sqlite";
     // Close the database explicitly if needed, but since it's global, we just delete the file.
