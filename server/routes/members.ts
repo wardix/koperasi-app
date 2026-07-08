@@ -3,6 +3,7 @@ import db from '../db'
 import { memberSchema, savingsSchema } from '../schemas'
 import { requireAdmin } from '../middleware'
 import { parsePagination } from '../services/pagination'
+import { clearStatsCache } from './stats'
 
 const members = new Hono()
 
@@ -25,6 +26,7 @@ members.delete('/:id', requireAdmin, (c) => {
   const id = c.req.param('id')
   try {
     db.query("DELETE FROM members WHERE id = ?").run(id)
+    clearStatsCache()
     return c.json({ success: true })
   } catch (err: any) {
     if (err.message && err.message.includes("FOREIGN KEY constraint failed")) {
@@ -52,6 +54,7 @@ members.post('/', requireAdmin, async (c) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+    clearStatsCache()
     
     return c.json({ success: true, message: 'Member created successfully', id }, 201)
   } catch (error) {
@@ -77,6 +80,7 @@ members.put('/:id', requireAdmin, async (c) => {
       WHERE id = ?
     `)
     update.run(name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, id)
+    clearStatsCache()
     
     return c.json({ success: true, message: 'Member updated successfully' })
   } catch (error) {
@@ -130,6 +134,7 @@ members.put('/:id/savings', requireAdmin, async (c) => {
         (c.get('jwtPayload') as any)?.email || 'admin'
       )
     })()
+    clearStatsCache()
     
     return c.json({ success: true, newTotal })
   } catch (error) {

@@ -7,6 +7,11 @@ let cachedStats: any = null;
 let cacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+export function clearStatsCache() {
+  cachedStats = null;
+  cacheTime = 0;
+}
+
 stats.get('/', async (c) => {
   if (cachedStats && Date.now() - cacheTime < CACHE_TTL) {
     return c.json(cachedStats);

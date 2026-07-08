@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import db from '../db'
 import { settingsSchema } from '../schemas'
 import { requireAdmin } from '../middleware'
+import { clearStatsCache } from './stats'
 
 const settings = new Hono()
 
@@ -31,6 +32,7 @@ settings.put('/', requireAdmin, async (c) => {
       }
     })()
     
+    clearStatsCache()
     return c.json({ success: true })
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
