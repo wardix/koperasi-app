@@ -137,10 +137,18 @@ const loginSchema = z.object({
 
 const settingsSchema = z.record(z.union([z.string().transform(xss), z.boolean(), z.number()]))
 
+function parsePagination(pageStr?: string, limitStr?: string) {
+  const MAX_LIMIT = 100;
+  const DEFAULT_LIMIT = 20;
+  return {
+    page: Math.max(1, parseInt(pageStr || '1') || 1),
+    limit: Math.min(MAX_LIMIT, Math.max(1, parseInt(limitStr || String(DEFAULT_LIMIT)) || DEFAULT_LIMIT)),
+  };
+}
+
 // Get all members
 app.get('/api/members', (c) => {
-  const page = parseInt(c.req.query('page') || '1')
-  const limit = parseInt(c.req.query('limit') || '20')
+  const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
   
   const members = db.query("SELECT * FROM members ORDER BY rowid DESC LIMIT ? OFFSET ?").all(limit, offset)
@@ -287,8 +295,7 @@ app.get('/api/members/:id/transactions', (c) => {
 
 // Get all loans
 app.get('/api/loans', (c) => {
-  const page = parseInt(c.req.query('page') || '1')
-  const limit = parseInt(c.req.query('limit') || '20')
+  const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
   const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
