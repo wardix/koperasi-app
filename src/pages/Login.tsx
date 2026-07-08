@@ -4,7 +4,7 @@
 
 import {useState, type CSSProperties} from 'react';
 import {VStack, HStack, StackItem} from '@astryxdesign/core/Layout';
-import {apiFetch} from './config';
+import {apiFetch} from '../config';
 import {Grid} from '@astryxdesign/core/Grid';
 import {Center} from '@astryxdesign/core/Center';
 import {Card} from '@astryxdesign/core/Card';

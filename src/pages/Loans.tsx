@@ -15,8 +15,8 @@ import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {useToast} from '@astryxdesign/core/Toast';
-import {apiFetch} from './config';
-import {useApiQuery} from './hooks/useApiQuery';
+import {apiFetch} from '../config';
+import {useApiQuery} from '../hooks/useApiQuery';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -35,8 +35,8 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import {useImperativeDialog} from '@astryxdesign/core/Dialog';
-import {AddLoanDialogContent} from './AddLoanDialog.tsx';
-import {LoanDetailDialogContent} from './LoanDetailDialog.tsx';
+import {AddLoanDialogContent} from '../components/AddLoanDialog';
+import {LoanDetailDialogContent} from '../components/LoanDetailDialog';
 
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';

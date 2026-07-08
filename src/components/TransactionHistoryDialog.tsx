@@ -10,7 +10,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {Badge} from '@astryxdesign/core/Badge';
-import {useApiQuery} from './hooks/useApiQuery';
+import {useApiQuery} from '../hooks/useApiQuery';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';

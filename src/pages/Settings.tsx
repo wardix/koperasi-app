@@ -2,8 +2,8 @@
 
 import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
-import {apiFetch} from './config';
-import {useApiQuery} from './hooks/useApiQuery';
+import {apiFetch} from '../config';
+import {useApiQuery} from '../hooks/useApiQuery';
 import type {SettingsData} from '../shared/types';
 import {
   VStack,

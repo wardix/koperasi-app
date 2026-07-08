@@ -3,9 +3,9 @@ import { createRoot } from 'react-dom/client'
 import '@astryxdesign/core/reset.css'
 import '@astryxdesign/core/astryx.css'
 import './index.css'
-import Shell from './Shell.tsx'
-import Login from './Login.tsx'
-import {apiFetch} from './config.ts'
+import Shell from './components/Shell'
+import Login from './pages/Login'
+import {apiFetch} from './config'
 
 function Root() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,7 +49,7 @@ function Root() {
 }
 
 import { BrowserRouter } from 'react-router-dom'
-import { ErrorBoundary } from './ErrorBoundary.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
