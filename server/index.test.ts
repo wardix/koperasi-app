@@ -424,16 +424,16 @@ describe("API Endpoints", () => {
     const now = Date.now();
     
     // Add one expired and one non-expired attempt
-    _test.loginAttempts.set("1.1.1.1", { count: 3, resetAt: now - 1000 }); // expired
-    _test.loginAttempts.set("2.2.2.2", { count: 2, resetAt: now + 60000 }); // not expired
+    db.run("INSERT OR REPLACE INTO rate_limits (ip, count, reset_at) VALUES (?, ?, ?)", ["1.1.1.1", 3, now - 1000]); // expired
+    db.run("INSERT OR REPLACE INTO rate_limits (ip, count, reset_at) VALUES (?, ?, ?)", ["2.2.2.2", 2, now + 60000]); // not expired
     
     _test.cleanupAttempts();
     
-    expect(_test.loginAttempts.has("1.1.1.1")).toBe(false);
-    expect(_test.loginAttempts.has("2.2.2.2")).toBe(true);
+    expect(db.query("SELECT * FROM rate_limits WHERE ip = ?").get("1.1.1.1")).toBeNull();
+    expect(db.query("SELECT * FROM rate_limits WHERE ip = ?").get("2.2.2.2")).not.toBeNull();
     
     // Clean up
-    _test.loginAttempts.delete("2.2.2.2");
+    db.run("DELETE FROM rate_limits WHERE ip = ?", ["2.2.2.2"]);
   });
 
   test("GET /health returns health metrics", async () => {
@@ -475,16 +475,16 @@ describe("API Endpoints", () => {
     const now = Date.now();
     
     // Add one expired and one non-expired token
-    _test.tokenBlacklist.set("expired-token-xyz", now - 1000); // expired
-    _test.tokenBlacklist.set("valid-token-abc", now + 60000); // not expired
+    db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", ["expired-token-xyz", now - 1000]); // expired
+    db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", ["valid-token-abc", now + 60000]); // not expired
     
     _test.cleanupTokenBlacklist();
     
-    expect(_test.tokenBlacklist.has("expired-token-xyz")).toBe(false);
-    expect(_test.tokenBlacklist.has("valid-token-abc")).toBe(true);
+    expect(db.query("SELECT * FROM token_blacklist WHERE token = ?").get("expired-token-xyz")).toBeNull();
+    expect(db.query("SELECT * FROM token_blacklist WHERE token = ?").get("valid-token-abc")).not.toBeNull();
     
     // Clean up
-    _test.tokenBlacklist.delete("valid-token-abc");
+    db.run("DELETE FROM token_blacklist WHERE token = ?", ["valid-token-abc"]);
   });
 
   test("GET /api/members caps pagination limit at 100", async () => {

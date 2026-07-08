@@ -50,15 +50,9 @@ const secretKey = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
 if (!secretKey) {
   throw new Error('JWT_SECRET environment variable is required');
 }
-const tokenBlacklist = new Map<string, number>();
-
 const cleanupTokenBlacklist = () => {
   const now = Date.now();
-  for (const [token, expiry] of tokenBlacklist) {
-    if (expiry < now) {
-      tokenBlacklist.delete(token);
-    }
-  }
+  db.run("DELETE FROM token_blacklist WHERE expires_at < ?", [now]);
 };
 
 const tokenCleanupInterval = setInterval(cleanupTokenBlacklist, 60 * 60 * 1000); // 1 hour
@@ -73,7 +67,8 @@ app.use('/api/*', async (c, next) => {
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    if (tokenBlacklist.has(token)) {
+    const blacklisted = db.query("SELECT 1 FROM token_blacklist WHERE token = ?").get(token);
+    if (blacklisted) {
       return c.json({ success: false, message: 'Token is blacklisted' }, 401);
     }
   }
@@ -518,15 +513,9 @@ app.get('/api/stats', (c) => {
   })
 })
 
-const loginAttempts = new Map<string, { count: number, resetAt: number }>();
-
 const cleanupAttempts = () => {
   const now = Date.now();
-  for (const [ip, attempt] of loginAttempts.entries()) {
-    if (now > attempt.resetAt) {
-      loginAttempts.delete(ip);
-    }
-  }
+  db.run("DELETE FROM rate_limits WHERE reset_at < ?", [now]);
 };
 
 // Cleanup expired login attempts to prevent memory leaks
@@ -536,9 +525,7 @@ if (typeof cleanupInterval.unref === 'function') {
 }
 
 export const _test = {
-  loginAttempts,
   cleanupAttempts,
-  tokenBlacklist,
   cleanupTokenBlacklist
 };
 
@@ -547,20 +534,22 @@ function rateLimitLogin(ip: string): boolean {
   const limit = 5;
   const windowMs = 15 * 60 * 1000; // 15 minutes
 
-  let attempt = loginAttempts.get(ip);
+  let attempt = db.query("SELECT * FROM rate_limits WHERE ip = ?").get(ip) as any;
+  
   if (!attempt) {
-    attempt = { count: 0, resetAt: now + windowMs };
-    loginAttempts.set(ip, attempt);
-  }
-
-  if (now > attempt.resetAt) {
-    attempt.count = 1;
-    attempt.resetAt = now + windowMs;
+    db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES (?, 1, ?)", [ip, now + windowMs]);
     return true;
   }
 
-  attempt.count++;
-  if (attempt.count > limit) {
+  if (now > attempt.reset_at) {
+    db.run("UPDATE rate_limits SET count = 1, reset_at = ? WHERE ip = ?", [now + windowMs, ip]);
+    return true;
+  }
+
+  const newCount = attempt.count + 1;
+  db.run("UPDATE rate_limits SET count = ? WHERE ip = ?", [newCount, ip]);
+  
+  if (newCount > limit) {
     return false;
   }
 
@@ -666,13 +655,13 @@ app.post('/api/logout', (c) => {
     const token = authHeader.split(' ')[1];
     try {
       const { payload } = decode(token);
+      let exp = Date.now() + 60 * 60 * 1000;
       if (payload && payload.exp) {
-        tokenBlacklist.set(token, (payload.exp as number) * 1000);
-      } else {
-        tokenBlacklist.set(token, Date.now() + 60 * 60 * 1000); // fallback 1 hour
+        exp = (payload.exp as number) * 1000;
       }
+      db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", [token, exp]);
     } catch (e) {
-      tokenBlacklist.set(token, Date.now() + 60 * 60 * 1000);
+      db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", [token, Date.now() + 60 * 60 * 1000]);
     }
   }
   deleteCookie(c, 'refreshToken', { path: '/' })
