@@ -602,6 +602,47 @@ describe("API Endpoints", () => {
     expect(bodyInvalid.success).toBe(false);
   });
 
+  test("GET /api/stats caching and invalidation works", async () => {
+    // 1. Initial call to populate cache
+    const req1 = new Request("http://localhost/api/stats", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const res1 = await server.fetch(req1);
+    expect(res1.status).toBe(200);
+    const body1 = (await res1.json()) as any;
+    const oldSavings = body1.totalSavings;
+
+    // 2. Modify members in DB directly (bypassing Hono routes so cache is not invalidated)
+    db.prepare("UPDATE members SET totalSavings = totalSavings + 1000000000").run();
+
+    try {
+      // 3. Second call to stats (should return cached stats, meaning oldSavings is unchanged)
+      const res2 = await server.fetch(req1);
+      const body2 = (await res2.json()) as any;
+      expect(body2.totalSavings).toBe(oldSavings);
+
+      // 4. Update settings via PUT route (which invalidates cache)
+      const reqUpdate = new Request("http://localhost/api/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ koperasiName: "Koperasi Terupdate" })
+      });
+      const resUpdate = await server.fetch(reqUpdate);
+      expect(resUpdate.status).toBe(200);
+
+      // 5. Third call to stats (should return fresh stats, meaning totalSavings is updated)
+      const res3 = await server.fetch(req1);
+      const body3 = (await res3.json()) as any;
+      expect(body3.totalSavings).not.toBe(oldSavings);
+    } finally {
+      // Clean up members table
+      db.prepare("UPDATE members SET totalSavings = totalSavings - 1000000000").run();
+    }
+  });
+
   afterAll(() => {
     const testDb = process.env.DATABASE_PATH || "koperasi_test.sqlite";
     // Close the database explicitly if needed, but since it's global, we just delete the file.

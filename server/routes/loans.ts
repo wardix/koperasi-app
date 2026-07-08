@@ -4,6 +4,7 @@ import { loanSchema, loanStatusSchema, paymentSchema } from '../schemas'
 import { requireAdmin } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { calculateLoanInterest } from '../services/loanService'
+import { clearStatsCache } from './stats'
 
 const loans = new Hono()
 
@@ -60,6 +61,7 @@ loans.post('/', requireAdmin, async (c) => {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
     insert.run(id, memberId, name, amount, tenor, purpose, status)
+    clearStatsCache()
     
     return c.json({ success: true, message: 'Loan created successfully', id }, 201)
   } catch (error) {
@@ -80,6 +82,7 @@ loans.put('/:id/status', requireAdmin, async (c) => {
     const { status } = parsed.data
 
     db.prepare("UPDATE loans SET status = ? WHERE id = ?").run(status, id)
+    clearStatsCache()
     return c.json({ success: true, message: 'Loan status updated' })
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
@@ -124,6 +127,7 @@ loans.post('/:id/payments', requireAdmin, async (c) => {
       INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
       VALUES (?, ?, ?, ?, ?)
     `).run(id, loanId, amount, paymentDate, method)
+    clearStatsCache()
     
     return c.json({ success: true, message: 'Payment recorded successfully', id }, 201)
   } catch (error) {
