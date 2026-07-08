@@ -324,10 +324,11 @@ export default function DashboardTemplate() {
 
   useEffect(() => {
     if (dashboardData) {
+      const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M';
       setMetrics([
-        { ...defaultMetrics[0], value: dashboardData.activeMembers },
-        { ...defaultMetrics[1], value: dashboardData.totalSavings },
-        { ...defaultMetrics[2], value: dashboardData.totalLoans },
+        { ...defaultMetrics[0], value: dashboardData.activeMembers as string },
+        { ...defaultMetrics[1], value: formatRp(dashboardData.totalSavings) },
+        { ...defaultMetrics[2], value: formatRp(dashboardData.totalLoans) },
         { ...defaultMetrics[3], value: dashboardData.npl }
       ]);
     }

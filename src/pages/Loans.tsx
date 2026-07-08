@@ -141,7 +141,7 @@ export default function LoansTemplate() {
       key: 'tenor',
       header: 'Tenor',
       width: pixel(100),
-      renderCell: (item: LoanRow) => <Text type="body">{item.tenor}</Text>,
+      renderCell: (item: LoanRow) => <Text type="body">{item.tenor} Bulan</Text>,
     },
     {
       key: 'status',

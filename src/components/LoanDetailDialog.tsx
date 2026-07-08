@@ -45,7 +45,7 @@ export function LoanDetailDialogContent({
   const { data: payments, isLoading, refetch } = useApiQuery<Payment[]>(`/api/loans/${loan.id}/payments`);
 
   // Calculations
-  const tenorBulan = parseInt(loan.tenor) || 1; // Assuming format "X Bulan"
+  const tenorBulan = loan.tenor;
   const pokok = loan.amount;
   const bunga = loan.interestAmount || 0;
   const totalHutang = loan.totalAmount || (pokok + bunga);
@@ -118,7 +118,7 @@ export function LoanDetailDialogContent({
       header={
         <DialogHeader
           title={`Detail Pinjaman: ${loan.name}`}
-          subtitle={`Tenor: ${loan.tenor}`}
+          subtitle={`Tenor: ${loan.tenor} Bulan`}
           onOpenChange={() => onClose()}
         />
       }

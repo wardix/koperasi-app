@@ -17,7 +17,7 @@ interface Props {
 export function AddLoanDialogContent({onClose, onAdd}: Props) {
   const [selectedMember, setSelectedMember] = useState<SearchableItem | null>(null);
   const [amount, setAmount] = useState('');
-  const [tenor, setTenor] = useState('12 Bulan');
+  const [tenor, setTenor] = useState('12');
   const [purpose, setPurpose] = useState('');
 
   const { data: membersRes } = useApiQuery<PaginatedResponse<MemberRow>>('/api/members?page=1&limit=1000');
@@ -41,7 +41,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
       memberId: selectedMember.id,
       name: selectedMember.label,
       amount: Number(amount) || 0,
-      tenor,
+      tenor: parseInt(tenor) || 12,
       purpose,
       status: 'Menunggu',
     });
@@ -74,10 +74,11 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
           placeholder="Contoh: 5000000"
         />
         <TextInput
-          label="Tenor"
+          label="Tenor (Bulan)"
+          type="number"
           value={tenor}
           onChange={setTenor}
-          placeholder="12 Bulan"
+          placeholder="12"
         />
         <TextInput
           label="Tujuan Pinjaman"

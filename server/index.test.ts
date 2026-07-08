@@ -242,7 +242,7 @@ describe("API Endpoints", () => {
         memberId,
         name: "Test Loan Member",
         amount: 10000,
-        tenor: "10 Bulan",
+        tenor: 10,
         purpose: "Test",
         status: "Disetujui"
       })
@@ -304,7 +304,7 @@ describe("API Endpoints", () => {
         memberId: member.id,
         name: "Test Overpayment",
         amount: 1000000,
-        tenor: "12 Bulan",
+        tenor: 12,
         purpose: "Konsumtif",
         status: "Disetujui"
       })
@@ -362,7 +362,7 @@ describe("API Endpoints", () => {
         memberId: member.id,
         name: "Test Interest Payment",
         amount: 1000000,
-        tenor: "12 Bulan",
+        tenor: 12,
         purpose: "Konsumtif",
         status: "Disetujui"
       })

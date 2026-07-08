@@ -47,7 +47,7 @@ db.run(`
     memberId TEXT REFERENCES members(id) ON DELETE RESTRICT,
     name TEXT NOT NULL,
     amount INTEGER NOT NULL,
-    tenor TEXT NOT NULL,
+    tenor INTEGER NOT NULL,
     purpose TEXT NOT NULL,
     status TEXT NOT NULL
   );
@@ -100,6 +100,10 @@ const migrations = [
       ALTER TABLE members ADD COLUMN simpananSukarela INTEGER DEFAULT 0;
       UPDATE members SET simpananPokok = totalSavings WHERE simpananPokok = 0 AND simpananWajib = 0 AND simpananSukarela = 0;
     `
+  },
+  {
+    name: '0005_convert_tenor_to_integer',
+    sql: `UPDATE loans SET tenor = CAST(REPLACE(tenor, ' Bulan', '') AS INTEGER);`
   }
 ];
 
@@ -157,9 +161,9 @@ if (memberCount.count === 0) {
 const loanCount = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };
 if (loanCount.count === 0) {
   const insertLoan = db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-  insertLoan.run("1", "1", "Budi Santoso", 5000000, "12 Bulan", "Modal Usaha Warung", "Menunggu");
-  insertLoan.run("2", "2", "Siti Aminah", 2500000, "6 Bulan", "Biaya Pendidikan", "Menunggu");
-  insertLoan.run("3", "3", "Dewi Lestari", 10000000, "24 Bulan", "Renovasi Rumah", "Disetujui");
+  insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
+  insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
+  insertLoan.run("3", "3", "Dewi Lestari", 10000000, 24, "Renovasi Rumah", "Disetujui");
 }
 
 const adminCount = db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
