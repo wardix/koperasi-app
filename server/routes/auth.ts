@@ -65,7 +65,7 @@ auth.post('/login', async (c) => {
 
     return c.json({ success: true, message: 'Login successful', token: accessToken, role: admin.role })
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 

@@ -58,7 +58,7 @@ members.post('/', requireAdmin, async (c) => {
     
     return c.json({ success: true, message: 'Member created successfully', id }, 201)
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 
@@ -84,7 +84,7 @@ members.put('/:id', requireAdmin, async (c) => {
     
     return c.json({ success: true, message: 'Member updated successfully' })
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 
@@ -138,7 +138,7 @@ members.put('/:id/savings', requireAdmin, async (c) => {
     
     return c.json({ success: true, newTotal })
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 

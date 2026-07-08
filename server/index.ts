@@ -11,7 +11,20 @@ import settingsRoutes from './routes/settings'
 import shuRoutes from './routes/shu'
 import statsRoutes from './routes/stats'
 
+import { HTTPException } from 'hono/http-exception'
+
 const app = new Hono()
+
+app.onError((err, c) => {
+  console.error(err)
+  if (err instanceof SyntaxError) {
+    return c.json({ success: false, message: 'Invalid JSON payload' }, 400)
+  }
+  if (err instanceof HTTPException) {
+    return c.json({ success: false, message: err.message }, err.status)
+  }
+  return c.json({ success: false, message: 'Internal Server Error' }, 500)
+})
 
 app.get('/health', (c) => {
   try {
