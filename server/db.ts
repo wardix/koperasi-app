@@ -76,17 +76,53 @@ db.run(`
   );
 `);
 
-try {
-  db.run("ALTER TABLE loans ADD COLUMN memberId TEXT REFERENCES members(id) ON DELETE RESTRICT");
-  db.run(`
-    UPDATE loans 
-    SET memberId = (
-      SELECT id FROM members WHERE members.name = loans.name LIMIT 1
-    )
-  `);
-} catch (e) {
-  // Ignore if column already exists
-}
+db.run(`
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    run_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+const migrations = [
+  {
+    name: '0001_add_memberId_to_loans',
+    sql: `
+      ALTER TABLE loans ADD COLUMN memberId TEXT REFERENCES members(id) ON DELETE RESTRICT;
+      UPDATE loans SET memberId = (SELECT id FROM members WHERE members.name = loans.name LIMIT 1);
+    `
+  },
+  {
+    name: '0002_add_simpanan_columns_to_members',
+    sql: `
+      ALTER TABLE members ADD COLUMN simpananPokok INTEGER DEFAULT 0;
+      ALTER TABLE members ADD COLUMN simpananWajib INTEGER DEFAULT 0;
+      ALTER TABLE members ADD COLUMN simpananSukarela INTEGER DEFAULT 0;
+      UPDATE members SET simpananPokok = totalSavings WHERE simpananPokok = 0 AND simpananWajib = 0 AND simpananSukarela = 0;
+    `
+  }
+];
+
+db.transaction(() => {
+  const applied = new Set((db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
+  for (const m of migrations) {
+    if (!applied.has(m.name)) {
+      try {
+        const stmts = m.sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+        for (const stmt of stmts) {
+          db.run(stmt);
+        }
+        db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+      } catch (err: any) {
+        if (err.message && (err.message.includes('duplicate column') || err.message.includes('already exists') || err.message.includes('no such column'))) {
+          db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+})();
 
 db.query(`
   CREATE TABLE IF NOT EXISTS loan_payments (
@@ -116,18 +152,7 @@ if (memberCount.count === 0) {
   insert.run("3", "Joko Widodo", "Anggota", "Pasif", "10 Mar 2024", 1000000);
 }
 
-// 2. Migration for members table: simpananPokok, simpananWajib, simpananSukarela
-try {
-  db.query('ALTER TABLE members ADD COLUMN simpananPokok INTEGER DEFAULT 0').run();
-  db.query('ALTER TABLE members ADD COLUMN simpananWajib INTEGER DEFAULT 0').run();
-  db.query('ALTER TABLE members ADD COLUMN simpananSukarela INTEGER DEFAULT 0').run();
-  
-  // If we want to safely distribute existing totalSavings into simpananPokok as default for old data:
-  db.query('UPDATE members SET simpananPokok = totalSavings WHERE simpananPokok = 0 AND simpananWajib = 0 AND simpananSukarela = 0').run();
-  console.log('Migrated members table: Added simpanan columns.');
-} catch (err) {
-  // Columns already exist
-}
+// Seed data goes below
 
 const loanCount = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };
 if (loanCount.count === 0) {
@@ -159,43 +184,57 @@ if (settingsCount.count === 0) {
   insertSetting.run("twoFactor", "false");
 }
 
-// Migrate existing data from TEXT to INTEGER if needed
-try {
-  const sampleMember = db.query("SELECT totalSavings FROM members LIMIT 1").get() as any;
-  if (sampleMember && typeof sampleMember.totalSavings === 'string' && sampleMember.totalSavings.startsWith('Rp')) {
-    const members = db.query("SELECT id, totalSavings FROM members").all() as any[];
-    const updateMember = db.prepare("UPDATE members SET totalSavings = ? WHERE id = ?");
-    members.forEach(m => {
-      const parsed = parseInt(m.totalSavings.replace(/\\D/g, ""), 10) || 0;
-      updateMember.run(parsed, m.id);
-    });
-  }
+// Run JS migrations (like data conversion or password hashing) manually
+const jsMigrations = [
+  {
+    name: '0003_convert_currency_to_int',
+    run: () => {
+      const sampleMember = db.query("SELECT totalSavings FROM members LIMIT 1").get() as any;
+      if (sampleMember && typeof sampleMember.totalSavings === 'string' && sampleMember.totalSavings.startsWith('Rp')) {
+        const members = db.query("SELECT id, totalSavings FROM members").all() as any[];
+        const updateMember = db.prepare("UPDATE members SET totalSavings = ? WHERE id = ?");
+        members.forEach(m => {
+          const parsed = parseInt(m.totalSavings.replace(/\\D/g, ""), 10) || 0;
+          updateMember.run(parsed, m.id);
+        });
+      }
 
-  const sampleLoan = db.query("SELECT amount FROM loans LIMIT 1").get() as any;
-  if (sampleLoan && typeof sampleLoan.amount === 'string' && sampleLoan.amount.startsWith('Rp')) {
-    const loans = db.query("SELECT id, amount FROM loans").all() as any[];
-    const updateLoan = db.prepare("UPDATE loans SET amount = ? WHERE id = ?");
-    loans.forEach(l => {
-      const parsed = parseInt(l.amount.replace(/\\D/g, ""), 10) || 0;
-      updateLoan.run(parsed, l.id);
-    });
-  }
-} catch (e) {
-  console.error("Migration error:", e);
-}
-
-// Migrate plaintext admin passwords to hash
-try {
-  const admins = db.query("SELECT email, password FROM admins").all() as {email: string, password: string}[];
-  const updateAdmin = db.prepare("UPDATE admins SET password = ? WHERE email = ?");
-  for (const admin of admins) {
-    if (!admin.password.startsWith('$argon2id$')) {
-      const hashed = await Bun.password.hash(admin.password);
-      updateAdmin.run(hashed, admin.email);
+      const sampleLoan = db.query("SELECT amount FROM loans LIMIT 1").get() as any;
+      if (sampleLoan && typeof sampleLoan.amount === 'string' && sampleLoan.amount.startsWith('Rp')) {
+        const loans = db.query("SELECT id, amount FROM loans").all() as any[];
+        const updateLoan = db.prepare("UPDATE loans SET amount = ? WHERE id = ?");
+        loans.forEach(l => {
+          const parsed = parseInt(l.amount.replace(/\\D/g, ""), 10) || 0;
+          updateLoan.run(parsed, l.id);
+        });
+      }
+    }
+  },
+  {
+    name: '0004_hash_admin_passwords',
+    run: async () => {
+      const admins = db.query("SELECT email, password FROM admins").all() as {email: string, password: string}[];
+      const updateAdmin = db.prepare("UPDATE admins SET password = ? WHERE email = ?");
+      for (const admin of admins) {
+        if (!admin.password.startsWith('$argon2id$')) {
+          const hashed = await Bun.password.hash(admin.password);
+          updateAdmin.run(hashed, admin.email);
+        }
+      }
     }
   }
-} catch (e) {
-  console.error("Admin password migration error:", e);
+];
+
+const appliedJs = new Set((db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
+for (const m of jsMigrations) {
+  if (!appliedJs.has(m.name)) {
+    try {
+      await m.run();
+      db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+    } catch (err) {
+      console.error(`Error running JS migration ${m.name}:`, err);
+    }
+  }
 }
 
 export default db;
