@@ -10,11 +10,26 @@ import xss from 'xss'
 
 const app = new Hono()
 
-app.get('/health', (c) => c.json({
-  status: 'ok',
-  uptime: process.uptime(),
-  timestamp: new Date().toISOString()
-}))
+app.get('/health', (c) => {
+  try {
+    // Check database health
+    db.query("SELECT 1").get();
+    return c.json({
+      status: 'ok',
+      database: 'ok',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return c.json({
+      status: 'unhealthy',
+      database: 'error',
+      message: error instanceof Error ? error.message : String(error),
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+})
 
 app.use('*', secureHeaders())
 
