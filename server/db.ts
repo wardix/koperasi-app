@@ -103,6 +103,8 @@ db.run(`
   CREATE INDEX IF NOT EXISTS idx_transactions_memberId ON transactions(memberId);
   CREATE INDEX IF NOT EXISTS idx_loans_memberId ON loans(memberId);
   CREATE INDEX IF NOT EXISTS idx_loan_payments_loanId ON loan_payments(loanId);
+  CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires_at ON token_blacklist(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_rate_limits_reset_at ON rate_limits(reset_at);
 `);
 
 // Insert initial seed data if table is empty
