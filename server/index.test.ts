@@ -469,4 +469,20 @@ describe("API Endpoints", () => {
     // Clean up
     fs.rmSync("test_data_dir", { recursive: true, force: true });
   });
+
+  test("token blacklist cleanup deletes expired tokens", () => {
+    const now = Date.now();
+    
+    // Add one expired and one non-expired token
+    _test.tokenBlacklist.set("expired-token-xyz", now - 1000); // expired
+    _test.tokenBlacklist.set("valid-token-abc", now + 60000); // not expired
+    
+    _test.cleanupTokenBlacklist();
+    
+    expect(_test.tokenBlacklist.has("expired-token-xyz")).toBe(false);
+    expect(_test.tokenBlacklist.has("valid-token-abc")).toBe(true);
+    
+    // Clean up
+    _test.tokenBlacklist.delete("valid-token-abc");
+  });
 });
