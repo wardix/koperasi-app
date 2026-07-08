@@ -35,7 +35,7 @@ settings.put('/', requireAdmin, async (c) => {
     clearStatsCache()
     return c.json({ success: true })
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 

@@ -65,7 +65,7 @@ loans.post('/', requireAdmin, async (c) => {
     
     return c.json({ success: true, message: 'Loan created successfully', id }, 201)
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 
@@ -85,7 +85,7 @@ loans.put('/:id/status', requireAdmin, async (c) => {
     clearStatsCache()
     return c.json({ success: true, message: 'Loan status updated' })
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 
@@ -131,7 +131,7 @@ loans.post('/:id/payments', requireAdmin, async (c) => {
     
     return c.json({ success: true, message: 'Payment recorded successfully', id }, 201)
   } catch (error) {
-    return c.json({ success: false, message: 'Invalid request' }, 400)
+    throw error
   }
 })
 
