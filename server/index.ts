@@ -131,7 +131,23 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 })
 
-const settingsSchema = z.record(z.union([z.string().transform(xss), z.boolean(), z.number()]))
+const ALLOWED_SETTINGS_KEYS = [
+  'koperasiName',
+  'alamat',
+  'telepon',
+  'email',
+  'bungaPinjaman',
+  'bungaSimpanan',
+  'denda',
+  'viewReports',
+  'selfRegister',
+  'twoFactor'
+];
+
+const settingsSchema = z.record(
+  z.string().refine(key => ALLOWED_SETTINGS_KEYS.includes(key), { message: "Invalid setting key" }),
+  z.union([z.string().transform(xss), z.boolean(), z.number()])
+)
 
 function parsePagination(pageStr?: string, limitStr?: string) {
   const MAX_LIMIT = 100;
@@ -689,9 +705,13 @@ app.put('/api/settings', requireAdmin, async (c) => {
     }
 
     const update = db.prepare("UPDATE settings SET value = ? WHERE key = ?")
-    for (const [key, value] of Object.entries(parsed.data)) {
-      update.run(String(value), key)
-    }
+    
+    db.transaction(() => {
+      for (const [key, value] of Object.entries(parsed.data)) {
+        update.run(String(value), key)
+      }
+    })()
+    
     return c.json({ success: true })
   } catch (error) {
     return c.json({ success: false, message: 'Invalid request' }, 400)
