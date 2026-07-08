@@ -13,11 +13,15 @@ RUN bun run build
 
 # Release image
 FROM base AS release
-COPY --from=install /app/node_modules node_modules
-COPY --from=build /app/dist dist
-COPY --from=build /app/server server
-COPY --from=build /app/shared shared
-COPY package.json .
+
+# Ensure /app is owned by bun before copying
+RUN chown -R bun:bun /app
+
+COPY --chown=bun:bun --from=install /app/node_modules node_modules
+COPY --chown=bun:bun --from=build /app/dist dist
+COPY --chown=bun:bun --from=build /app/server server
+COPY --chown=bun:bun --from=build /app/shared shared
+COPY --chown=bun:bun package.json .
 
 ENV NODE_ENV=production
 ENV PORT=3000
