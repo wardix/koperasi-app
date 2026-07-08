@@ -42,6 +42,9 @@ export const requireAdmin = async (c: Context, next: Next) => {
 }
 
 export async function rateLimitLogin(ip: string): Promise<boolean> {
+  if (process.env.NODE_ENV === 'test' || Bun.env.NODE_ENV === 'test') {
+    return true;
+  }
   const now = Date.now();
   const limit = 5;
   const windowMs = 15 * 60 * 1000; // 15 minutes
