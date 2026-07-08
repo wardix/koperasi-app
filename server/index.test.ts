@@ -643,6 +643,20 @@ describe("API Endpoints", () => {
     }
   });
 
+  test("global error handler handles invalid JSON payload", async () => {
+    db.run("DELETE FROM rate_limits");
+    const req = new Request("http://localhost/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{malformed-json"
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(false);
+    expect(body.message).toBe("Invalid JSON payload");
+  });
+
   afterAll(() => {
     const testDb = process.env.DATABASE_PATH || "koperasi_test.sqlite";
     // Close the database explicitly if needed, but since it's global, we just delete the file.
