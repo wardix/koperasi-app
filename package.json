@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "JWT_SECRET=test-secret-key-123 bun test",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
     "start": "bun run server/index.ts"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.10.6",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.17",

@@ -20,7 +20,8 @@ class Statement {
       createdby: 'createdBy',
       createdat: 'createdAt',
       memberid: 'memberId',
-      loanid: 'loanId'
+      loanid: 'loanId',
+      paidamount: 'paidAmount'
     };
     const mapped = {};
     for (const [k, v] of Object.entries(row)) {
@@ -203,46 +204,46 @@ await db.run(`
 `);
 
 // Insert initial seed data if table is empty
-const memberCount = await db.query("SELECT COUNT(*) as count FROM members").get() as { count: number };
-if (memberCount.count === 0) {
+const memberCount = await db.query("SELECT COUNT(*) as count FROM members").get() as { count: any };
+if (Number(memberCount.count) === 0) {
   const insert = await db.prepare("INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)");
-  insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
-  insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
-  insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 2000000);
-  insert.run("4", "Joko Widodo", "Anggota", "Pasif", "10 Apr 2024", 1000000);
+  await insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
+  await insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
+  await insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 2000000);
+  await insert.run("4", "Joko Widodo", "Anggota", "Pasif", "10 Apr 2024", 1000000);
 }
 
 // Seed data goes below
 
-const loanCount = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };
-if (loanCount.count === 0) {
+const loanCount = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: any };
+if (Number(loanCount.count) === 0) {
   const insertLoan = await db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-  insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
-  insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
-  insertLoan.run("3", "3", "Dewi Lestari", 10000000, 24, "Renovasi Rumah", "Disetujui");
+  await insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
+  await insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
+  await insertLoan.run("3", "3", "Dewi Lestari", 10000000, 24, "Renovasi Rumah", "Disetujui");
 }
 
-const adminCount = await db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
-if (adminCount.count === 0) {
+const adminCount = await db.query("SELECT COUNT(*) as count FROM admins").get() as { count: any };
+if (Number(adminCount.count) === 0) {
   const insert = await db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)");
   const hashedPassword = await Bun.password.hash("admin123");
-  insert.run("1", "admin@koperasi.com", hashedPassword, "superadmin");
+  await insert.run("1", "admin@koperasi.com", hashedPassword, "superadmin");
 }
 
 const hasKoperasiName = await db.query("SELECT 1 FROM settings WHERE key = 'koperasiName'").get();
 if (!hasKoperasiName) {
   const insertSetting = await db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING");
-  insertSetting.run("koperasiName", "Koperasi Maju Bersama");
-  insertSetting.run("alamat", "Jl. Jend. Sudirman No. 123, Jakarta");
-  insertSetting.run("telepon", "021-555-0192");
-  insertSetting.run("email", "info@majubersama.co.id");
-  insertSetting.run("bungaPinjaman", "1.5");
-  insertSetting.run("bungaSimpanan", "4.0");
-  insertSetting.run("denda", "0.5");
-  insertSetting.run("viewReports", "false");
-  insertSetting.run("selfRegister", "true");
-  insertSetting.run("twoFactor", "false");
-  insertSetting.run("ssoAutoRegister", "true");
+  await insertSetting.run("koperasiName", "Koperasi Maju Bersama");
+  await insertSetting.run("alamat", "Jl. Jend. Sudirman No. 123, Jakarta");
+  await insertSetting.run("telepon", "021-555-0192");
+  await insertSetting.run("email", "info@majubersama.co.id");
+  await insertSetting.run("bungaPinjaman", "1.5");
+  await insertSetting.run("bungaSimpanan", "4.0");
+  await insertSetting.run("denda", "0.5");
+  await insertSetting.run("viewReports", "false");
+  await insertSetting.run("selfRegister", "true");
+  await insertSetting.run("twoFactor", "false");
+  await insertSetting.run("ssoAutoRegister", "true");
 }
 
 // Run JS migrations (like data conversion or password hashing) manually
