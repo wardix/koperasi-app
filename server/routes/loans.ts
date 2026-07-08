@@ -3,6 +3,7 @@ import db from '../db'
 import { loanSchema, loanStatusSchema, paymentSchema } from '../schemas'
 import { requireAdmin } from '../middleware'
 import { parsePagination } from '../services/pagination'
+import { calculateLoanInterest } from '../services/loanService'
 
 const loans = new Hono()
 
@@ -23,9 +24,7 @@ loans.get('/', (c) => {
   `).all(limit, offset) as any[]
   
   const mappedLoans = rows.map(loan => {
-    const tenorMonths = parseInt(loan.tenor) || 1;
-    const interestAmount = Math.round(loan.amount * (bungaRate / 100) * tenorMonths);
-    const totalAmount = loan.amount + interestAmount;
+    const { interestAmount, totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate);
     
     return {
       ...loan,
@@ -110,9 +109,7 @@ loans.post('/:id/payments', requireAdmin, async (c) => {
 
     const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
     const bungaRate = parseFloat(bungaSetting?.value || '0');
-    const tenorMonths = parseInt(loan.tenor) || 1;
-    const interestAmount = Math.round(loan.amount * (bungaRate / 100) * tenorMonths);
-    const totalAmount = loan.amount + interestAmount;
+    const { totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate);
     
     const paid = (db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0;
     
