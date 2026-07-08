@@ -1,4 +1,5 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, afterAll } from "bun:test";
+import { unlinkSync, existsSync } from "node:fs";
 import server, { _test } from "./index";
 import db from "./db";
 
@@ -565,5 +566,18 @@ describe("API Endpoints", () => {
     expect(applied).toContain("0002_add_simpanan_columns_to_members");
     expect(applied).toContain("0003_convert_currency_to_int");
     expect(applied).toContain("0004_hash_admin_passwords");
+  });
+
+  afterAll(() => {
+    const testDb = process.env.DATABASE_PATH || "koperasi_test.sqlite";
+    // Close the database explicitly if needed, but since it's global, we just delete the file.
+    // However, SQLite on Windows might lock the file, but we are on Mac so unlinkSync usually works.
+    try {
+      db.close();
+    } catch (e) { }
+
+    if (existsSync(testDb)) {
+      unlinkSync(testDb);
+    }
   });
 });
