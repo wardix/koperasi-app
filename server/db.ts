@@ -1,7 +1,17 @@
 import { Database } from "bun:sqlite";
 
+import fs from "node:fs";
+import path from "node:path";
+
 // Create or open the SQLite database file
 const dbPath = process.env.DATABASE_PATH || Bun.env.DATABASE_PATH || "koperasi.sqlite";
+
+// Ensure parent directory exists if dbPath is not just a file name
+const dir = path.dirname(dbPath);
+if (dir && dir !== "." && !fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
 const db = new Database(dbPath, { create: true });
 
 // Enable foreign keys
