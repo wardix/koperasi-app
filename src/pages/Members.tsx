@@ -189,9 +189,10 @@ export default function MembersTemplate() {
       header: 'Status',
       width: pixel(100),
       renderCell: (item: MemberRow) => (
-        <Badge color={item.status === 'Aktif' ? 'success' : 'neutral'}>
-          {item.status}
-        </Badge>
+        <Badge 
+          variant={item.status === 'Aktif' ? 'success' : 'neutral'} 
+          label={item.status} 
+        />
       ),
     },
     {

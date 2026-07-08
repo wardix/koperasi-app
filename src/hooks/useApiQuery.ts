@@ -19,8 +19,8 @@ export function useApiQuery<T>(path: string): UseApiQueryResult<T> {
     try {
       const json = await api.get(path);
       setData(json as T);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err) || 'An error occurred');
     } finally {
       setIsLoading(false);
     }

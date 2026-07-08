@@ -33,7 +33,7 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
         <Selector
           label="Jenis Simpanan"
           value={savingsType}
-          onChange={(val) => setSavingsType(val as any)}
+          onChange={(val) => setSavingsType(val as "pokok" | "wajib" | "sukarela")}
           options={[
             {value: 'sukarela', label: 'Simpanan Sukarela'},
             {value: 'wajib', label: 'Simpanan Wajib'},

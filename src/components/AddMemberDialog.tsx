@@ -12,7 +12,9 @@ import {
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 
-export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: any) => void}) {
+import type { MemberRow } from '../shared/types';
+
+export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: Omit<MemberRow, 'id' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>) => void}) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('Anggota');
   const [deposit, setDeposit] = useState('500000');

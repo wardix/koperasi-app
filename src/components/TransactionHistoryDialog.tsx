@@ -58,9 +58,10 @@ export function TransactionHistoryDialogContent({
       header: 'Tipe',
       width: pixel(100),
       renderCell: (item: Transaction) => (
-        <Badge color={item.type === 'setor' ? 'success' : 'warning'}>
-          {item.type.toUpperCase()}
-        </Badge>
+        <Badge 
+          variant={item.type === 'setor' ? 'success' : 'warning'} 
+          label={item.type.toUpperCase()} 
+        />
       ),
     },
     {

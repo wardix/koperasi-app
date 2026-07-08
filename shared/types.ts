@@ -9,11 +9,11 @@ export interface DashboardData {
   recentActivities: Array<{id: string; activity: string; name: string; amount: number; date: string}>;
 }
 
-export interface MemberRow extends Record<string, unknown> {
+export interface MemberRow {
   id: string;
   name: string;
-  role: string;
-  status: string;
+  role: 'Anggota' | 'Ketua' | 'Bendahara' | 'Sekretaris' | 'Admin' | string;
+  status: 'Aktif' | 'Pasif' | string;
   joinDate: string;
   simpananPokok: number;
   simpananWajib: number;
@@ -21,14 +21,14 @@ export interface MemberRow extends Record<string, unknown> {
   totalSavings: number;
 }
 
-export interface LoanRow extends Record<string, unknown> {
+export interface LoanRow {
   id: string;
   memberId: string;
   name: string;
   amount: number;
   tenor: number;
   purpose: string;
-  status: string;
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak' | 'Lunas';
   paidAmount?: number;
   interestAmount?: number;
   totalAmount?: number;
