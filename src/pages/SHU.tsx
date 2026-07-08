@@ -50,7 +50,7 @@ export default function SHU() {
     ];
   }, [data]);
 
-  const columns: TableColumn<any>[] = useMemo(() => [
+  const columns: TableColumn<SHUData['alokasiAnggota'][0]>[] = useMemo(() => [
     {
       key: 'name',
       header: 'Nama Anggota',

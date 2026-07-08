@@ -153,11 +153,11 @@ export default function LoansTemplate() {
       header: 'Status',
       width: pixel(120),
       renderCell: (item: LoanRow) => {
-        let color = 'neutral';
-        if (item.status === 'Disetujui') color = 'success';
-        if (item.status === 'Ditolak') color = 'error';
-        if (item.status === 'Menunggu') color = 'warning';
-        return <Badge color={color as any}>{item.status}</Badge>;
+        let variant: 'neutral' | 'success' | 'error' | 'warning' = 'neutral';
+        if (item.status === 'Disetujui') variant = 'success';
+        if (item.status === 'Ditolak') variant = 'error';
+        if (item.status === 'Menunggu') variant = 'warning';
+        return <Badge variant={variant} label={item.status} />;
       },
     },
     {

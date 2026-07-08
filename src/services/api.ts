@@ -2,9 +2,9 @@ import { apiFetch } from '../config';
 
 export class ApiError extends Error {
   status: number;
-  data: any;
+  data: unknown;
 
-  constructor(status: number, message: string, data?: any) {
+  constructor(status: number, message: string, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -29,10 +29,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  get: <T = any>(path: string, options?: RequestInit) => 
+  get: <T = unknown>(path: string, options?: RequestInit) => 
     request<T>(path, { ...options, method: 'GET' }),
     
-  post: <T = any>(path: string, body?: any, options?: RequestInit) => 
+  post: <T = unknown>(path: string, body?: unknown, options?: RequestInit) => 
     request<T>(path, { 
       ...options, 
       method: 'POST', 
@@ -43,7 +43,7 @@ export const api = {
       }
     }),
     
-  put: <T = any>(path: string, body?: any, options?: RequestInit) => 
+  put: <T = unknown>(path: string, body?: unknown, options?: RequestInit) => 
     request<T>(path, { 
       ...options, 
       method: 'PUT', 
@@ -54,6 +54,6 @@ export const api = {
       }
     }),
     
-  delete: <T = any>(path: string, options?: RequestInit) => 
+  delete: <T = unknown>(path: string, options?: RequestInit) => 
     request<T>(path, { ...options, method: 'DELETE' })
 };
