@@ -39,7 +39,7 @@ import {
   PlusIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import {useImperativeDialog} from '@astryxdesign/core/Dialog';
+import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddLoanDialogContent} from '../components/AddLoanDialog';
 import {LoanDetailDialogContent} from '../components/LoanDetailDialog';
 
@@ -59,7 +59,7 @@ const fieldDefs = [
 export default function LoansTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
-  const dialog = useImperativeDialog({purpose: 'form', width: 480});
+  const dialog = useA11yDialog({purpose: 'form', width: 480});
   const toast = useToast();
   const { isAdmin } = useAuth();
   const apiAction = useApiAction();

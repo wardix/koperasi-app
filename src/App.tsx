@@ -108,6 +108,7 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
       <ResponsiveContainer width="100%" height={300}>
         <LineChart
           data={data}
+          accessibilityLayer
           margin={{top: 5, right: 10, left: 0, bottom: 5}}>
           <CartesianGrid
             horizontal
@@ -167,7 +168,7 @@ function Sparkline({data}: {data: number[]}) {
   const chartData = data.map((v, i) => ({i, v}));
   return (
     <ResponsiveContainer width="100%" height={40}>
-      <LineChart data={chartData}>
+      <LineChart data={chartData} accessibilityLayer>
         <Line
           type="linear"
           dataKey="v"
@@ -241,6 +242,7 @@ function StackedBarCard({
             <ResponsiveContainer width="100%" height={24}>
               <BarChart
                 data={chartData}
+                accessibilityLayer
                 layout="vertical"
                 margin={{top: 0, right: 0, bottom: 0, left: 0}}
                 barCategoryGap={0}>
