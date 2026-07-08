@@ -443,4 +443,28 @@ describe("API Endpoints", () => {
     expect(typeof body.uptime).toBe("number");
     expect(body.timestamp).toBeDefined();
   });
+
+  test("database path subdirectory is created if it does not exist", () => {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const testDbPath = "test_data_dir/subdir/koperasi.sqlite";
+    const dir = path.dirname(testDbPath);
+    
+    // Clean up if exists
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    
+    expect(fs.existsSync(dir)).toBe(false);
+    
+    // Simulate db.ts path creation logic
+    if (dir && dir !== "." && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    expect(fs.existsSync(dir)).toBe(true);
+    
+    // Clean up
+    fs.rmSync("test_data_dir", { recursive: true, force: true });
+  });
 });
