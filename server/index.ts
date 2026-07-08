@@ -638,7 +638,7 @@ app.post('/api/refresh', async (c) => {
     return c.json({ success: false, message: 'No refresh token' }, 401)
   }
   try {
-    const payload = await verify(refreshToken, secretKey)
+    const payload = await verify(refreshToken, secretKey, 'HS256')
     
     // Validate user still exists and get updated role
     const admin = db.query("SELECT * FROM admins WHERE id = ?").get(payload.sub as string) as any
