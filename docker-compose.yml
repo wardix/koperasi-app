@@ -8,10 +8,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_PATH=/app/data/koperasi.sqlite
-    volumes:
-      # Mount database for persistence
-      - ./data:/app/data
+      - DATABASE_URL=postgres://koperasi:koperasi_pass@db:5432/koperasi
+      - JWT_SECRET=${JWT_SECRET:-koperasi_super_secret_fallback}
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -32,3 +33,23 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=koperasi
+      - POSTGRES_PASSWORD=koperasi_pass
+      - POSTGRES_DB=koperasi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U koperasi -d koperasi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

@@ -8,19 +8,19 @@ import { clearStatsCache } from './stats'
 
 const loans = new Hono()
 
-loans.get('/', (c) => {
+loans.get('/', async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
-  const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
   const bungaRate = parseFloat(bungaSetting?.value || '0');
 
-  const rows = db.query(`
+  const rows = await db.query(`
     SELECT l.*, COALESCE(SUM(p.amount), 0) as paidAmount 
     FROM loans l
     LEFT JOIN loan_payments p ON l.id = p.loanId
     GROUP BY l.id
-    ORDER BY l.rowid DESC 
+    ORDER BY l.id DESC 
     LIMIT ? OFFSET ?
   `).all(limit, offset) as any[]
   
@@ -34,7 +34,7 @@ loans.get('/', (c) => {
     }
   });
 
-  const totalRes = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
+  const totalRes = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
 
   return c.json({
     success: true,
@@ -59,11 +59,11 @@ loans.post('/', requireAdmin, async (c) => {
     const { memberId, name, amount, tenor, purpose, status } = parsed.data
     const id = crypto.randomUUID()
 
-    const insert = db.prepare(`
+    const insert = await db.prepare(`
       INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
-    insert.run(id, memberId, name, amount, tenor, purpose, status)
+    await insert.run(id, memberId, name, amount, tenor, purpose, status)
     clearStatsCache()
     
     return c.json({ success: true, message: 'Loan created successfully', id }, 201)
@@ -84,7 +84,8 @@ loans.put('/:id/status', requireAdmin, async (c) => {
     
     const { status } = parsed.data
 
-    db.prepare("UPDATE loans SET status = ? WHERE id = ?").run(status, id)
+    const stmt = await db.prepare("UPDATE loans SET status = ? WHERE id = ?")
+    await stmt.run(status, id)
     clearStatsCache()
     return c.json({ success: true, message: 'Loan status updated' })
   } catch (error) {
@@ -92,9 +93,9 @@ loans.put('/:id/status', requireAdmin, async (c) => {
   }
 })
 
-loans.get('/:id/payments', (c) => {
+loans.get('/:id/payments', async (c) => {
   const id = c.req.param('id')
-  const payments = db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
+  const payments = await db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
   return c.json({ success: true, data: payments })
 })
 
@@ -110,14 +111,14 @@ loans.post('/:id/payments', requireAdmin, async (c) => {
 
     const { amount, method } = parsed.data
     
-    const loan = db.query("SELECT amount, tenor FROM loans WHERE id = ?").get(loanId) as { amount: number, tenor: string } | null;
+    const loan = await db.query("SELECT amount, tenor FROM loans WHERE id = ?").get(loanId) as { amount: number, tenor: string } | null;
     if (!loan) return c.json({ success: false, message: 'Loan not found' }, 404);
 
-    const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+    const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
     const bungaRate = parseFloat(bungaSetting?.value || '0');
     const { totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate);
     
-    const paid = (db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0;
+    const paid = (await db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0;
     
     if (paid + amount > totalAmount) {
       return c.json({ success: false, message: 'Total pembayaran melebihi jumlah pinjaman' }, 400);
@@ -126,10 +127,11 @@ loans.post('/:id/payments', requireAdmin, async (c) => {
     const id = crypto.randomUUID()
     const paymentDate = new Date().toISOString()
 
-    db.prepare(`
+    const stmt = await db.prepare(`
       INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, loanId, amount, paymentDate, method)
+    `)
+    await stmt.run(id, loanId, amount, paymentDate, method)
     clearStatsCache()
     
     return c.json({ success: true, message: 'Payment recorded successfully', id }, 201)

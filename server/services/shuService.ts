@@ -1,21 +1,23 @@
 import db from '../db'
 import { calculateLoanInterest } from './loanService'
 
-export function calculateSHU(year: string) {
-  const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+export async function calculateSHU(year: string) {
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
   const bungaRate = parseFloat(bungaSetting?.value || '1.5');
 
-  const payments = db.query(`
+  const payments = await db.query(`
     SELECT lp.amount as paymentAmount, l.amount as principalAmount, l.tenor
     FROM loan_payments lp
     JOIN loans l ON lp.loanId = l.id
-    WHERE strftime('%Y', lp.paymentDate) = ?
+    WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
   `).all(year) as any[];
 
   let pendapatan = 0;
   for (const p of payments) {
-    const { interestAmount, totalAmount } = calculateLoanInterest(p.principalAmount, p.tenor, bungaRate);
-    const interestPaid = totalAmount > 0 ? Math.round(p.paymentAmount * (interestAmount / totalAmount)) : 0;
+    const pAmt = p.paymentAmount ?? p.paymentamount ?? 0;
+    const princAmt = p.principalAmount ?? p.principalamount ?? 0;
+    const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor, bungaRate);
+    const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
     pendapatan += interestPaid;
   }
   
@@ -30,7 +32,7 @@ export function calculateSHU(year: string) {
     pembangunan: Math.round(shuNetto * 0.05),
   };
   
-  const members = db.query("SELECT id, name, totalSavings FROM members").all() as any[];
+  const members = await db.query("SELECT id, name, totalSavings FROM members").all() as any[];
   const totalSimpananSeluruhAnggota = members.reduce((sum, m) => sum + m.totalSavings, 0);
   
   const alokasiAnggota = members.map(m => {

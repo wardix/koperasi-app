@@ -424,20 +424,20 @@ describe("API Endpoints", () => {
     expect(Array.isArray(body.alokasiAnggota)).toBe(true);
   });
 
-  test("rate limit cleanup deletes expired entries", () => {
+  test("rate limit cleanup deletes expired entries", async () => {
     const now = Date.now();
     
     // Add one expired and one non-expired attempt
-    db.run("INSERT OR REPLACE INTO rate_limits (ip, count, reset_at) VALUES (?, ?, ?)", ["1.1.1.1", 3, now - 1000]); // expired
-    db.run("INSERT OR REPLACE INTO rate_limits (ip, count, reset_at) VALUES (?, ?, ?)", ["2.2.2.2", 2, now + 60000]); // not expired
+    await db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES (?, ?, ?) ON CONFLICT (ip) DO UPDATE SET count = EXCLUDED.count, reset_at = EXCLUDED.reset_at", ["1.1.1.1", 3, now - 1000]); // expired
+    await db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES (?, ?, ?) ON CONFLICT (ip) DO UPDATE SET count = EXCLUDED.count, reset_at = EXCLUDED.reset_at", ["2.2.2.2", 2, now + 60000]); // not expired
     
-    _test.cleanupAttempts();
+    await _test.cleanupAttempts();
     
-    expect(db.query("SELECT * FROM rate_limits WHERE ip = ?").get("1.1.1.1")).toBeNull();
-    expect(db.query("SELECT * FROM rate_limits WHERE ip = ?").get("2.2.2.2")).not.toBeNull();
+    expect(await db.query("SELECT * FROM rate_limits WHERE ip = ?").get("1.1.1.1")).toBeNull();
+    expect(await db.query("SELECT * FROM rate_limits WHERE ip = ?").get("2.2.2.2")).not.toBeNull();
     
     // Clean up
-    db.run("DELETE FROM rate_limits WHERE ip = ?", ["2.2.2.2"]);
+    await db.run("DELETE FROM rate_limits WHERE ip = ?", ["2.2.2.2"]);
   });
 
   test("GET /health returns health metrics", async () => {
@@ -451,44 +451,20 @@ describe("API Endpoints", () => {
     expect(body.timestamp).toBeDefined();
   });
 
-  test("database path subdirectory is created if it does not exist", () => {
-    const fs = require("node:fs");
-    const path = require("node:path");
-    const testDbPath = "test_data_dir/subdir/koperasi.sqlite";
-    const dir = path.dirname(testDbPath);
-    
-    // Clean up if exists
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-    
-    expect(fs.existsSync(dir)).toBe(false);
-    
-    // Simulate db.ts path creation logic
-    if (dir && dir !== "." && !fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    
-    expect(fs.existsSync(dir)).toBe(true);
-    
-    // Clean up
-    fs.rmSync("test_data_dir", { recursive: true, force: true });
-  });
-
-  test("token blacklist cleanup deletes expired tokens", () => {
+  test("token blacklist cleanup deletes expired tokens", async () => {
     const now = Date.now();
     
     // Add one expired and one non-expired token
-    db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", ["expired-token-xyz", now - 1000]); // expired
-    db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", ["valid-token-abc", now + 60000]); // not expired
+    await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", ["expired-token-xyz", now - 1000]); // expired
+    await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", ["valid-token-abc", now + 60000]); // not expired
     
-    _test.cleanupTokenBlacklist();
+    await _test.cleanupTokenBlacklist();
     
-    expect(db.query("SELECT * FROM token_blacklist WHERE token = ?").get("expired-token-xyz")).toBeNull();
-    expect(db.query("SELECT * FROM token_blacklist WHERE token = ?").get("valid-token-abc")).not.toBeNull();
+    expect(await db.query("SELECT * FROM token_blacklist WHERE token = ?").get("expired-token-xyz")).toBeNull();
+    expect(await db.query("SELECT * FROM token_blacklist WHERE token = ?").get("valid-token-abc")).not.toBeNull();
     
     // Clean up
-    db.run("DELETE FROM token_blacklist WHERE token = ?", ["valid-token-abc"]);
+    await db.run("DELETE FROM token_blacklist WHERE token = ?", ["valid-token-abc"]);
   });
 
   test("GET /api/v1/members caps pagination limit at 100", async () => {
@@ -507,7 +483,7 @@ describe("API Endpoints", () => {
 
     try {
       // 1. Create a temporary admin in DB
-      db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+      await db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)").run(
         adminId,
         "refresh-test@example.com",
         "hashed_password",
@@ -521,7 +497,7 @@ describe("API Endpoints", () => {
       );
 
       // 3. Update the role of the admin in the database to "admin"
-      db.prepare("UPDATE admins SET role = ? WHERE id = ?").run("admin", adminId);
+      await db.prepare("UPDATE admins SET role = ? WHERE id = ?").run("admin", adminId);
 
       // 4. Request token refresh
       const req = new RequestConstructor("http://localhost/api/v1/refresh", {
@@ -543,7 +519,7 @@ describe("API Endpoints", () => {
       expect(newPayload.role).toBe("admin");
 
       // 5. Delete the admin from DB (simulate deactivation)
-      db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
+      await db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
 
       // 6. Request token refresh again (should fail with 401 since user no longer exists)
       const reqFailed = new RequestConstructor("http://localhost/api/v1/refresh", {
@@ -559,12 +535,12 @@ describe("API Endpoints", () => {
       expect(bodyFailed.success).toBe(false);
     } finally {
       // Always cleanup database
-      db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
+      await db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
     }
   });
 
-  test("database migrations are successfully applied", () => {
-    const applied = (db.query("SELECT name FROM schema_migrations").all() as any[]).map(m => m.name);
+  test("database migrations are successfully applied", async () => {
+    const applied = (await db.query("SELECT name FROM schema_migrations").all() as any[]).map(m => m.name);
     expect(applied).toContain("0001_add_memberId_to_loans");
     expect(applied).toContain("0002_add_simpanan_columns_to_members");
     expect(applied).toContain("0003_convert_currency_to_int");
@@ -587,7 +563,7 @@ describe("API Endpoints", () => {
     expect(bodyValid.success).toBe(true);
 
     // Verify it updated in DB
-    const setting = db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string };
+    const setting = await db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string };
     expect(setting.value).toBe("Koperasi Baru");
 
     // 2. Invalid settings update (injection attempt)
@@ -616,7 +592,7 @@ describe("API Endpoints", () => {
     const oldSavings = body1.totalSavings;
 
     // 2. Modify members in DB directly (bypassing Hono routes so cache is not invalidated)
-    db.prepare("UPDATE members SET totalSavings = totalSavings + 1000000000").run();
+    await db.prepare("UPDATE members SET totalSavings = totalSavings + 1000000000").run();
 
     try {
       // 3. Second call to stats (should return cached stats, meaning oldSavings is unchanged)
@@ -642,12 +618,12 @@ describe("API Endpoints", () => {
       expect(body3.totalSavings).not.toBe(oldSavings);
     } finally {
       // Clean up members table
-      db.prepare("UPDATE members SET totalSavings = totalSavings - 1000000000").run();
+      await db.prepare("UPDATE members SET totalSavings = totalSavings - 1000000000").run();
     }
   });
 
   test("global error handler handles invalid JSON payload", async () => {
-    db.run("DELETE FROM rate_limits");
+    await db.run("DELETE FROM rate_limits");
     const req = new Request("http://localhost/api/v1/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -703,16 +679,11 @@ describe("API Endpoints", () => {
     }
   });
 
-  afterAll(() => {
-    const testDb = process.env.DATABASE_PATH || "koperasi_test.sqlite";
-    // Close the database explicitly if needed, but since it's global, we just delete the file.
-    // However, SQLite on Windows might lock the file, but we are on Mac so unlinkSync usually works.
+  afterAll(async () => {
     try {
+      // Clean up postgres test database tables
+      await db.run("TRUNCATE TABLE schema_migrations, admins, members, loans, loan_payments, transactions, settings, token_blacklist, rate_limits CASCADE;");
       db.close();
     } catch (e) { }
-
-    if (existsSync(testDb)) {
-      unlinkSync(testDb);
-    }
   });
 });

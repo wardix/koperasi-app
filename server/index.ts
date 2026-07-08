@@ -26,9 +26,9 @@ app.onError((err, c) => {
   return c.json({ success: false, message: 'Internal Server Error' }, 500)
 })
 
-app.get('/health', (c) => {
+app.get('/health', async (c) => {
   try {
-    db.query("SELECT 1").get();
+    await db.query("SELECT 1").get();
     return c.json({
       status: 'ok',
       database: 'ok',
@@ -58,9 +58,9 @@ app.use('/*', cors({
   credentials: true,
 }))
 
-const cleanupTokenBlacklist = () => {
+const cleanupTokenBlacklist = async () => {
   const now = Date.now();
-  db.run("DELETE FROM token_blacklist WHERE expires_at < ?", [now]);
+  await db.run("DELETE FROM token_blacklist WHERE expires_at < ?", [now]);
 };
 
 const tokenCleanupInterval = setInterval(cleanupTokenBlacklist, 60 * 60 * 1000); // 1 hour
@@ -68,9 +68,9 @@ if (typeof tokenCleanupInterval.unref === 'function') {
   tokenCleanupInterval.unref();
 }
 
-const cleanupAttempts = () => {
+const cleanupAttempts = async () => {
   const now = Date.now();
-  db.run("DELETE FROM rate_limits WHERE reset_at < ?", [now]);
+  await db.run("DELETE FROM rate_limits WHERE reset_at < ?", [now]);
 };
 
 const cleanupInterval = setInterval(cleanupAttempts, 15 * 60 * 1000); // run every 15 minutes

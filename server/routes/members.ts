@@ -7,12 +7,12 @@ import { clearStatsCache } from './stats'
 
 const members = new Hono()
 
-members.get('/', (c) => {
+members.get('/', async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
   
-  const rows = db.query("SELECT * FROM members ORDER BY rowid DESC LIMIT ? OFFSET ?").all(limit, offset)
-  const totalRes = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number }
+  const rows = await db.query("SELECT * FROM members ORDER BY id DESC LIMIT ? OFFSET ?").all(limit, offset)
+  const totalRes = await db.query("SELECT COUNT(*) as count FROM members").get() as { count: number }
   
   return c.json({
     success: true,
@@ -25,10 +25,10 @@ members.get('/', (c) => {
   })
 })
 
-members.delete('/:id', requireAdmin, (c) => {
+members.delete('/:id', requireAdmin, async (c) => {
   const id = c.req.param('id')
   try {
-    db.query("DELETE FROM members WHERE id = ?").run(id)
+    await db.query("DELETE FROM members WHERE id = ?").run(id)
     clearStatsCache()
     return c.json({ success: true })
   } catch (err: any) {
@@ -52,11 +52,11 @@ members.post('/', requireAdmin, async (c) => {
     const totalSavings = simpananPokok + simpananWajib + simpananSukarela
     const id = crypto.randomUUID()
 
-    const insert = db.prepare(`
+    const insert = await db.prepare(`
       INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+    await insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
     clearStatsCache()
     
     return c.json({ success: true, message: 'Member created successfully', id }, 201)
@@ -78,11 +78,11 @@ members.put('/:id', requireAdmin, async (c) => {
     const { name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela } = parsed.data
     const totalSavings = simpananPokok + simpananWajib + simpananSukarela
 
-    const update = db.prepare(`
+    const update = await db.prepare(`
       UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?, simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ?
       WHERE id = ?
     `)
-    update.run(name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, id)
+    await update.run(name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, id)
     clearStatsCache()
     
     return c.json({ success: true, message: 'Member updated successfully' })
@@ -103,13 +103,13 @@ members.put('/:id/savings', requireAdmin, async (c) => {
 
     const { additionalSavings, savingsType } = parsed.data
 
-    const member = db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?").get(id) as {simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number}
+    const member = await db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?").get(id) as {simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number}
     if (!member) return c.json({success: false, message: 'Not found'}, 404)
 
     const additionalSavingsNum = Number(additionalSavings)
-    let newPokok = member.simpananPokok
-    let newWajib = member.simpananWajib
-    let newSukarela = member.simpananSukarela
+    let newPokok = member.simpananPokok ?? member.simpananpokok ?? 0
+    let newWajib = member.simpananWajib ?? member.simpananwajib ?? 0
+    let newSukarela = member.simpananSukarela ?? member.simpanansukarela ?? 0
     
     if (savingsType === 'pokok') newPokok += additionalSavingsNum
     else if (savingsType === 'wajib') newWajib += additionalSavingsNum
@@ -121,9 +121,9 @@ members.put('/:id/savings', requireAdmin, async (c) => {
     
     const newTotal = newPokok + newWajib + newSukarela
 
-    db.transaction(() => {
-      db.query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?").run(newPokok, newWajib, newSukarela, newTotal, id)
-      db.query(`
+    await db.transaction(async () => {
+      await db.query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?").run(newPokok, newWajib, newSukarela, newTotal, id)
+      await db.query(`
         INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
@@ -131,7 +131,7 @@ members.put('/:id/savings', requireAdmin, async (c) => {
         id,
         additionalSavingsNum >= 0 ? `setor_${savingsType}` : `tarik_${savingsType}`,
         Math.abs(additionalSavingsNum),
-        member.totalSavings,
+        member.totalSavings ?? member.totalsavings ?? 0,
         newTotal,
         new Date().toISOString(),
         (c.get('jwtPayload') as any)?.email || 'admin'
@@ -145,9 +145,9 @@ members.put('/:id/savings', requireAdmin, async (c) => {
   }
 })
 
-members.get('/:id/transactions', (c) => {
+members.get('/:id/transactions', async (c) => {
   const id = c.req.param('id')
-  const rows = db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC").all(id)
+  const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC").all(id)
   return c.json({ success: true, data: rows })
 })
 

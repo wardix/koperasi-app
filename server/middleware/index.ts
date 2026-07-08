@@ -20,7 +20,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    const blacklisted = db.query("SELECT 1 FROM token_blacklist WHERE token = ?").get(token);
+    const blacklisted = await db.query("SELECT 1 FROM token_blacklist WHERE token = ?").get(token);
     if (blacklisted) {
       return c.json({ success: false, message: 'Token is blacklisted' }, 401);
     }
@@ -41,25 +41,25 @@ export const requireAdmin = async (c: Context, next: Next) => {
   return next()
 }
 
-export function rateLimitLogin(ip: string): boolean {
+export async function rateLimitLogin(ip: string): Promise<boolean> {
   const now = Date.now();
   const limit = 5;
   const windowMs = 15 * 60 * 1000; // 15 minutes
 
-  let attempt = db.query("SELECT * FROM rate_limits WHERE ip = ?").get(ip) as any;
+  let attempt = await db.query("SELECT * FROM rate_limits WHERE ip = ?").get(ip) as any;
   
   if (!attempt) {
-    db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES (?, 1, ?)", [ip, now + windowMs]);
+    await db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES (?, 1, ?)", [ip, now + windowMs]);
     return true;
   }
 
   if (now > attempt.reset_at) {
-    db.run("UPDATE rate_limits SET count = 1, reset_at = ? WHERE ip = ?", [now + windowMs, ip]);
+    await db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES ($2, 1, $1) ON CONFLICT (ip) DO UPDATE SET count = 1, reset_at = EXCLUDED.reset_at", [now + windowMs, ip]);
     return true;
   }
 
   const newCount = attempt.count + 1;
-  db.run("UPDATE rate_limits SET count = ? WHERE ip = ?", [newCount, ip]);
+  await db.run("UPDATE rate_limits SET count = ? WHERE ip = ?", [newCount, ip]);
   
   if (newCount > limit) {
     return false;
