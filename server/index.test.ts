@@ -432,4 +432,15 @@ describe("API Endpoints", () => {
     // Clean up
     _test.loginAttempts.delete("2.2.2.2");
   });
+
+  test("GET /health returns health metrics", async () => {
+    const req = new Request("http://localhost/health");
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.status).toBe("ok");
+    expect(body.database).toBe("ok");
+    expect(typeof body.uptime).toBe("number");
+    expect(body.timestamp).toBeDefined();
+  });
 });
