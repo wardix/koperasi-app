@@ -1,4 +1,5 @@
 import db from '../db'
+import { calculateLoanInterest } from './loanService'
 
 export function calculateSHU(year: string) {
   const bungaSetting = db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
@@ -13,9 +14,7 @@ export function calculateSHU(year: string) {
 
   let pendapatan = 0;
   for (const p of payments) {
-    const tenorMonths = parseInt(p.tenor) || 1;
-    const interestAmount = Math.round(p.principalAmount * (bungaRate / 100) * tenorMonths);
-    const totalAmount = p.principalAmount + interestAmount;
+    const { interestAmount, totalAmount } = calculateLoanInterest(p.principalAmount, p.tenor, bungaRate);
     const interestPaid = totalAmount > 0 ? Math.round(p.paymentAmount * (interestAmount / totalAmount)) : 0;
     pendapatan += interestPaid;
   }

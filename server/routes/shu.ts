@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { calculateSHU } from '../services/shu'
+import { calculateSHU } from '../services/shuService'
 
 const shu = new Hono()
 
