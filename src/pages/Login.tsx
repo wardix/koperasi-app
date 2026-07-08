@@ -4,7 +4,7 @@
 
 import {useState, type CSSProperties} from 'react';
 import {VStack, HStack, StackItem} from '@astryxdesign/core/Layout';
-import {api} from '../services/api';
+import {useAuth} from '../hooks/useAuth';
 import {Grid} from '@astryxdesign/core/Grid';
 import {Center} from '@astryxdesign/core/Center';
 import {Card} from '@astryxdesign/core/Card';
@@ -74,12 +74,13 @@ const LOGIN_SPLIT_CSS = `
 }
 `;
 
-export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => void}) {
+export default function LoginTwoColumn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginFailed, setLoginFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const { login, confirmLogin } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -90,12 +91,9 @@ export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => 
     setLoginFailed(false);
     
     try {
-      const data = await api.post('/api/login', { email, password });
-      
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.role);
+      await login(email, password);
       setIsSuccess(true);
-      setTimeout(onLoginSuccess, 1000);
+      setTimeout(confirmLogin, 1000);
     } catch (err) {
       console.error(err);
       setLoginFailed(true);

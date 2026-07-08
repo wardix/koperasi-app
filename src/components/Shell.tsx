@@ -32,10 +32,10 @@ const Settings = React.lazy(() => import('../pages/Settings'));
 const SHU = React.lazy(() => import('../pages/SHU'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
-export default function Shell({ onLogout }: { onLogout: () => void }) {
+export default function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, logout } = useAuth();
 
   const path = location.pathname;
   return (
@@ -143,7 +143,7 @@ export default function Shell({ onLogout }: { onLogout: () => void }) {
                 onClick={() => navigate('/roles')}
               />
             )}
-            <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={onLogout} />
+            <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={logout} />
           </SideNavSection>
         </SideNav>
       }>
