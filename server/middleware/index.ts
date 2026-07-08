@@ -8,7 +8,7 @@ if (!secretKey) {
 }
 
 export const authMiddleware = async (c: Context, next: Next) => {
-  if (c.req.path === '/api/login' || c.req.path === '/api/logout' || c.req.path === '/api/refresh') {
+  if (c.req.path === '/api/v1/login' || c.req.path === '/api/v1/logout' || c.req.path === '/api/v1/refresh') {
     return next()
   }
   const authHeader = c.req.header('Authorization');
