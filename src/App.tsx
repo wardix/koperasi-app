@@ -18,6 +18,8 @@ import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
 import {useState, useEffect} from 'react';
 import {useApiQuery} from './hooks/useApiQuery';
+import {DataStateView} from './components/DataStateView';
+import {formatRp} from './utils/format';
 import {
   BarChart,
   Bar,
@@ -292,7 +294,7 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
       key: 'amount', 
       header: 'Nilai', 
       width: pixel(150),
-      renderCell: (item) => 'Rp ' + item.amount.toLocaleString('id-ID')
+      renderCell: (item) => formatRp(item.amount)
     },
     {key: 'date', header: 'Tanggal', width: pixel(120)},
   ];
@@ -339,20 +341,7 @@ export default function DashboardTemplate() {
       height="auto"
       content={
         <LayoutContent padding={6}>
-          {isLoading ? (
-            <Center style={{height: '100%'}}>
-              <Spinner size="lg" />
-            </Center>
-          ) : error ? (
-            <Center style={{height: '100%'}}>
-              <EmptyState
-                icon={<ExclamationCircleIcon width={48} height={48} />}
-                title="Gagal Memuat Dasbor"
-                description={error}
-                actions={<Button label="Coba Lagi" onClick={fetchStats} />}
-              />
-            </Center>
-          ) : (
+          <DataStateView isLoading={isLoading} error={error} onRetry={fetchStats} errorTitle="Gagal Memuat Dasbor">
           <VStack gap={6}>
             {/* Trend Chart */}
             <VStack gap={6}>
@@ -405,7 +394,7 @@ export default function DashboardTemplate() {
               <RecentActivitiesTable data={dashboardData?.recentActivities || []} />
             </VStack>
           </VStack>
-          )}
+          </DataStateView>
         </LayoutContent>
       }
     />

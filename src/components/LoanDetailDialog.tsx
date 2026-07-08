@@ -18,6 +18,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {api} from '../services/api';
 import {useToast} from '@astryxdesign/core/Toast';
 import type {LoanRow} from '../shared/types';
+import {formatRp} from '../utils/format';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 
@@ -107,7 +108,7 @@ export function LoanDetailDialogContent({
       width: proportional(1),
       renderCell: (item: Payment) => (
         <Text type="body" color="success">
-          + Rp {item.amount.toLocaleString('id-ID')}
+          + {formatRp(item.amount)}
         </Text>
       ),
     },
@@ -128,22 +129,22 @@ export function LoanDetailDialogContent({
             <HStack gap={4}>
               <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
                 <Text type="supporting" color="secondary">Pokok</Text>
-                <Heading level={3}>Rp {pokok.toLocaleString('id-ID')}</Heading>
+                <Heading level={3}>{formatRp(pokok)}</Heading>
               </VStack>
-              <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
-                <Text type="supporting" color="secondary">Bunga</Text>
-                <Heading level={3}>Rp {bunga.toLocaleString('id-ID')}</Heading>
+              <VStack gap={1} style={{ flex: 1, padding: 12, backgroundColor: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                <Text type="supporting" color="secondary">Total Bunga</Text>
+                <Heading level={3}>{formatRp(bunga)}</Heading>
               </VStack>
             </HStack>
             <HStack gap={4}>
               <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
                 <Text type="supporting" color="secondary">Total Hutang</Text>
-                <Heading level={3}>Rp {totalHutang.toLocaleString('id-ID')}</Heading>
+                <Heading level={3}>{formatRp(totalHutang)}</Heading>
               </VStack>
               <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: '#f9fafb', borderRadius: 8 }}>
                 <Text type="supporting" color="secondary">Sisa Hutang</Text>
                 <Heading level={3} color={remainingDebt > 0 ? 'error' : 'success'}>
-                  Rp {Math.max(0, remainingDebt).toLocaleString('id-ID')}
+                  {formatRp(Math.max(0, remainingDebt))}
                 </Heading>
               </VStack>
             </HStack>
@@ -152,7 +153,7 @@ export function LoanDetailDialogContent({
               <VStack gap={4}>
                 <Heading level={4}>Bayar Angsuran</Heading>
                 <Text type="supporting" color="secondary">
-                  Angsuran per bulan yang disarankan: Rp {angsuranPerBulan.toLocaleString('id-ID')}
+                  Angsuran per bulan yang disarankan: {formatRp(angsuranPerBulan)}
                 </Text>
                 <HStack gap={3} vAlign="end">
                   <div style={{ flex: 1 }}>

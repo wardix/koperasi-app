@@ -7,6 +7,7 @@ import {
   VStack,
 } from '@astryxdesign/core/Layout';
 import {Text} from '@astryxdesign/core/Text';
+import {formatRp} from '../utils/format';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {Badge} from '@astryxdesign/core/Badge';
@@ -67,7 +68,7 @@ export function TransactionHistoryDialogContent({
       width: proportional(1),
       renderCell: (item: Transaction) => (
         <Text type="body" color={item.type === 'setor' ? 'success' : 'neutral'}>
-          {item.type === 'setor' ? '+' : '-'} Rp {item.amount.toLocaleString('id-ID')}
+          {item.type === 'setor' ? '+' : '-'} {formatRp(item.amount)}
         </Text>
       ),
     },
@@ -76,7 +77,7 @@ export function TransactionHistoryDialogContent({
       header: 'Saldo Akhir',
       width: proportional(1),
       renderCell: (item: Transaction) => (
-        <Text type="body">Rp {item.balanceAfter.toLocaleString('id-ID')}</Text>
+        <Text type="body">{formatRp(item.balanceAfter)}</Text>
       ),
     },
   ];

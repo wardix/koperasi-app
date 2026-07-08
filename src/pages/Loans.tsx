@@ -17,6 +17,11 @@ import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {useToast} from '@astryxdesign/core/Toast';
 import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {useAuth} from '../hooks/useAuth';
+import {useApiAction} from '../hooks/useApiAction';
+import {formatRp} from '../utils/format';
+import {Pagination} from '../components/Pagination';
+import {DataStateView} from '../components/DataStateView';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -38,7 +43,6 @@ import {useImperativeDialog} from '@astryxdesign/core/Dialog';
 import {AddLoanDialogContent} from '../components/AddLoanDialog';
 import {LoanDetailDialogContent} from '../components/LoanDetailDialog';
 
-
 import type {LoanRow, PaginatedResponse} from '../shared/types';
 
 const statusValues = [
@@ -57,8 +61,8 @@ export default function LoansTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
   const toast = useToast();
-  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
-  const isAdmin = role === 'admin' || role === 'superadmin';
+  const { isAdmin } = useAuth();
+  const apiAction = useApiAction();
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -72,15 +76,15 @@ export default function LoansTemplate() {
     }
   }, [loansResponse]);
 
-  const handleUpdateStatus = async (id: string, status: string) => {
-    try {
-      await api.put(`/api/loans/${id}/status`, { status });
-      setLocalLoans(localLoans.map(loan => loan.id === id ? { ...loan, status } : loan));
-      toast.show({body: 'Status pinjaman berhasil diperbarui', type: 'info'});
-    } catch (err) {
-      console.error("Error updating loan status:", err);
-      toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
-    }
+  const handleUpdateStatus = (id: string, status: string) => {
+    apiAction.execute(
+      () => api.put(`/api/loans/${id}/status`, { status }),
+      {
+        successMsg: 'Status pinjaman berhasil diperbarui',
+        errorMsg: 'Terjadi kesalahan sistem',
+        onSuccess: () => setLocalLoans(localLoans.map(loan => loan.id === id ? { ...loan, status } : loan))
+      }
+    );
   };
 
   const filtered = useMemo(() => {
@@ -91,15 +95,16 @@ export default function LoansTemplate() {
     dialog.show(
       <AddLoanDialogContent
         onClose={() => dialog.hide()}
-        onAdd={async (newLoan) => {
-          try {
-            await api.post('/api/loans', newLoan);
-            toast.show({body: 'Pinjaman berhasil diajukan', type: 'info'});
-            fetchLoans();
-          } catch (err) {
-            console.error("Error saving loan:", err);
-            toast.show({body: 'Terjadi kesalahan sistem', type: 'error'});
-          }
+        onAdd={(newLoan) => {
+          apiAction.execute(
+            () => api.post('/api/loans', newLoan),
+            {
+              successMsg: 'Pinjaman berhasil diajukan',
+              errorMsg: 'Terjadi kesalahan sistem',
+              onSuccess: () => fetchLoans(),
+              onFinally: () => dialog.hide()
+            }
+          );
         }}
       />
     );
@@ -128,10 +133,10 @@ export default function LoansTemplate() {
       width: proportional(1),
       renderCell: (item: LoanRow) => (
         <VStack gap={1}>
-          <Text type="body">{'Rp ' + item.amount.toLocaleString('id-ID')}</Text>
+          <Text type="body">{formatRp(item.amount)}</Text>
           {item.status === 'Disetujui' && (
             <Text type="supporting" color={(item.totalAmount ?? item.amount) - (item.paidAmount || 0) > 0 ? 'error' : 'success'} style={{ fontSize: '12px' }}>
-              Sisa: Rp {Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0)).toLocaleString('id-ID')}
+              Sisa: {formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0)))}
             </Text>
           )}
         </VStack>
@@ -218,20 +223,7 @@ export default function LoansTemplate() {
       }
       content={
         <LayoutContent padding={3}>
-          {isLoading ? (
-            <Center style={{height: '100%'}}>
-              <Spinner size="lg" />
-            </Center>
-          ) : error ? (
-            <Center style={{height: '100%'}}>
-              <EmptyState
-                icon={<ExclamationCircleIcon width={48} height={48} />}
-                title="Gagal Memuat Data Pinjaman"
-                description={error}
-                actions={<Button label="Coba Lagi" onClick={fetchLoans} />}
-              />
-            </Center>
-          ) : (
+          <DataStateView isLoading={isLoading} error={error} onRetry={fetchLoans} errorTitle="Gagal Memuat Data Pinjaman">
           <VStack gap={4}>
             <PowerSearch
               config={config}
@@ -250,25 +242,14 @@ export default function LoansTemplate() {
               dividers="rows"
               hasHover
             />
-            <HStack hAlign="between" vAlign="center" padding={2}>
-              <Text type="body">Halaman {loansResponse?.page || 1} dari {Math.ceil((loansResponse?.total || 0) / (loansResponse?.limit || 20)) || 1}</Text>
-              <HStack gap={2}>
-                <Button 
-                  label="Sebelumnya" 
-                  variant="outline" 
-                  disabled={page <= 1} 
-                  onClick={() => setPage(p => Math.max(1, p - 1))} 
-                />
-                <Button 
-                  label="Selanjutnya" 
-                  variant="outline" 
-                  disabled={page >= Math.ceil((loansResponse?.total || 0) / limit)}
-                  onClick={() => setPage(p => p + 1)} 
-                />
-              </HStack>
-            </HStack>
+            <Pagination
+              page={loansResponse?.page || 1}
+              limit={loansResponse?.limit || limit}
+              total={loansResponse?.total || 0}
+              onPageChange={setPage}
+            />
           </VStack>
-          )}
+          </DataStateView>
         </LayoutContent>
       }
     />

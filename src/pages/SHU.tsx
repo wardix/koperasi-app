@@ -7,6 +7,8 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Center } from '@astryxdesign/core/Center';
 import { useApiQuery } from '../hooks/useApiQuery';
+import { DataStateView } from '../components/DataStateView';
+import { formatRp } from '../utils/format';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface SHUData {
@@ -35,9 +37,7 @@ export default function SHU() {
   const currentYear = new Date().getFullYear().toString();
   const [year, setYear] = useState(currentYear);
   
-  const { data, isLoading } = useApiQuery<SHUData>(`/api/shu?year=${year}`);
-
-  const formatRp = (val: number) => 'Rp ' + val.toLocaleString('id-ID');
+  const { data, isLoading, error, refetch } = useApiQuery<SHUData>(`/api/shu?year=${year}`);
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -91,13 +91,8 @@ export default function SHU() {
             </HStack>
           </HStack>
 
-          {isLoading ? (
-            <Center style={{ height: 300 }}>
-              <Spinner size="lg" />
-            </Center>
-          ) : !data ? (
-            <Text>Data gagal dimuat.</Text>
-          ) : (
+          <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Data SHU">
+            {data && (
             <VStack gap={8}>
               {/* Ringkasan */}
               <HStack gap={4}>
@@ -185,7 +180,8 @@ export default function SHU() {
               </VStack>
 
             </VStack>
-          )}
+            )}
+          </DataStateView>
         </VStack>
       </LayoutContent>
     </Layout>
