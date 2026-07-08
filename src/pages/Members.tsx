@@ -44,6 +44,11 @@ import {TransactionHistoryDialogContent} from '../components/TransactionHistoryD
 import {useToast} from '@astryxdesign/core/Toast';
 import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {useAuth} from '../hooks/useAuth';
+import {useApiAction} from '../hooks/useApiAction';
+import {formatRp} from '../utils/format';
+import {Pagination} from '../components/Pagination';
+import {DataStateView} from '../components/DataStateView';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
 
@@ -73,8 +78,8 @@ export default function MembersTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useImperativeDialog({purpose: 'form', width: 480});
   const toast = useToast();
-  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
-  const isAdmin = role === 'admin' || role === 'superadmin';
+  const { isAdmin } = useAuth();
+  const apiAction = useApiAction();
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -97,17 +102,16 @@ export default function MembersTemplate() {
           <Text type="body">Apakah Anda yakin ingin menghapus anggota {member.name}?</Text>
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
-            <Button color="error" label="Hapus" onClick={async () => {
-                try {
-                  await api.delete(`/api/members/${member.id}`);
-                  setMembers(members.filter(m => m.id !== member.id));
-                  toast.show({body: 'Anggota berhasil dihapus', type: 'info'});
-                } catch (err) {
-                  console.error("Error deleting member:", err);
-                  toast.show({body: 'Gagal menghapus anggota', type: 'error'});
-                } finally {
-                dialog.hide();
-              }
+            <Button color="error" label="Hapus" onClick={() => {
+              apiAction.execute(
+                () => api.delete(`/api/members/${member.id}`),
+                {
+                  successMsg: 'Anggota berhasil dihapus',
+                  errorMsg: 'Gagal menghapus anggota',
+                  onSuccess: () => setMembers(members.filter(m => m.id !== member.id)),
+                  onFinally: () => dialog.hide()
+                }
+              );
             }} />
           </HStack>
         </VStack>
@@ -119,16 +123,16 @@ export default function MembersTemplate() {
     dialog.show(
       <UpdateSavingsDialogContent 
         onClose={() => dialog.hide()}
-        onSave={async (additionalSavings, savingsType) => {
-          try {
-            await api.put(`/api/members/${member.id}/savings`, { additionalSavings, savingsType });
-            toast.show({body: 'Mutasi simpanan berhasil', type: 'info'});
-            fetchMembers();
-          } catch (err) {
-            console.error("Error updating savings:", err);
-          } finally {
-            dialog.hide();
-          }
+        onSave={(additionalSavings, savingsType) => {
+          apiAction.execute(
+            () => api.put(`/api/members/${member.id}/savings`, { additionalSavings, savingsType }),
+            {
+              successMsg: 'Mutasi simpanan berhasil',
+              errorMsg: 'Gagal melakukan mutasi simpanan',
+              onSuccess: () => fetchMembers(),
+              onFinally: () => dialog.hide()
+            }
+          );
         }}
       />
     );
@@ -148,17 +152,16 @@ export default function MembersTemplate() {
       <EditMemberDialogContent
         initialData={member}
         onClose={() => dialog.hide()}
-        onEdit={async (data) => {
-          try {
-            await api.put(`/api/members/${member.id}`, data);
-            toast.show({body: 'Anggota berhasil diubah', type: 'info'});
-            fetchMembers();
-          } catch (err) {
-            console.error("Error editing member:", err);
-            toast.show({body: 'Gagal mengubah anggota', type: 'error'});
-          } finally {
-            dialog.hide();
-          }
+        onEdit={(data) => {
+          apiAction.execute(
+            () => api.put(`/api/members/${member.id}`, data),
+            {
+              successMsg: 'Anggota berhasil diubah',
+              errorMsg: 'Gagal mengubah anggota',
+              onSuccess: () => fetchMembers(),
+              onFinally: () => dialog.hide()
+            }
+          );
         }}
       />
     );
@@ -205,15 +208,15 @@ export default function MembersTemplate() {
       width: proportional(1.5),
       renderCell: (item: MemberRow) => (
         <VStack gap={1}>
-          <Text type="body">{'Rp ' + item.totalSavings.toLocaleString('id-ID')}</Text>
+          <Text type="body">{formatRp(item.totalSavings)}</Text>
           <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-            Pokok: Rp {item.simpananPokok.toLocaleString('id-ID')}
+            Pokok: {formatRp(item.simpananPokok)}
           </Text>
           <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-            Wajib: Rp {item.simpananWajib.toLocaleString('id-ID')}
+            Wajib: {formatRp(item.simpananWajib)}
           </Text>
           <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-            Sukarela: Rp {item.simpananSukarela.toLocaleString('id-ID')}
+            Sukarela: {formatRp(item.simpananSukarela)}
           </Text>
         </VStack>
       ),
@@ -272,17 +275,16 @@ export default function MembersTemplate() {
     dialog.show(
       <AddMemberDialogContent
         onClose={() => dialog.hide()}
-        onAdd={async (data) => {
-          try {
-            await api.post('/api/members', data);
-            toast.show({body: 'Anggota berhasil ditambahkan', type: 'info'});
-            fetchMembers();
-          } catch (err) {
-            console.error("Error saving member:", err);
-            toast.show({body: 'Gagal menambahkan anggota', type: 'error'});
-          } finally {
-            dialog.hide();
-          }
+        onAdd={(data) => {
+          apiAction.execute(
+            () => api.post('/api/members', data),
+            {
+              successMsg: 'Anggota berhasil ditambahkan',
+              errorMsg: 'Gagal menambahkan anggota',
+              onSuccess: () => fetchMembers(),
+              onFinally: () => dialog.hide()
+            }
+          );
         }}
       />
     );
@@ -320,20 +322,7 @@ export default function MembersTemplate() {
       }
       content={
         <LayoutContent padding={3}>
-          {isLoading ? (
-            <Center style={{height: '100%'}}>
-              <Spinner size="lg" />
-            </Center>
-          ) : error ? (
-            <Center style={{height: '100%'}}>
-              <EmptyState
-                icon={<ExclamationCircleIcon width={48} height={48} />}
-                title="Gagal Memuat Data Anggota"
-                description={error}
-                actions={<Button label="Coba Lagi" onClick={fetchMembers} />}
-              />
-            </Center>
-          ) : (
+          <DataStateView isLoading={isLoading} error={error} onRetry={fetchMembers} errorTitle="Gagal Memuat Data Anggota">
           <VStack gap={4}>
             <PowerSearch
               config={config}
@@ -352,25 +341,14 @@ export default function MembersTemplate() {
               dividers="rows"
               hasHover
             />
-            <HStack hAlign="between" vAlign="center" padding={2}>
-              <Text type="body">Halaman {membersResponse?.page || 1} dari {Math.ceil((membersResponse?.total || 0) / (membersResponse?.limit || 20)) || 1}</Text>
-              <HStack gap={2}>
-                <Button 
-                  label="Sebelumnya" 
-                  variant="outline" 
-                  disabled={page <= 1} 
-                  onClick={() => setPage(p => Math.max(1, p - 1))} 
-                />
-                <Button 
-                  label="Selanjutnya" 
-                  variant="outline" 
-                  disabled={page >= Math.ceil((membersResponse?.total || 0) / limit)}
-                  onClick={() => setPage(p => p + 1)} 
-                />
-              </HStack>
-            </HStack>
+            <Pagination
+              page={membersResponse?.page || 1}
+              limit={membersResponse?.limit || limit}
+              total={membersResponse?.total || 0}
+              onPageChange={setPage}
+            />
           </VStack>
-          )}
+          </DataStateView>
         </LayoutContent>
       }
     />

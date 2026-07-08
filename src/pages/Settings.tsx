@@ -4,6 +4,9 @@ import {useState, useEffect} from 'react';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {useAuth} from '../hooks/useAuth';
+import {useApiAction} from '../hooks/useApiAction';
+import {DataStateView} from '../components/DataStateView';
 import type {SettingsData} from '../shared/types';
 import {
   VStack,
@@ -61,8 +64,8 @@ const settingsSearchSource: SearchSource<SearchableItem> = {
 export default function SettingsTemplate() {
   const isNarrow = useMediaQuery('(max-width: 768px)');
   const [activeNav, setActiveNav] = useState('Profil Koperasi');
-  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
-  const isAdmin = role === 'admin' || role === 'superadmin';
+  const { isAdmin } = useAuth();
+  const apiAction = useApiAction();
   
   const [koperasiName, setKoperasiName] = useState('Koperasi Maju Bersama');
   const [alamat, setAlamat] = useState('Jl. Jend. Sudirman No. 123, Jakarta');
@@ -97,17 +100,18 @@ export default function SettingsTemplate() {
     }
   }, [settingsData]);
 
-  const saveSettings = async () => {
-    try {
-      await api.put('/api/settings', {
+  const saveSettings = () => {
+    apiAction.execute(
+      () => api.put('/api/settings', {
         koperasiName, alamat, telepon, email,
         bungaPinjaman, bungaSimpanan, denda,
         viewReports, selfRegister, twoFactor
-      });
-      toast.show({body: 'Pengaturan berhasil disimpan!', type: 'info'});
-    } catch (err) {
-      toast.show({body: 'Terjadi kesalahan saat menyimpan pengaturan', type: 'error'});
-    }
+      }),
+      {
+        successMsg: 'Pengaturan berhasil disimpan!',
+        errorMsg: 'Terjadi kesalahan saat menyimpan pengaturan'
+      }
+    );
   };
 
   return (
@@ -151,20 +155,7 @@ export default function SettingsTemplate() {
       }
       content={
         <LayoutContent padding={4}>
-          {isLoading ? (
-            <Center style={{height: '100%'}}>
-              <Spinner size="lg" />
-            </Center>
-          ) : error ? (
-            <Center style={{height: '100%'}}>
-              <EmptyState
-                icon={<ExclamationCircleIcon width={48} height={48} />}
-                title="Gagal Memuat Pengaturan"
-                description={error}
-                actions={<Button label="Coba Lagi" onClick={fetchSettings} />}
-              />
-            </Center>
-          ) : (
+          <DataStateView isLoading={isLoading} error={error} onRetry={fetchSettings} errorTitle="Gagal Memuat Pengaturan">
           <VStack gap={4}>
             {isNarrow && (
               <VStack hAlign="center">
@@ -273,7 +264,7 @@ export default function SettingsTemplate() {
               </VStack>
             </Grid>
           </VStack>
-          )}
+          </DataStateView>
         </LayoutContent>
       }
     />

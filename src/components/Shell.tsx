@@ -23,6 +23,7 @@ import {CubeIcon} from '@heroicons/react/24/outline';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
+import { useAuth } from '../hooks/useAuth';
 
 const App = React.lazy(() => import('../App'));
 const Members = React.lazy(() => import('../pages/Members'));
@@ -34,8 +35,7 @@ const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 export default function Shell({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = typeof window !== 'undefined' ? localStorage.getItem('role') || 'viewer' : 'viewer';
-  const isAdmin = role === 'admin' || role === 'superadmin';
+  const { isAdmin } = useAuth();
 
   const path = location.pathname;
   return (
