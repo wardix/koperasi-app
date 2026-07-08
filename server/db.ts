@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 
 // Create or open the SQLite database file
-const db = new Database("koperasi.sqlite", { create: true });
+const dbPath = process.env.DATABASE_PATH || Bun.env.DATABASE_PATH || "koperasi.sqlite";
+const db = new Database(dbPath, { create: true });
 
 // Enable foreign keys
 db.run("PRAGMA foreign_keys = ON;");

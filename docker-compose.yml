@@ -10,6 +10,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - DATABASE_PATH=/app/data/koperasi.sqlite
     volumes:
       # Mount database for persistence
       - ./data:/app/data
