@@ -66,7 +66,7 @@ export function LoanDetailDialogContent({
         method: 'Transfer'
       });
       
-      toast.show({body: 'Pembayaran berhasil', type: 'info'});
+      toast({body: 'Pembayaran berhasil', type: 'info'});
         setPayAmount('');
         refetch();
         onUpdate();
@@ -77,7 +77,7 @@ export function LoanDetailDialogContent({
            onUpdate();
         }
     } catch (err) {
-      toast.show({body: 'Gagal melakukan pembayaran', type: 'error'});
+      toast({body: 'Gagal melakukan pembayaran', type: 'error'});
     } finally {
       setIsSubmitting(false);
     }

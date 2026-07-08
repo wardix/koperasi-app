@@ -75,17 +75,22 @@ loans.post('/', requireAdmin, async (c) => {
 loans.put('/:id/status', requireAdmin, async (c) => {
   try {
     const id = c.req.param('id')
+    console.log("Hono PUT /api/loans/:id/status called with id:", id)
     const body = await c.req.json()
+    console.log("Request body:", body)
     const parsed = loanStatusSchema.safeParse(body)
 
     if (!parsed.success) {
+      console.log("Validation failed:", parsed.error.format())
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
     
     const { status } = parsed.data
+    console.log("Status to update:", status)
 
     const stmt = await db.prepare("UPDATE loans SET status = ? WHERE id = ?")
     await stmt.run(status, id)
+    console.log("Database update executed successfully")
     clearStatsCache()
     return c.json({ success: true, message: 'Loan status updated' })
   } catch (error) {

@@ -16,15 +16,16 @@ export function useApiAction() {
     try {
       const data = await apiCall();
       if (options.successMsg) {
-        toast.show({ body: options.successMsg, type: 'info' });
+        toast({ body: options.successMsg, type: 'info' });
       }
       options.onSuccess?.(data);
     } catch (err: unknown) {
+      console.error("API Action Error:", err);
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga';
       if (options.errorMsg) {
-        toast.show({ body: options.errorMsg, type: 'error' });
+        toast({ body: options.errorMsg, type: 'error' });
       } else {
-        toast.show({ body: message, type: 'error' });
+        toast({ body: message, type: 'error' });
       }
       options.onError?.(err instanceof Error ? err : new Error(String(err)));
     } finally {
