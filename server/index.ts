@@ -639,7 +639,19 @@ app.post('/api/refresh', async (c) => {
   }
   try {
     const payload = await verify(refreshToken, secretKey)
-    const newPayload = { ...payload, exp: Math.floor(Date.now() / 1000) + 15 * 60 }
+    
+    // Validate user still exists and get updated role
+    const admin = db.query("SELECT * FROM admins WHERE id = ?").get(payload.sub as string) as any
+    if (!admin) {
+      return c.json({ success: false, message: 'User no longer exists or has been deactivated' }, 401)
+    }
+
+    const newPayload = { 
+      sub: admin.id,
+      email: admin.email,
+      role: admin.role,
+      exp: Math.floor(Date.now() / 1000) + 15 * 60 
+    }
     const newAccessToken = await sign(newPayload, secretKey)
     return c.json({ success: true, token: newAccessToken })
   } catch (err) {
