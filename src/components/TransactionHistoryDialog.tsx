@@ -1,6 +1,7 @@
 'use client';
 
 import {DialogHeader} from '@astryxdesign/core/Dialog';
+import { useMemo } from 'react';
 import {
   Layout,
   LayoutContent,
@@ -38,7 +39,7 @@ export function TransactionHistoryDialogContent({
 }) {
   const { data: transactions, isLoading, error } = useApiQuery<Transaction[]>(`/api/members/${member.id}/transactions`);
 
-  const columns: TableColumn<Transaction>[] = [
+  const columns: TableColumn<Transaction>[] = useMemo(() => [
     {
       key: 'createdAt',
       header: 'Waktu',
@@ -80,7 +81,7 @@ export function TransactionHistoryDialogContent({
         <Text type="body">{formatRp(item.balanceAfter)}</Text>
       ),
     },
-  ];
+  ], []);
 
   return (
     <Layout

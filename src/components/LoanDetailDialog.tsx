@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useMemo} from 'react';
 import {DialogHeader} from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -83,7 +83,7 @@ export function LoanDetailDialogContent({
     }
   };
 
-  const columns: TableColumn<Payment>[] = [
+  const columns: TableColumn<Payment>[] = useMemo(() => [
     {
       key: 'paymentDate',
       header: 'Tanggal',
@@ -112,7 +112,7 @@ export function LoanDetailDialogContent({
         </Text>
       ),
     },
-  ];
+  ], []);
 
   return (
     <Layout

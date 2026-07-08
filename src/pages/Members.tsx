@@ -2,7 +2,7 @@
 
 'use client';
 
-import {useState, useMemo, useEffect} from 'react';
+import {useState, useMemo, useEffect, useCallback} from 'react';
 import {
   VStack,
   HStack,
@@ -94,7 +94,7 @@ export default function MembersTemplate() {
     }
   }, [membersResponse]);
 
-  const handleDelete = (member: MemberRow) => {
+  const handleDelete = useCallback((member: MemberRow) => {
     dialog.show(
       <Card style={{ padding: '24px', width: '100%', boxSizing: 'border-box' }}>
         <VStack gap={4}>
@@ -108,7 +108,7 @@ export default function MembersTemplate() {
                 {
                   successMsg: 'Anggota berhasil dihapus',
                   errorMsg: 'Gagal menghapus anggota',
-                  onSuccess: () => setMembers(members.filter(m => m.id !== member.id)),
+                  onSuccess: () => setMembers(members => members.filter(m => m.id !== member.id)),
                   onFinally: () => dialog.hide()
                 }
               );
@@ -117,9 +117,9 @@ export default function MembersTemplate() {
         </VStack>
       </Card>
     );
-  };
+  }, [dialog, apiAction]);
 
-  const handleUpdateSavings = (member: MemberRow) => {
+  const handleUpdateSavings = useCallback((member: MemberRow) => {
     dialog.show(
       <UpdateSavingsDialogContent 
         onClose={() => dialog.hide()}
@@ -136,18 +136,18 @@ export default function MembersTemplate() {
         }}
       />
     );
-  };
+  }, [dialog, apiAction, fetchMembers]);
 
-  const handleShowHistory = (member: MemberRow) => {
+  const handleShowHistory = useCallback((member: MemberRow) => {
     dialog.show(
       <TransactionHistoryDialogContent
         member={member}
         onClose={() => dialog.hide()}
       />
     );
-  };
+  }, [dialog]);
 
-  const handleEditMember = (member: MemberRow) => {
+  const handleEditMember = useCallback((member: MemberRow) => {
     dialog.show(
       <EditMemberDialogContent
         initialData={member}
@@ -165,9 +165,9 @@ export default function MembersTemplate() {
         }}
       />
     );
-  };
+  }, [dialog, apiAction, fetchMembers]);
 
-  const columns: TableColumn<MemberRow>[] = [
+  const columns: TableColumn<MemberRow>[] = useMemo(() => [
     {
       key: 'name',
       header: 'Nama',
@@ -265,13 +265,13 @@ export default function MembersTemplate() {
         </HStack>
       ),
     },
-  ];
+  ], [isAdmin, handleEditMember, handleUpdateSavings, handleShowHistory, handleDelete]);
 
   const filtered = useMemo(() => {
     return applyFilters(filters, members);
   }, [filters, applyFilters, members]);
 
-  const handleAddMember = () => {
+  const handleAddMember = useCallback(() => {
     dialog.show(
       <AddMemberDialogContent
         onClose={() => dialog.hide()}
@@ -288,7 +288,7 @@ export default function MembersTemplate() {
         }}
       />
     );
-  };
+  }, [dialog, apiAction, fetchMembers]);
 
   return (
     <>

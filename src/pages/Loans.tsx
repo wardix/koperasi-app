@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useMemo, useEffect} from 'react';
+import {useState, useMemo, useEffect, useCallback} from 'react';
 import {
   VStack,
   HStack,
@@ -76,22 +76,22 @@ export default function LoansTemplate() {
     }
   }, [loansResponse]);
 
-  const handleUpdateStatus = (id: string, status: string) => {
+  const handleUpdateStatus = useCallback((id: string, status: string) => {
     apiAction.execute(
       () => api.put(`/api/loans/${id}/status`, { status }),
       {
         successMsg: 'Status pinjaman berhasil diperbarui',
         errorMsg: 'Terjadi kesalahan sistem',
-        onSuccess: () => setLocalLoans(localLoans.map(loan => loan.id === id ? { ...loan, status } : loan))
+        onSuccess: () => setLocalLoans(loans => loans.map(loan => loan.id === id ? { ...loan, status } : loan))
       }
     );
-  };
+  }, [apiAction]);
 
   const filtered = useMemo(() => {
     return applyFilters(filters, localLoans);
   }, [filters, applyFilters, localLoans]);
 
-  const handleAddLoan = () => {
+  const handleAddLoan = useCallback(() => {
     dialog.show(
       <AddLoanDialogContent
         onClose={() => dialog.hide()}
@@ -108,9 +108,9 @@ export default function LoansTemplate() {
         }}
       />
     );
-  };
+  }, [dialog, apiAction, fetchLoans]);
 
-  const columns: TableColumn<LoanRow>[] = [
+  const columns: TableColumn<LoanRow>[] = useMemo(() => [
     {
       key: 'name',
       header: 'Nama Peminjam',
@@ -194,7 +194,7 @@ export default function LoansTemplate() {
         );
       },
     },
-  ];
+  ], [isAdmin, handleUpdateStatus, dialog, fetchLoans]);
 
   return (
     <>
