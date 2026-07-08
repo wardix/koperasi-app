@@ -1,5 +1,5 @@
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret-key-123";
-process.env.DATABASE_PATH = "koperasi_test.sqlite";
+process.env.DATABASE_URL = "postgres://koperasi:koperasi_pass@localhost:5432/koperasi_test";
 
 (globalThis as any).NativeRequest = Request;
 (globalThis as any).NativeHeaders = Headers;

@@ -16,7 +16,7 @@ auth.post('/login', async (c) => {
     ip = info?.remote?.address || 'unknown-ip';
   } catch (e) {}
   
-  if (!rateLimitLogin(ip)) {
+  if (!(await rateLimitLogin(ip))) {
     return c.json({ success: false, message: 'Too many login attempts. Please try again later.' }, 429);
   }
 
@@ -30,7 +30,7 @@ auth.post('/login', async (c) => {
 
     const { email, password } = parsed.data
     
-    const admin = db.query("SELECT * FROM admins WHERE email = ?").get(email) as any
+    const admin = await db.query("SELECT * FROM admins WHERE email = ?").get(email) as any
     if (!admin) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
@@ -87,20 +87,20 @@ auth.post('/google', async (c) => {
     }
 
     // Look up admin by google_id or email
-    let admin = db.query(
+    let admin = await db.query(
       "SELECT * FROM admins WHERE google_id = ? OR email = ?"
     ).get(googleUser.sub, googleUser.email) as any;
 
     if (!admin) {
       // Check if SSO auto-register is allowed
-      const ssoAutoRegister = db.query(
+      const ssoAutoRegister = await db.query(
         "SELECT value FROM settings WHERE key = 'ssoAutoRegister'"
       ).get() as any;
 
       if (ssoAutoRegister?.value === 'true') {
         // Auto-register new admin with viewer role
         const id = crypto.randomUUID();
-        db.run(
+        await db.run(
           `INSERT INTO admins (id, email, password, role, google_id, name, avatar_url, auth_provider)
            VALUES (?, ?, '', 'viewer', ?, ?, ?, 'google')`,
           [id, googleUser.email, googleUser.sub, googleUser.name, googleUser.picture]
@@ -114,7 +114,7 @@ auth.post('/google', async (c) => {
       }
     } else if (!admin.google_id) {
       // Link Google account to existing admin (first Google login)
-      db.run(
+      await db.run(
         "UPDATE admins SET google_id = ?, name = COALESCE(name, ?), avatar_url = ?, auth_provider = 'google' WHERE id = ?",
         [googleUser.sub, googleUser.name, googleUser.picture, admin.id]
       );
@@ -167,7 +167,7 @@ auth.post('/refresh', async (c) => {
   }
   try {
     const payload = await verify(refreshToken, secretKey, 'HS256')
-    const admin = db.query("SELECT * FROM admins WHERE id = ?").get(payload.sub as string) as any
+    const admin = await db.query("SELECT * FROM admins WHERE id = ?").get(payload.sub as string) as any
     if (!admin) {
       return c.json({ success: false, message: 'User no longer exists or has been deactivated' }, 401)
     }
@@ -185,7 +185,7 @@ auth.post('/refresh', async (c) => {
   }
 })
 
-auth.post('/logout', (c) => {
+auth.post('/logout', async (c) => {
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
@@ -195,16 +195,16 @@ auth.post('/logout', (c) => {
       if (payload && payload.exp) {
         exp = (payload.exp as number) * 1000;
       }
-      db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", [token, exp]);
+      await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", [token, exp]);
     } catch (e) {
-      db.run("INSERT OR REPLACE INTO token_blacklist (token, expires_at) VALUES (?, ?)", [token, Date.now() + 60 * 60 * 1000]);
+      await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", [token, Date.now() + 60 * 60 * 1000]);
     }
   }
   deleteCookie(c, 'refreshToken', { path: '/' })
   return c.json({ success: true, message: 'Logout successful' })
 })
 
-auth.get('/verify', (c) => {
+auth.get('/verify', async (c) => {
   return c.json({ success: true, message: 'Token is valid' })
 })
 

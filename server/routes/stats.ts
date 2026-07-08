@@ -29,15 +29,15 @@ stats.get('/', async (c) => {
     paymentRows,
     recentRows
   ] = await Promise.all([
-    Promise.resolve(db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get() as any),
-    Promise.resolve(db.query("SELECT SUM(totalSavings) as s FROM members").get() as any),
-    Promise.resolve(db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get() as any),
-    Promise.resolve(db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get() as any),
-    Promise.resolve(db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all() as any[]),
-    Promise.resolve(db.query("SELECT purpose, COUNT(*) as count FROM loans GROUP BY purpose").all() as any[]),
-    Promise.resolve(db.query("SELECT strftime('%Y-%m', createdAt) as month, SUM(amount) as total FROM transactions WHERE type LIKE 'setor_%' GROUP BY month").all() as { month: string, total: number }[]),
-    Promise.resolve(db.query("SELECT strftime('%Y-%m', paymentDate) as month, SUM(amount) as total FROM loan_payments GROUP BY month").all() as { month: string, total: number }[]),
-    Promise.resolve(db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY rowid DESC LIMIT 5").all() as any[])
+    Promise.resolve(await db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get() as any),
+    Promise.resolve(await db.query("SELECT SUM(totalSavings) as s FROM members").get() as any),
+    Promise.resolve(await db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get() as any),
+    Promise.resolve(await db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get() as any),
+    Promise.resolve(await db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all() as any[]),
+    Promise.resolve(await db.query("SELECT purpose, COUNT(*) as count FROM loans GROUP BY purpose").all() as any[]),
+    Promise.resolve(await db.query("SELECT TO_CHAR(createdAt::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM transactions WHERE type LIKE 'setor_%' GROUP BY month").all() as { month: string, total: number }[]),
+    Promise.resolve(await db.query("SELECT TO_CHAR(paymentDate::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM loan_payments GROUP BY month").all() as { month: string, total: number }[]),
+    Promise.resolve(await db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY id DESC LIMIT 5").all() as any[])
   ]);
 
   const activeMembers = activeMembersRes?.c || 0;

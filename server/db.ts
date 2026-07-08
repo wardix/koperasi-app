@@ -1,4 +1,45 @@
-import { Database } from "bun:sqlite";
+import { SQL } from "bun";
+const sql = new SQL(process.env.DATABASE_URL || "postgres://koperasi:koperasi_pass@localhost:5432/koperasi_test");
+
+class Statement {
+  constructor(queryStr) { this.queryStr = queryStr; }
+  getPgQuery() { let i = 1; return this.queryStr.replace(/\?/g, () => "$" + (i++)); }
+  mapRow(row) {
+    if (!row) return row;
+    const keyMap = {
+      balancebefore: 'balanceBefore',
+      balanceafter: 'balanceAfter',
+      paymentdate: 'paymentDate',
+      paymentamount: 'paymentAmount',
+      principalamount: 'principalAmount',
+      totalsavings: 'totalSavings',
+      simpananpokok: 'simpananPokok',
+      simpananwajib: 'simpananWajib',
+      simpanansukarela: 'simpananSukarela',
+      joindate: 'joinDate',
+      createdby: 'createdBy',
+      createdat: 'createdAt',
+      memberid: 'memberId',
+      loanid: 'loanId'
+    };
+    const mapped = {};
+    for (const [k, v] of Object.entries(row)) {
+      mapped[keyMap[k] || k] = v;
+    }
+    return mapped;
+  }
+  async get(...args) { const rows = await sql.unsafe(this.getPgQuery(), args); return rows.length > 0 ? this.mapRow(rows[0]) : null; }
+  async all(...args) { const res = await sql.unsafe(this.getPgQuery(), args); return Array.isArray(res) ? res.map(r => this.mapRow(r)) : []; }
+  async run(...args) { await sql.unsafe(this.getPgQuery(), args); }
+}
+
+const db = {
+  query: (q) => new Statement(q),
+  prepare: (q) => new Statement(q),
+  run: async (q, args = []) => { await new Statement(q).run(...args); },
+  transaction: (cb) => async (...args) => await cb(...args),
+  close: () => sql.end()
+};
 
 import fs from "node:fs";
 import path from "node:path";
@@ -12,13 +53,13 @@ if (dir && dir !== "." && !fs.existsSync(dir)) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-const db = new Database(dbPath, { create: true });
+
 
 // Enable foreign keys
-db.run("PRAGMA foreign_keys = ON;");
+
 
 // Initialize schema if not exists
-db.run(`
+await db.run(`
   CREATE TABLE IF NOT EXISTS members (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -66,21 +107,21 @@ db.run(`
 
   CREATE TABLE IF NOT EXISTS token_blacklist (
     token TEXT PRIMARY KEY,
-    expires_at INTEGER NOT NULL
+    expires_at BIGINT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS rate_limits (
     ip TEXT PRIMARY KEY,
     count INTEGER NOT NULL,
-    reset_at INTEGER NOT NULL
+    reset_at BIGINT NOT NULL
   );
 `);
 
-db.run(`
+await db.run(`
   CREATE TABLE IF NOT EXISTS schema_migrations (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    run_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    run_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 `);
 
@@ -103,7 +144,7 @@ const migrations = [
   },
   {
     name: '0005_convert_tenor_to_integer',
-    sql: `UPDATE loans SET tenor = CAST(REPLACE(tenor, ' Bulan', '') AS INTEGER);`
+    sql: `UPDATE loans SET tenor = CAST(REPLACE(tenor::text, ' Bulan', '') AS INTEGER);`
   },
   {
     name: '0006_add_google_sso_columns',
@@ -113,24 +154,24 @@ const migrations = [
       ALTER TABLE admins ADD COLUMN name TEXT;
       ALTER TABLE admins ADD COLUMN avatar_url TEXT;
       ALTER TABLE admins ADD COLUMN auth_provider TEXT DEFAULT 'local';
-      INSERT OR IGNORE INTO settings (key, value) VALUES ('ssoAutoRegister', 'true');
+      INSERT INTO settings (key, value) VALUES ('ssoAutoRegister', 'true');
     `
   }
 ];
 
-db.transaction(() => {
-  const applied = new Set((db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
+await db.transaction(async () => {
+  const applied = new Set((await db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
   for (const m of migrations) {
     if (!applied.has(m.name)) {
       try {
         const stmts = m.sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
         for (const stmt of stmts) {
-          db.run(stmt);
+          await db.run(stmt);
         }
-        db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+        await db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
       } catch (err: any) {
         if (err.message && (err.message.includes('duplicate column') || err.message.includes('already exists') || err.message.includes('no such column'))) {
-          db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+          await db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
         } else {
           throw err;
         }
@@ -139,7 +180,7 @@ db.transaction(() => {
   }
 })();
 
-db.query(`
+await db.query(`
   CREATE TABLE IF NOT EXISTS loan_payments (
     id TEXT PRIMARY KEY,
     loanId TEXT NOT NULL,
@@ -150,7 +191,7 @@ db.query(`
   );
 `).run();
 
-db.run(`
+await db.run(`
   CREATE INDEX IF NOT EXISTS idx_transactions_memberId ON transactions(memberId);
   CREATE INDEX IF NOT EXISTS idx_transactions_createdAt ON transactions(createdAt);
   CREATE INDEX IF NOT EXISTS idx_loans_memberId ON loans(memberId);
@@ -162,9 +203,9 @@ db.run(`
 `);
 
 // Insert initial seed data if table is empty
-const memberCount = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number };
+const memberCount = await db.query("SELECT COUNT(*) as count FROM members").get() as { count: number };
 if (memberCount.count === 0) {
-  const insert = db.prepare("INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)");
+  const insert = await db.prepare("INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)");
   insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
   insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
   insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 2000000);
@@ -173,24 +214,24 @@ if (memberCount.count === 0) {
 
 // Seed data goes below
 
-const loanCount = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };
+const loanCount = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number };
 if (loanCount.count === 0) {
-  const insertLoan = db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  const insertLoan = await db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
   insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
   insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
   insertLoan.run("3", "3", "Dewi Lestari", 10000000, 24, "Renovasi Rumah", "Disetujui");
 }
 
-const adminCount = db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
+const adminCount = await db.query("SELECT COUNT(*) as count FROM admins").get() as { count: number };
 if (adminCount.count === 0) {
-  const insert = db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)");
+  const insert = await db.prepare("INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)");
   const hashedPassword = await Bun.password.hash("admin123");
   insert.run("1", "admin@koperasi.com", hashedPassword, "superadmin");
 }
 
-const hasKoperasiName = db.query("SELECT 1 FROM settings WHERE key = 'koperasiName'").get();
+const hasKoperasiName = await db.query("SELECT 1 FROM settings WHERE key = 'koperasiName'").get();
 if (!hasKoperasiName) {
-  const insertSetting = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
+  const insertSetting = await db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING");
   insertSetting.run("koperasiName", "Koperasi Maju Bersama");
   insertSetting.run("alamat", "Jl. Jend. Sudirman No. 123, Jakarta");
   insertSetting.run("telepon", "021-555-0192");
@@ -208,21 +249,21 @@ if (!hasKoperasiName) {
 const jsMigrations = [
   {
     name: '0003_convert_currency_to_int',
-    run: () => {
-      const sampleMember = db.query("SELECT totalSavings FROM members LIMIT 1").get() as any;
+    run: async () => {
+      const sampleMember = await db.query("SELECT totalSavings FROM members LIMIT 1").get() as any;
       if (sampleMember && typeof sampleMember.totalSavings === 'string' && sampleMember.totalSavings.startsWith('Rp')) {
-        const members = db.query("SELECT id, totalSavings FROM members").all() as any[];
-        const updateMember = db.prepare("UPDATE members SET totalSavings = ? WHERE id = ?");
+        const members = await db.query("SELECT id, totalSavings FROM members").all() as any[];
+        const updateMember = await db.prepare("UPDATE members SET totalSavings = ? WHERE id = ?");
         members.forEach(m => {
           const parsed = parseInt(m.totalSavings.replace(/\\D/g, ""), 10) || 0;
           updateMember.run(parsed, m.id);
         });
       }
 
-      const sampleLoan = db.query("SELECT amount FROM loans LIMIT 1").get() as any;
+      const sampleLoan = await db.query("SELECT amount FROM loans LIMIT 1").get() as any;
       if (sampleLoan && typeof sampleLoan.amount === 'string' && sampleLoan.amount.startsWith('Rp')) {
-        const loans = db.query("SELECT id, amount FROM loans").all() as any[];
-        const updateLoan = db.prepare("UPDATE loans SET amount = ? WHERE id = ?");
+        const loans = await db.query("SELECT id, amount FROM loans").all() as any[];
+        const updateLoan = await db.prepare("UPDATE loans SET amount = ? WHERE id = ?");
         loans.forEach(l => {
           const parsed = parseInt(l.amount.replace(/\\D/g, ""), 10) || 0;
           updateLoan.run(parsed, l.id);
@@ -233,8 +274,8 @@ const jsMigrations = [
   {
     name: '0004_hash_admin_passwords',
     run: async () => {
-      const admins = db.query("SELECT email, password FROM admins").all() as {email: string, password: string}[];
-      const updateAdmin = db.prepare("UPDATE admins SET password = ? WHERE email = ?");
+      const admins = await db.query("SELECT email, password FROM admins").all() as {email: string, password: string}[];
+      const updateAdmin = await db.prepare("UPDATE admins SET password = ? WHERE email = ?");
       for (const admin of admins) {
         if (!admin.password.startsWith('$argon2id$')) {
           const hashed = await Bun.password.hash(admin.password);
@@ -245,12 +286,12 @@ const jsMigrations = [
   }
 ];
 
-const appliedJs = new Set((db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
+const appliedJs = new Set((await db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
 for (const m of jsMigrations) {
   if (!appliedJs.has(m.name)) {
     try {
       await m.run();
-      db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+      await db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
     } catch (err) {
       console.error(`Error running JS migration ${m.name}:`, err);
     }
