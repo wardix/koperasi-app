@@ -104,6 +104,17 @@ const migrations = [
   {
     name: '0005_convert_tenor_to_integer',
     sql: `UPDATE loans SET tenor = CAST(REPLACE(tenor, ' Bulan', '') AS INTEGER);`
+  },
+  {
+    name: '0006_add_google_sso_columns',
+    sql: `
+      ALTER TABLE admins ADD COLUMN google_id TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_google_id ON admins(google_id);
+      ALTER TABLE admins ADD COLUMN name TEXT;
+      ALTER TABLE admins ADD COLUMN avatar_url TEXT;
+      ALTER TABLE admins ADD COLUMN auth_provider TEXT DEFAULT 'local';
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('ssoAutoRegister', 'true');
+    `
   }
 ];
 
@@ -177,9 +188,9 @@ if (adminCount.count === 0) {
   insert.run("1", "admin@koperasi.com", hashedPassword, "superadmin");
 }
 
-const settingsCount = db.query("SELECT COUNT(*) as count FROM settings").get() as { count: number };
-if (settingsCount.count === 0) {
-  const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
+const hasKoperasiName = db.query("SELECT 1 FROM settings WHERE key = 'koperasiName'").get();
+if (!hasKoperasiName) {
+  const insertSetting = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
   insertSetting.run("koperasiName", "Koperasi Maju Bersama");
   insertSetting.run("alamat", "Jl. Jend. Sudirman No. 123, Jakarta");
   insertSetting.run("telepon", "021-555-0192");
@@ -190,6 +201,7 @@ if (settingsCount.count === 0) {
   insertSetting.run("viewReports", "false");
   insertSetting.run("selfRegister", "true");
   insertSetting.run("twoFactor", "false");
+  insertSetting.run("ssoAutoRegister", "true");
 }
 
 // Run JS migrations (like data conversion or password hashing) manually

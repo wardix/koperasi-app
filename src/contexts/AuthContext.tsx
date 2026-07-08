@@ -8,6 +8,7 @@ interface AuthContextType {
   isAdmin: boolean
   isSuperAdmin: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (credential: string) => Promise<void>
   confirmLogin: () => void
   logout: () => Promise<void>
 }
@@ -44,6 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(data.role)
   }, [])
 
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    const data = await api.post<{ token: string; role: string }>('/api/auth/google', { credential })
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('role', data.role)
+    setRole(data.role)
+  }, [])
+
   const confirmLogin = useCallback(() => {
     setIsAuthenticated(true)
   }, [])
@@ -64,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = role === 'superadmin'
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isChecking, role, isAdmin, isSuperAdmin, login, confirmLogin, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isChecking, role, isAdmin, isSuperAdmin, login, loginWithGoogle, confirmLogin, logout }}>
       {children}
     </AuthContext.Provider>
   )

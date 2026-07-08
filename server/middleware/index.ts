@@ -8,7 +8,13 @@ if (!secretKey) {
 }
 
 export const authMiddleware = async (c: Context, next: Next) => {
-  if (c.req.path === '/api/v1/login' || c.req.path === '/api/v1/logout' || c.req.path === '/api/v1/refresh') {
+  if (
+    c.req.path === '/api/v1/login' ||
+    c.req.path === '/api/v1/logout' ||
+    c.req.path === '/api/v1/refresh' ||
+    c.req.path === '/api/v1/auth/google' ||
+    c.req.path === '/api/v1/google'
+  ) {
     return next()
   }
   const authHeader = c.req.header('Authorization');
