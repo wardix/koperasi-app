@@ -83,15 +83,15 @@ export const _test = {
   cleanupTokenBlacklist
 };
 
-app.use('/api/*', authMiddleware)
+app.use('/api/v1/*', authMiddleware)
 
-app.route('/api', authRoutes)
-app.route('/api/auth', authRoutes)
-app.route('/api/members', membersRoutes)
-app.route('/api/loans', loansRoutes)
-app.route('/api/settings', settingsRoutes)
-app.route('/api/shu', shuRoutes)
-app.route('/api/stats', statsRoutes)
+app.route('/api/v1', authRoutes)
+app.route('/api/v1/auth', authRoutes)
+app.route('/api/v1/members', membersRoutes)
+app.route('/api/v1/loans', loansRoutes)
+app.route('/api/v1/settings', settingsRoutes)
+app.route('/api/v1/shu', shuRoutes)
+app.route('/api/v1/stats', statsRoutes)
 
 console.log('Hono server running on http://localhost:3000')
 

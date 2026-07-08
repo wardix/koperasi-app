@@ -1,6 +1,10 @@
 export function apiUrl(path: string): string {
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  return `${baseUrl}${path}`;
+  let resolvedPath = path;
+  if (resolvedPath.startsWith('/api/') && !resolvedPath.startsWith('/api/v1/')) {
+    resolvedPath = resolvedPath.replace('/api/', '/api/v1/');
+  }
+  return `${baseUrl}${resolvedPath}`;
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
@@ -12,9 +16,9 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   options.credentials = 'include';
   let res = await fetch(apiUrl(path), { ...options, headers });
   
-  if (res.status === 401 && path !== '/api/login' && path !== '/api/refresh') {
+  if (res.status === 401 && path !== '/api/login' && path !== '/api/refresh' && path !== '/api/v1/login' && path !== '/api/v1/refresh') {
     // Try to refresh token
-    const refreshRes = await fetch(apiUrl('/api/refresh'), {
+    const refreshRes = await fetch(apiUrl('/api/v1/refresh'), {
       method: 'POST',
       credentials: 'include'
     });

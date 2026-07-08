@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: Koperasi API
+  description: API untuk sistem Koperasi Maju Bersama
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      summary: Login pengguna
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Berhasil login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  token: { type: string }
+                  role: { type: string }
+                  user: { type: object }
+  /auth/refresh:
+    post:
+      summary: Refresh token
+      security: []
+      responses:
+        '200':
+          description: Token baru berhasil di-generate
+  /auth/verify:
+    get:
+      summary: Verifikasi token saat ini
+      responses:
+        '200':
+          description: Token valid
+  /members:
+    get:
+      summary: Ambil daftar anggota (dengan paginasi)
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List anggota
+    post:
+      summary: Tambah anggota baru
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Anggota berhasil dibuat
+  /members/{id}:
+    put:
+      summary: Update data anggota
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Berhasil di-update
+    delete:
+      summary: Hapus anggota
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berhasil dihapus
+  /members/{id}/savings:
+    put:
+      summary: Mutasi simpanan anggota
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                additionalSavings: { type: number }
+                savingsType: { type: string }
+      responses:
+        '200':
+          description: Mutasi berhasil
+  /members/{id}/transactions:
+    get:
+      summary: Riwayat mutasi simpanan
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar riwayat
+  /loans:
+    get:
+      summary: Ambil daftar pinjaman
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List pinjaman
+    post:
+      summary: Ajukan pinjaman baru
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Pinjaman diajukan
+  /loans/{id}/status:
+    put:
+      summary: Update status pinjaman
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [Menunggu, Disetujui, Ditolak, Lunas]
+      responses:
+        '200':
+          description: Status diupdate
+  /loans/{id}/payments:
+    get:
+      summary: Riwayat pembayaran pinjaman
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List pembayaran
+    post:
+      summary: Bayar cicilan pinjaman
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: number }
+                method: { type: string }
+      responses:
+        '200':
+          description: Pembayaran berhasil dicatat
+  /shu:
+    get:
+      summary: Dapatkan data SHU untuk tahun tertentu
+      parameters:
+        - in: query
+          name: year
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data SHU
+  /stats:
+    get:
+      summary: Dapatkan statistik dasbor (total simpanan, pinjaman, NPL, dll.)
+      responses:
+        '200':
+          description: Data Dasbor
+  /settings:
+    get:
+      summary: Dapatkan pengaturan sistem
+      responses:
+        '200':
+          description: Pengaturan sistem
+    put:
+      summary: Update pengaturan sistem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Berhasil di-update

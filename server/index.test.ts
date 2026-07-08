@@ -14,8 +14,8 @@ describe("API Endpoints", () => {
     token = await sign({ email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
   });
 
-  test("GET /api/stats returns stats", async () => {
-    const req = new Request("http://localhost/api/stats", {
+  test("GET /api/v1/stats returns stats", async () => {
+    const req = new Request("http://localhost/api/v1/stats", {
       headers: { Authorization: `Bearer ${token}` }
     });
     const res = await server.fetch(req);
@@ -25,8 +25,8 @@ describe("API Endpoints", () => {
     expect(body).toHaveProperty("totalSavings");
   });
 
-  test("GET /api/members returns members array", async () => {
-    const req = new Request("http://localhost/api/members", {
+  test("GET /api/v1/members returns members array", async () => {
+    const req = new Request("http://localhost/api/v1/members", {
       headers: { Authorization: `Bearer ${token}` }
     });
     const res = await server.fetch(req);
@@ -36,8 +36,8 @@ describe("API Endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
-  test("GET /api/loans returns loans array", async () => {
-    const req = new Request("http://localhost/api/loans", {
+  test("GET /api/v1/loans returns loans array", async () => {
+    const req = new Request("http://localhost/api/v1/loans", {
       headers: { Authorization: `Bearer ${token}` }
     });
     const res = await server.fetch(req);
@@ -47,11 +47,11 @@ describe("API Endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
   
-  test("POST /api/login rate limit works", async () => {
+  test("POST /api/v1/login rate limit works", async () => {
     // Generate many requests to hit rate limit
     let status = 200;
     for (let i = 0; i < 7; i++) {
-      const req = new Request("http://localhost/api/login", {
+      const req = new Request("http://localhost/api/v1/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,7 +68,7 @@ describe("API Endpoints", () => {
 
   test("RBAC: viewer cannot create member", async () => {
     const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
-    const req = new Request("http://localhost/api/members", {
+    const req = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -86,9 +86,9 @@ describe("API Endpoints", () => {
     expect(res.status).toBe(403);
   });
 
-  test("PUT /api/members/:id updates member", async () => {
+  test("PUT /api/v1/members/:id updates member", async () => {
     // 1. First create a member to get an ID
-    const createReq = new Request("http://localhost/api/members", {
+    const createReq = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -107,7 +107,7 @@ describe("API Endpoints", () => {
     const newId = createBody.id;
 
     // 2. Now update that member
-    const updateReq = new Request(`http://localhost/api/members/${newId}`, {
+    const updateReq = new Request(`http://localhost/api/v1/members/${newId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -127,9 +127,9 @@ describe("API Endpoints", () => {
     expect(updateBody.success).toBe(true);
   });
 
-  test("PUT /api/members/:id/savings creates a transaction log and updates savings", async () => {
+  test("PUT /api/v1/members/:id/savings creates a transaction log and updates savings", async () => {
     // 1. Create a member
-    const createReq = new Request("http://localhost/api/members", {
+    const createReq = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -147,7 +147,7 @@ describe("API Endpoints", () => {
     const newId = (await createRes.json()).id;
 
     // 2. Add savings
-    const saveReq = new Request(`http://localhost/api/members/${newId}/savings`, {
+    const saveReq = new Request(`http://localhost/api/v1/members/${newId}/savings`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -163,7 +163,7 @@ describe("API Endpoints", () => {
     expect(saveBody.newTotal).toBe(7000);
 
     // 3. Get transactions
-    const txReq = new Request(`http://localhost/api/members/${newId}/transactions`, {
+    const txReq = new Request(`http://localhost/api/v1/members/${newId}/transactions`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const txRes = await server.fetch(txReq);
@@ -178,9 +178,9 @@ describe("API Endpoints", () => {
     expect(txBody[0].createdBy).toBe("test@example.com");
   });
   
-  test("PUT /api/members/:id/savings prevents negative balance", async () => {
+  test("PUT /api/v1/members/:id/savings prevents negative balance", async () => {
     // 1. Create member
-    const createReq = new Request("http://localhost/api/members", {
+    const createReq = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -199,7 +199,7 @@ describe("API Endpoints", () => {
     const id = createdMember.id;
 
     // 2. Withdraw 500 from simpananPokok (which only has 100)
-    const txReq = new Request(`http://localhost/api/members/${id}/savings`, {
+    const txReq = new Request(`http://localhost/api/v1/members/${id}/savings`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -218,9 +218,9 @@ describe("API Endpoints", () => {
     expect(body.message).toBe("Saldo tidak mencukupi");
   });
 
-  test("POST /api/loans/:id/payments creates payment and GET returns it", async () => {
+  test("POST /api/v1/loans/:id/payments creates payment and GET returns it", async () => {
     // 1. Create a member
-    const createReq = new Request("http://localhost/api/members", {
+    const createReq = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({
@@ -235,7 +235,7 @@ describe("API Endpoints", () => {
     const memberId = (await createRes.json()).id;
 
     // 2. Create a loan
-    const loanReq = new Request("http://localhost/api/loans", {
+    const loanReq = new Request("http://localhost/api/v1/loans", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({
@@ -251,7 +251,7 @@ describe("API Endpoints", () => {
     const loanId = (await loanRes.json()).id;
 
     // 3. Make a payment
-    const payReq = new Request(`http://localhost/api/loans/${loanId}/payments`, {
+    const payReq = new Request(`http://localhost/api/v1/loans/${loanId}/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({
@@ -263,7 +263,7 @@ describe("API Endpoints", () => {
     expect(payRes.status).toBe(201);
     
     // 4. Get payments
-    const getReq = new Request(`http://localhost/api/loans/${loanId}/payments`, {
+    const getReq = new Request(`http://localhost/api/v1/loans/${loanId}/payments`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const getRes = await server.fetch(getReq);
@@ -274,9 +274,9 @@ describe("API Endpoints", () => {
     expect(getBody[0].amount).toBe(1000);
   });
   
-  test("POST /api/loans/:id/payments prevents overpayment", async () => {
+  test("POST /api/v1/loans/:id/payments prevents overpayment", async () => {
     // 1. Create a member
-    const createMemReq = new Request("http://localhost/api/members", {
+    const createMemReq = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -294,7 +294,7 @@ describe("API Endpoints", () => {
     const member = (await resMem.json()) as any;
 
     // 2. Create a loan for 1,000,000
-    const createLoanReq = new Request("http://localhost/api/loans", {
+    const createLoanReq = new Request("http://localhost/api/v1/loans", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -313,7 +313,7 @@ describe("API Endpoints", () => {
     const loan = (await resLoan.json()) as any;
 
     // 3. Make a payment of 1,500,000 (exceeds 1,000,000)
-    const payReq = new Request(`http://localhost/api/loans/${loan.id}/payments`, {
+    const payReq = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -331,9 +331,9 @@ describe("API Endpoints", () => {
     expect(bodyPay.message).toBe("Total pembayaran melebihi jumlah pinjaman");
   });
 
-  test("POST /api/loans/:id/payments allows paying up to total amount including interest", async () => {
+  test("POST /api/v1/loans/:id/payments allows paying up to total amount including interest", async () => {
     // 1. Create a member
-    const createMemReq = new Request("http://localhost/api/members", {
+    const createMemReq = new Request("http://localhost/api/v1/members", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -352,7 +352,7 @@ describe("API Endpoints", () => {
 
     // 2. Create a loan for 1,000,000 with 12 months tenor.
     // Interest is 1.5% per month, so 1.5% * 12 = 18%. Total amount is 1,180,000.
-    const createLoanReq = new Request("http://localhost/api/loans", {
+    const createLoanReq = new Request("http://localhost/api/v1/loans", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -371,7 +371,7 @@ describe("API Endpoints", () => {
     const loan = (await resLoan.json()) as any;
 
     // 3. Make a payment of 1,100,000 (exceeds 1,000,000 principal but is within 1,180,000 total amount)
-    const payReq1 = new Request(`http://localhost/api/loans/${loan.id}/payments`, {
+    const payReq1 = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -386,7 +386,7 @@ describe("API Endpoints", () => {
     expect(resPay1.status).toBe(201);
 
     // 4. Try another payment of 100,000 (making total paid 1,200,000, which exceeds 1,180,000)
-    const payReq2 = new Request(`http://localhost/api/loans/${loan.id}/payments`, {
+    const payReq2 = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -404,8 +404,8 @@ describe("API Endpoints", () => {
     expect(bodyPay2.message).toBe("Total pembayaran melebihi jumlah pinjaman");
   });
 
-  test("GET /api/shu returns correct SHU calculations and allocations", async () => {
-    const shuReq = new Request("http://localhost/api/shu?year=2026", {
+  test("GET /api/v1/shu returns correct SHU calculations and allocations", async () => {
+    const shuReq = new Request("http://localhost/api/v1/shu?year=2026", {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const res = await server.fetch(shuReq);
@@ -488,8 +488,8 @@ describe("API Endpoints", () => {
     db.run("DELETE FROM token_blacklist WHERE token = ?", ["valid-token-abc"]);
   });
 
-  test("GET /api/members caps pagination limit at 100", async () => {
-    const req = new Request("http://localhost/api/members?limit=1000", {
+  test("GET /api/v1/members caps pagination limit at 100", async () => {
+    const req = new Request("http://localhost/api/v1/members?limit=1000", {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const res = await server.fetch(req);
@@ -498,7 +498,7 @@ describe("API Endpoints", () => {
     expect(body.limit).toBe(100);
   });
 
-  test("POST /api/refresh validates user existence and syncs updated role", async () => {
+  test("POST /api/v1/refresh validates user existence and syncs updated role", async () => {
     const adminId = "temp-admin-refresh-test";
     const RequestConstructor = (globalThis as any).NativeRequest || Request;
 
@@ -521,7 +521,7 @@ describe("API Endpoints", () => {
       db.prepare("UPDATE admins SET role = ? WHERE id = ?").run("admin", adminId);
 
       // 4. Request token refresh
-      const req = new RequestConstructor("http://localhost/api/refresh", {
+      const req = new RequestConstructor("http://localhost/api/v1/refresh", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -543,7 +543,7 @@ describe("API Endpoints", () => {
       db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
 
       // 6. Request token refresh again (should fail with 401 since user no longer exists)
-      const reqFailed = new RequestConstructor("http://localhost/api/refresh", {
+      const reqFailed = new RequestConstructor("http://localhost/api/v1/refresh", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -568,9 +568,9 @@ describe("API Endpoints", () => {
     expect(applied).toContain("0004_hash_admin_passwords");
   });
 
-  test("PUT /api/settings allows valid keys and rejects invalid ones", async () => {
+  test("PUT /api/v1/settings allows valid keys and rejects invalid ones", async () => {
     // 1. Valid settings update
-    const reqValid = new Request("http://localhost/api/settings", {
+    const reqValid = new Request("http://localhost/api/v1/settings", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -588,7 +588,7 @@ describe("API Endpoints", () => {
     expect(setting.value).toBe("Koperasi Baru");
 
     // 2. Invalid settings update (injection attempt)
-    const reqInvalid = new Request("http://localhost/api/settings", {
+    const reqInvalid = new Request("http://localhost/api/v1/settings", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -602,9 +602,9 @@ describe("API Endpoints", () => {
     expect(bodyInvalid.success).toBe(false);
   });
 
-  test("GET /api/stats caching and invalidation works", async () => {
+  test("GET /api/v1/stats caching and invalidation works", async () => {
     // 1. Initial call to populate cache
-    const req1 = new Request("http://localhost/api/stats", {
+    const req1 = new Request("http://localhost/api/v1/stats", {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const res1 = await server.fetch(req1);
@@ -622,7 +622,7 @@ describe("API Endpoints", () => {
       expect(body2.totalSavings).toBe(oldSavings);
 
       // 4. Update settings via PUT route (which invalidates cache)
-      const reqUpdate = new Request("http://localhost/api/settings", {
+      const reqUpdate = new Request("http://localhost/api/v1/settings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -645,7 +645,7 @@ describe("API Endpoints", () => {
 
   test("global error handler handles invalid JSON payload", async () => {
     db.run("DELETE FROM rate_limits");
-    const req = new Request("http://localhost/api/login", {
+    const req = new Request("http://localhost/api/v1/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{malformed-json"
