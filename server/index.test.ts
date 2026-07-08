@@ -1,5 +1,7 @@
 import { expect, test, describe } from "bun:test";
-import server, { secretKey, _test } from "./index";
+import server, { _test } from "./index";
+
+const secretKey = process.env.JWT_SECRET as string;
 
 import { sign } from "hono/jwt";
 
