@@ -1,7 +1,7 @@
 import type { MemberRow, LoanRow, DashboardData, SettingsData } from "../shared/types";
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { jwt, sign, verify } from 'hono/jwt'
+import { jwt, sign, verify, decode } from 'hono/jwt'
 import { secureHeaders } from 'hono/secure-headers'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import db from './db'
@@ -49,7 +49,21 @@ const secretKey = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
 if (!secretKey) {
   throw new Error('JWT_SECRET environment variable is required');
 }
-const tokenBlacklist = new Set<string>();
+const tokenBlacklist = new Map<string, number>();
+
+const cleanupTokenBlacklist = () => {
+  const now = Date.now();
+  for (const [token, expiry] of tokenBlacklist) {
+    if (expiry < now) {
+      tokenBlacklist.delete(token);
+    }
+  }
+};
+
+const tokenCleanupInterval = setInterval(cleanupTokenBlacklist, 60 * 60 * 1000); // 1 hour
+if (typeof tokenCleanupInterval.unref === 'function') {
+  tokenCleanupInterval.unref();
+}
 
 app.use('/api/*', async (c, next) => {
   if (c.req.path === '/api/login' || c.req.path === '/api/logout' || c.req.path === '/api/refresh') {
@@ -515,7 +529,9 @@ if (typeof cleanupInterval.unref === 'function') {
 
 export const _test = {
   loginAttempts,
-  cleanupAttempts
+  cleanupAttempts,
+  tokenBlacklist,
+  cleanupTokenBlacklist
 };
 
 function rateLimitLogin(ip: string): boolean {
@@ -621,7 +637,16 @@ app.post('/api/logout', (c) => {
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    tokenBlacklist.add(token);
+    try {
+      const { payload } = decode(token);
+      if (payload && payload.exp) {
+        tokenBlacklist.set(token, (payload.exp as number) * 1000);
+      } else {
+        tokenBlacklist.set(token, Date.now() + 60 * 60 * 1000); // fallback 1 hour
+      }
+    } catch (e) {
+      tokenBlacklist.set(token, Date.now() + 60 * 60 * 1000);
+    }
   }
   deleteCookie(c, 'refreshToken', { path: '/' })
   return c.json({ success: true, message: 'Logout successful' })
