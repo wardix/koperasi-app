@@ -558,4 +558,12 @@ describe("API Endpoints", () => {
       db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
     }
   });
+
+  test("database migrations are successfully applied", () => {
+    const applied = (db.query("SELECT name FROM schema_migrations").all() as any[]).map(m => m.name);
+    expect(applied).toContain("0001_add_memberId_to_loans");
+    expect(applied).toContain("0002_add_simpanan_columns_to_members");
+    expect(applied).toContain("0003_convert_currency_to_int");
+    expect(applied).toContain("0004_hash_admin_passwords");
+  });
 });
