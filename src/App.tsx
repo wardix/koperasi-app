@@ -16,7 +16,7 @@ import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
-import {useState, useEffect} from 'react';
+import React, {useState, useEffect} from 'react';
 import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
 import {formatRp} from './utils/format';
