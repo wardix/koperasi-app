@@ -63,7 +63,7 @@ auth.post('/login', async (c) => {
       path: '/'
     })
 
-    return c.json({ success: true, message: 'Login successful', token: accessToken, role: admin.role })
+    return c.json({ success: true, message: 'Login successful', data: { token: accessToken, role: admin.role } })
   } catch (error) {
     throw error
   }
@@ -88,7 +88,7 @@ auth.post('/refresh', async (c) => {
       exp: Math.floor(Date.now() / 1000) + 15 * 60 
     }
     const newAccessToken = await sign(newPayload, secretKey)
-    return c.json({ success: true, token: newAccessToken })
+    return c.json({ success: true, data: { token: newAccessToken } })
   } catch (err) {
     return c.json({ success: false, message: 'Invalid or expired refresh token' }, 401)
   }

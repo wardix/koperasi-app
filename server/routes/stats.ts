@@ -14,7 +14,7 @@ export function clearStatsCache() {
 
 stats.get('/', async (c) => {
   if (cachedStats && Date.now() - cacheTime < CACHE_TTL) {
-    return c.json(cachedStats);
+    return c.json({ success: true, data: cachedStats })
   }
 
   // Menjalankan query yang independen secara paralel
@@ -102,7 +102,7 @@ stats.get('/', async (c) => {
   };
   cacheTime = Date.now();
 
-  return c.json(cachedStats)
+  return c.json({ success: true, data: cachedStats })
 })
 
 export default stats

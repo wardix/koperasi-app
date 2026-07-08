@@ -15,10 +15,13 @@ members.get('/', (c) => {
   const totalRes = db.query("SELECT COUNT(*) as count FROM members").get() as { count: number }
   
   return c.json({
-    data: rows,
-    total: totalRes.count,
-    page,
-    limit
+    success: true,
+    data: {
+      data: rows,
+      total: totalRes.count,
+      page,
+      limit
+    }
   })
 })
 
@@ -136,7 +139,7 @@ members.put('/:id/savings', requireAdmin, async (c) => {
     })()
     clearStatsCache()
     
-    return c.json({ success: true, newTotal })
+    return c.json({ success: true, data: { newTotal } })
   } catch (error) {
     throw error
   }
@@ -145,7 +148,7 @@ members.put('/:id/savings', requireAdmin, async (c) => {
 members.get('/:id/transactions', (c) => {
   const id = c.req.param('id')
   const rows = db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC").all(id)
-  return c.json(rows)
+  return c.json({ success: true, data: rows })
 })
 
 export default members
