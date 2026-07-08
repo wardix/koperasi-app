@@ -53,7 +53,8 @@ export const ALLOWED_SETTINGS_KEYS = [
   'denda',
   'viewReports',
   'selfRegister',
-  'twoFactor'
+  'twoFactor',
+  'ssoAutoRegister'
 ];
 
 export const settingsSchema = z.record(

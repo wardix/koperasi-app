@@ -660,6 +660,49 @@ describe("API Endpoints", () => {
     expect(body.message).toBe("Invalid JSON payload");
   });
 
+  test("POST /api/v1/auth/google handles SSO flow", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (input: string | Request | URL, init?: RequestInit) => {
+        const urlStr = input.toString();
+        if (urlStr.includes("oauth2.googleapis.com/tokeninfo")) {
+          return new Response(JSON.stringify({
+            aud: "mock-client-id",
+            email_verified: "true",
+            email: "dewi@koperasi.com",
+            name: "Dewi Lestari",
+            picture: "https://example.com/avatar.jpg",
+            sub: "google-12345"
+          }), { status: 200 });
+        }
+        return originalFetch(input, init);
+      };
+
+      const oldClientId = process.env.GOOGLE_CLIENT_ID;
+      process.env.GOOGLE_CLIENT_ID = "mock-client-id";
+
+      const reqEmpty = new Request("http://localhost/api/v1/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const resEmpty = await server.fetch(reqEmpty);
+      expect(resEmpty.status).toBe(400);
+
+      const reqValid = new Request("http://localhost/api/v1/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: "mock-google-id-token" })
+      });
+      const resValid = await server.fetch(reqValid);
+      expect([200, 403]).toContain(resValid.status);
+
+      process.env.GOOGLE_CLIENT_ID = oldClientId;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   afterAll(() => {
     const testDb = process.env.DATABASE_PATH || "koperasi_test.sqlite";
     // Close the database explicitly if needed, but since it's global, we just delete the file.

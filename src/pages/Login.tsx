@@ -2,7 +2,7 @@
 
 'use client';
 
-import {useState, type CSSProperties} from 'react';
+import React, {useState, useEffect, useRef, type CSSProperties} from 'react';
 import {VStack, HStack, StackItem} from '@astryxdesign/core/Layout';
 import {useAuth} from '../hooks/useAuth';
 import {Grid} from '@astryxdesign/core/Grid';
@@ -17,6 +17,37 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
 import {Link} from '@astryxdesign/core/Link';
 import {Divider} from '@astryxdesign/core/Divider';
+
+// TypeScript declarations for Google Identity Services
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            auto_select?: boolean;
+          }) => void;
+          renderButton: (
+            element: HTMLElement | null,
+            options: {
+              theme?: 'outline' | 'filled_blue' | 'filled_black';
+              size?: 'large' | 'medium' | 'small';
+              width?: string | number;
+              text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+              shape?: 'rectangular' | 'pill' | 'circle' | 'square';
+              locale?: string;
+            }
+          ) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const COVER_IMAGE_URL =
   'https://images.unsplash.com/photo-1556761175-4b46a572b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
@@ -78,13 +109,16 @@ export default function LoginTwoColumn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginFailed, setLoginFailed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('Kata sandi salah. Coba lagi.');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const { login, confirmLogin } = useAuth();
+  const { login, loginWithGoogle, confirmLogin } = useAuth();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
       setLoginFailed(true);
+      setErrorMessage('Kata sandi salah. Coba lagi.');
       return;
     }
     setIsLoading(true);
@@ -97,10 +131,52 @@ export default function LoginTwoColumn() {
     } catch (err) {
       console.error(err);
       setLoginFailed(true);
+      setErrorMessage('Email atau kata sandi salah. Coba lagi.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleGoogleCredential = async (response: { credential: string }) => {
+    setIsLoading(true);
+    setLoginFailed(false);
+
+    try {
+      await loginWithGoogle(response.credential);
+      setIsSuccess(true);
+      setTimeout(confirmLogin, 1000);
+    } catch (err: any) {
+      console.error('Google SSO error:', err);
+      setLoginFailed(true);
+      setErrorMessage(err.data?.message || err.message || 'Login dengan Google gagal.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !window.google) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+
+    if (googleBtnRef.current) {
+      window.google.accounts.id.renderButton(
+        googleBtnRef.current,
+        {
+          theme: 'outline',
+          size: 'large',
+          width: '100%',
+          text: 'signin_with',
+          shape: 'rectangular',
+          locale: 'id',
+        }
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Center axis="both" style={pageStyle}>
@@ -168,8 +244,7 @@ export default function LoginTwoColumn() {
                                   loginFailed
                                     ? {
                                         type: 'error',
-                                        message:
-                                          'Kata sandi salah. Coba lagi.',
+                                        message: errorMessage,
                                       }
                                     : undefined
                                 }
@@ -195,6 +270,22 @@ export default function LoginTwoColumn() {
                             isLoading={isLoading}
                             onClick={handleLogin}
                           />
+
+                          {GOOGLE_CLIENT_ID && (
+                            <>
+                              <HStack gap={2} vAlign="center" width="100%">
+                                <StackItem size="fill"><Divider /></StackItem>
+                                <Text type="supporting" color="secondary">atau</Text>
+                                <StackItem size="fill"><Divider /></StackItem>
+                              </HStack>
+
+                              <div
+                                ref={googleBtnRef}
+                                id="google-signin-btn"
+                                style={{ display: 'flex', justifyContent: 'center' }}
+                              />
+                            </>
+                          )}
                         </VStack>
                       )}
                     </Center>
