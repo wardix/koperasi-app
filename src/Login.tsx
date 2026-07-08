@@ -2,7 +2,7 @@
 
 'use client';
 
-import {useState, type CSSProperties} from 'react';
+import {useState, useEffect, useRef, type CSSProperties} from 'react';
 import {VStack, HStack, StackItem} from '@astryxdesign/core/Layout';
 import {apiFetch} from './config';
 import {Grid} from '@astryxdesign/core/Grid';
@@ -17,6 +17,35 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
 import {Link} from '@astryxdesign/core/Link';
 import {Divider} from '@astryxdesign/core/Divider';
+
+// TypeScript declarations for Google Identity Services
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            auto_select?: boolean;
+          }) => void;
+          renderButton: (
+            element: HTMLElement | null,
+            options: {
+              theme?: 'outline' | 'filled_blue' | 'filled_black';
+              size?: 'large' | 'medium' | 'small';
+              width?: string | number;
+              text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+              shape?: 'rectangular' | 'pill' | 'circle' | 'square';
+              locale?: string;
+            }
+          ) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
 
 const COVER_IMAGE_URL =
   'https://images.unsplash.com/photo-1556761175-4b46a572b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
@@ -74,20 +103,26 @@ const LOGIN_SPLIT_CSS = `
 }
 `;
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => void}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginFailed, setLoginFailed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
       setLoginFailed(true);
+      setErrorMessage('Kata sandi salah. Coba lagi.');
       return;
     }
     setIsLoading(true);
     setLoginFailed(false);
+    setErrorMessage('');
     
     try {
       const res = await apiFetch('/api/login', {
@@ -104,14 +139,74 @@ export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => 
         setTimeout(onLoginSuccess, 1000);
       } else {
         setLoginFailed(true);
+        setErrorMessage('Kata sandi salah. Coba lagi.');
       }
     } catch (err) {
       console.error(err);
       setLoginFailed(true);
+      setErrorMessage('Terjadi kesalahan. Coba lagi.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Google SSO credential callback
+  const handleGoogleCredential = async (response: { credential: string }) => {
+    setIsLoading(true);
+    setLoginFailed(false);
+    setErrorMessage('');
+
+    try {
+      const res = await apiFetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
+        setIsSuccess(true);
+        setTimeout(onLoginSuccess, 500);
+      } else {
+        setLoginFailed(true);
+        setErrorMessage(data.message || 'Login Google gagal.');
+      }
+    } catch (err) {
+      console.error('Google SSO error:', err);
+      setLoginFailed(true);
+      setErrorMessage('Terjadi kesalahan saat login dengan Google.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !window.google) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+
+    if (googleBtnRef.current) {
+      window.google.accounts.id.renderButton(
+        googleBtnRef.current,
+        {
+          theme: 'outline',
+          size: 'large',
+          width: '100%',
+          text: 'signin_with',
+          shape: 'rectangular',
+          locale: 'id',
+        }
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Center axis="both" style={pageStyle}>
@@ -167,20 +262,20 @@ export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => 
                               <TextInput
                                 label="Password"
                                 isLabelHidden
-                                placeholder="Enter your password"
+                                placeholder="Masukkan kata sandi"
                                 type="password"
                                 value={password}
                                 onChange={(v: string) => {
                                   setPassword(v);
                                   setLoginFailed(false);
+                                  setErrorMessage('');
                                 }}
                                 size="lg"
                                 status={
                                   loginFailed
                                     ? {
                                         type: 'error',
-                                        message:
-                                          'Kata sandi salah. Coba lagi.',
+                                        message: errorMessage,
                                       }
                                     : undefined
                                 }
@@ -206,6 +301,22 @@ export default function LoginTwoColumn({onLoginSuccess}: {onLoginSuccess: () => 
                             isLoading={isLoading}
                             onClick={handleLogin}
                           />
+
+                          {GOOGLE_CLIENT_ID && (
+                            <>
+                              <HStack gap={2} vAlign="center" width="100%">
+                                <StackItem size="fill"><Divider /></StackItem>
+                                <Text type="supporting" color="secondary">atau</Text>
+                                <StackItem size="fill"><Divider /></StackItem>
+                              </HStack>
+
+                              <div
+                                ref={googleBtnRef}
+                                id="google-signin-btn"
+                                style={{ display: 'flex', justifyContent: 'center' }}
+                              />
+                            </>
+                          )}
                         </VStack>
                       )}
                     </Center>

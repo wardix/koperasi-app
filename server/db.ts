@@ -174,4 +174,26 @@ try {
   console.error("Admin password migration error:", e);
 }
 
+// Migration: Add Google SSO columns to admins table
+try {
+  db.run("ALTER TABLE admins ADD COLUMN google_id TEXT UNIQUE");
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.run("ALTER TABLE admins ADD COLUMN name TEXT");
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.run("ALTER TABLE admins ADD COLUMN avatar_url TEXT");
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.run("ALTER TABLE admins ADD COLUMN auth_provider TEXT DEFAULT 'local'");
+} catch (e) {
+  // Column already exists
+}
+
 export default db;

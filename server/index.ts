@@ -7,6 +7,7 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import db from './db'
 import { z } from 'zod'
 import xss from 'xss'
+import { verifyGoogleToken } from './google-auth'
 
 const app = new Hono()
 
@@ -57,7 +58,7 @@ export const secretKey = JWT_SECRET || 'koperasi-super-secret-key-2026';
 const tokenBlacklist = new Set<string>();
 
 app.use('/api/*', async (c, next) => {
-  if (c.req.path === '/api/login' || c.req.path === '/api/logout' || c.req.path === '/api/refresh') {
+  if (c.req.path === '/api/login' || c.req.path === '/api/logout' || c.req.path === '/api/refresh' || c.req.path === '/api/auth/google') {
     return next()
   }
   const authHeader = c.req.header('Authorization');
@@ -631,6 +632,96 @@ app.post('/api/logout', (c) => {
   deleteCookie(c, 'refreshToken', { path: '/' })
   return c.json({ success: true, message: 'Logout successful' })
 })
+
+// Google SSO login
+app.post('/api/auth/google', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { credential } = body;
+
+    if (!credential) {
+      return c.json({ success: false, message: 'Missing Google credential' }, 400);
+    }
+
+    // Verify Google ID token
+    const googleUser = await verifyGoogleToken(credential);
+
+    if (!googleUser) {
+      return c.json({ success: false, message: 'Invalid Google token' }, 401);
+    }
+
+    // Look up admin by google_id or email
+    let admin = db.query(
+      "SELECT * FROM admins WHERE google_id = ? OR email = ?"
+    ).get(googleUser.sub, googleUser.email) as any;
+
+    if (!admin) {
+      // Check if SSO auto-register is allowed
+      const ssoAutoRegister = db.query(
+        "SELECT value FROM settings WHERE key = 'ssoAutoRegister'"
+      ).get() as any;
+
+      if (ssoAutoRegister?.value === 'true') {
+        // Auto-register new admin with viewer role
+        const id = crypto.randomUUID();
+        db.run(
+          `INSERT INTO admins (id, email, password, role, google_id, name, avatar_url, auth_provider)
+           VALUES (?, ?, '', 'viewer', ?, ?, ?, 'google')`,
+          [id, googleUser.email, googleUser.sub, googleUser.name, googleUser.picture]
+        );
+        admin = { id, email: googleUser.email, role: 'viewer' };
+      } else {
+        return c.json({
+          success: false,
+          message: 'Akun belum terdaftar. Hubungi admin untuk mendaftar.'
+        }, 403);
+      }
+    } else if (!admin.google_id) {
+      // Link Google account to existing admin (first Google login)
+      db.run(
+        "UPDATE admins SET google_id = ?, name = COALESCE(name, ?), avatar_url = ?, auth_provider = 'google' WHERE id = ?",
+        [googleUser.sub, googleUser.name, googleUser.picture, admin.id]
+      );
+    }
+
+    // Issue JWT tokens (same as regular login)
+    const payload = {
+      sub: admin.id,
+      email: admin.email || googleUser.email,
+      role: admin.role,
+      exp: Math.floor(Date.now() / 1000) + 15 * 60 // 15 minutes
+    };
+    const accessToken = await sign(payload, secretKey);
+
+    const refreshPayload = {
+      sub: admin.id,
+      email: admin.email || googleUser.email,
+      role: admin.role,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
+    };
+    const refreshToken = await sign(refreshPayload, secretKey);
+
+    setCookie(c, 'refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/'
+    });
+
+    return c.json({
+      success: true,
+      message: 'Login successful',
+      token: accessToken,
+      role: admin.role,
+      name: googleUser.name,
+      avatar: googleUser.picture
+    });
+  } catch (error) {
+    console.error('Google SSO error:', error);
+    return c.json({ success: false, message: 'Authentication failed' }, 500);
+  }
+});
 
 // Get settings
 app.get('/api/settings', (c) => {
