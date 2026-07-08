@@ -37,10 +37,13 @@ loans.get('/', (c) => {
   const totalRes = db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
 
   return c.json({
-    data: mappedLoans,
-    total: totalRes.count,
-    page,
-    limit
+    success: true,
+    data: {
+      data: mappedLoans,
+      total: totalRes.count,
+      page,
+      limit
+    }
   })
 })
 
@@ -92,7 +95,7 @@ loans.put('/:id/status', requireAdmin, async (c) => {
 loans.get('/:id/payments', (c) => {
   const id = c.req.param('id')
   const payments = db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
-  return c.json(payments)
+  return c.json({ success: true, data: payments })
 })
 
 loans.post('/:id/payments', requireAdmin, async (c) => {

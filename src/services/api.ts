@@ -24,6 +24,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     throw new ApiError(res.status, data?.message || res.statusText || 'Failed to fetch', data);
   }
+
+  if (data && typeof data === 'object' && 'success' in data) {
+    if (!data.success) {
+      throw new ApiError(res.status, data.message || 'Operation failed', data);
+    }
+    return ('data' in data ? data.data : data) as T;
+  }
   
   return data as T;
 }

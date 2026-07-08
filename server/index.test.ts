@@ -20,7 +20,8 @@ describe("API Endpoints", () => {
     });
     const res = await server.fetch(req);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const raw_body = await res.json();
+    const body = raw_body.data;
     expect(body).toHaveProperty("activeMembers");
     expect(body).toHaveProperty("totalSavings");
   });
@@ -31,7 +32,8 @@ describe("API Endpoints", () => {
     });
     const res = await server.fetch(req);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const raw_body = await res.json();
+    const body = raw_body.data;
     expect(body).toHaveProperty("data");
     expect(Array.isArray(body.data)).toBe(true);
   });
@@ -42,7 +44,8 @@ describe("API Endpoints", () => {
     });
     const res = await server.fetch(req);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const raw_body = await res.json();
+    const body = raw_body.data;
     expect(body).toHaveProperty("data");
     expect(Array.isArray(body.data)).toBe(true);
   });
@@ -159,7 +162,7 @@ describe("API Endpoints", () => {
     });
     const saveRes = await server.fetch(saveReq);
     expect(saveRes.status).toBe(200);
-    const saveBody = await saveRes.json();
+    const saveBody = (await saveRes.json()).data;
     expect(saveBody.newTotal).toBe(7000);
 
     // 3. Get transactions
@@ -168,7 +171,7 @@ describe("API Endpoints", () => {
     });
     const txRes = await server.fetch(txReq);
     expect(txRes.status).toBe(200);
-    const txBody = await txRes.json();
+    const txBody = (await txRes.json()).data;
     expect(Array.isArray(txBody)).toBe(true);
     expect(txBody.length).toBe(1);
     expect(txBody[0].amount).toBe(2000);
@@ -268,7 +271,7 @@ describe("API Endpoints", () => {
     });
     const getRes = await server.fetch(getReq);
     expect(getRes.status).toBe(200);
-    const getBody = await getRes.json();
+    const getBody = (await getRes.json()).data;
     expect(Array.isArray(getBody)).toBe(true);
     expect(getBody.length).toBe(1);
     expect(getBody[0].amount).toBe(1000);
@@ -410,7 +413,7 @@ describe("API Endpoints", () => {
     });
     const res = await server.fetch(shuReq);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
+    const body = (await res.json()).data as any;
     
     expect(body.year).toBe("2026");
     expect(typeof body.pendapatan).toBe("number");
@@ -494,7 +497,7 @@ describe("API Endpoints", () => {
     });
     const res = await server.fetch(req);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
+    const body = (await res.json()).data as any;
     expect(body.limit).toBe(100);
   });
 
@@ -532,11 +535,11 @@ describe("API Endpoints", () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as any;
       expect(body.success).toBe(true);
-      expect(body.token).toBeDefined();
+      expect(body.data.token).toBeDefined();
 
       // Verify the new access token has the updated role "admin"
       const { verify } = require("hono/jwt");
-      const newPayload = await verify(body.token, secretKey, 'HS256');
+      const newPayload = await verify(body.data.token, secretKey, 'HS256');
       expect(newPayload.role).toBe("admin");
 
       // 5. Delete the admin from DB (simulate deactivation)
@@ -635,7 +638,7 @@ describe("API Endpoints", () => {
 
       // 5. Third call to stats (should return fresh stats, meaning totalSavings is updated)
       const res3 = await server.fetch(req1);
-      const body3 = (await res3.json()) as any;
+      const body3 = (await res3.json()).data as any;
       expect(body3.totalSavings).not.toBe(oldSavings);
     } finally {
       // Clean up members table

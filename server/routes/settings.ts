@@ -12,7 +12,7 @@ settings.get('/', (c) => {
   for (const s of settingsArray) {
     settingsObj[s.key] = s.value
   }
-  return c.json(settingsObj)
+  return c.json({ success: true, data: settingsObj })
 })
 
 settings.put('/', requireAdmin, async (c) => {
