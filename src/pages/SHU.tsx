@@ -80,7 +80,8 @@ export default function SHU() {
             <HStack gap={3} vAlign="center">
               <Text type="supporting">Tahun:</Text>
               <select 
-                value={year} 
+                value={year}
+                aria-label="Pilih tahun" 
                 onChange={(e) => setYear(e.target.value)}
                 style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #ccc' }}
               >
@@ -115,7 +116,7 @@ export default function SHU() {
                   <Heading level={4}>Distribusi SHU</Heading>
                   <div style={{ width: '100%', height: 300 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                      <PieChart accessibilityLayer>
                         <Pie
                           data={chartData}
                           cx="50%"

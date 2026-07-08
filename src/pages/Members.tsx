@@ -36,7 +36,7 @@ import {
   PencilIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import {useImperativeDialog} from '@astryxdesign/core/Dialog';
+import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddMemberDialogContent} from '../components/AddMemberDialog';
 import {EditMemberDialogContent} from '../components/EditMemberDialog';
 import {UpdateSavingsDialogContent} from '../components/UpdateSavingsDialog';
@@ -76,7 +76,7 @@ const fieldDefs = [
 export default function MembersTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
-  const dialog = useImperativeDialog({purpose: 'form', width: 480});
+  const dialog = useA11yDialog({purpose: 'form', width: 480});
   const toast = useToast();
   const { isAdmin } = useAuth();
   const apiAction = useApiAction();
