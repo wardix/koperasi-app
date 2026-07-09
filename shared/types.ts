@@ -96,3 +96,31 @@ export interface CashflowResponse {
     netCash: number;
   };
 }
+
+export interface NplRow {
+  id: string;
+  memberId: string;
+  name: string;
+  amount: number;
+  tenor: number;
+  purpose: string;
+  status: string;
+  paidAmount: number;
+  interestAmount: number;
+  totalAmount: number;
+  remainingAmount: number;
+  createdAt?: string;
+}
+
+export interface NplResponse {
+  data: NplRow[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalBadPrincipal: number;
+    totalActivePrincipal: number;
+    nplRatio: number;
+    badAccountsCount: number;
+  };
+}

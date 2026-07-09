@@ -80,6 +80,23 @@ describe("API Endpoints", () => {
     expect(raw_body.data.summary).toHaveProperty("totalOutflow");
     expect(raw_body.data.summary).toHaveProperty("netCash");
   });
+
+  test("GET /api/v1/npl returns bad loans list and summary stats", async () => {
+    const req = new Request("http://localhost/api/v1/npl", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const raw_body = await res.json();
+    expect(raw_body).toHaveProperty("success", true);
+    expect(raw_body.data).toHaveProperty("data");
+    expect(Array.isArray(raw_body.data.data)).toBe(true);
+    expect(raw_body.data).toHaveProperty("summary");
+    expect(raw_body.data.summary).toHaveProperty("totalBadPrincipal");
+    expect(raw_body.data.summary).toHaveProperty("totalActivePrincipal");
+    expect(raw_body.data.summary).toHaveProperty("nplRatio");
+    expect(raw_body.data.summary).toHaveProperty("badAccountsCount");
+  });
   
   test("POST /api/v1/login rate limit works", async () => {
     // Generate many requests to hit rate limit
