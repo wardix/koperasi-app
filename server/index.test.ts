@@ -97,6 +97,22 @@ describe("API Endpoints", () => {
     expect(raw_body.data.summary).toHaveProperty("nplRatio");
     expect(raw_body.data.summary).toHaveProperty("badAccountsCount");
   });
+
+  test("GET /api/v1/reports/summary returns reports overview and stats", async () => {
+    const req = new Request("http://localhost/api/v1/reports/summary", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const raw_body = await res.json();
+    expect(raw_body).toHaveProperty("success", true);
+    expect(raw_body.data).toHaveProperty("members");
+    expect(raw_body.data.members).toHaveProperty("totalMembers");
+    expect(raw_body.data.members).toHaveProperty("totalSavings");
+    expect(raw_body.data).toHaveProperty("loans");
+    expect(raw_body.data.loans).toHaveProperty("totalLoansCount");
+    expect(raw_body.data.loans).toHaveProperty("totalLoansAmount");
+  });
   
   test("POST /api/v1/login rate limit works", async () => {
     // Generate many requests to hit rate limit

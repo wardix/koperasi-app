@@ -35,6 +35,7 @@ const Savings = React.lazy(() => import('../pages/Savings'));
 const LoansTx = React.lazy(() => import('../pages/LoansTx'));
 const Cashflow = React.lazy(() => import('../pages/Cashflow'));
 const NPL = React.lazy(() => import('../pages/NPL'));
+const Reports = React.lazy(() => import('../pages/Reports'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell() {
@@ -162,7 +163,7 @@ export default function Shell() {
           <Route path="/shu" element={<SHU />} />
           
           {/* Coming Soon Routes */}
-          <Route path="/reports" element={<ComingSoon title="Laporan Koperasi" description="Modul pelaporan keuangan dan aktivitas koperasi sedang dalam tahap pengembangan." />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/loans-tx" element={<LoansTx />} />
           <Route path="/cashflow" element={<Cashflow />} />
