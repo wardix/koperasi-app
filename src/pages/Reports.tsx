@@ -9,6 +9,7 @@ import {
   LayoutContent,
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Grid} from '@astryxdesign/core/Grid';
@@ -18,44 +19,60 @@ import {DataStateView} from '../components/DataStateView';
 
 import type {ReportData} from '../shared/types';
 
-type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary';
+type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'interest_income';
 
 export default function ReportsTemplate() {
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
-  const { data: reportResponse, isLoading, error, refetch: fetchReport } = useApiQuery<ReportData>('/api/reports/summary');
+  const currentYear = new Date().getFullYear().toString();
+
+  const { data: reportResponse, isLoading: isSummaryLoading, error: summaryError, refetch: fetchSummary } = useApiQuery<ReportData>('/api/reports/summary');
+  const { data: monthlyInterestRes, isLoading: isInterestLoading, error: interestError, refetch: fetchInterest } = useApiQuery<Array<{ monthKey: string, monthName: string, interestIncome: number }>>(`/api/reports/monthly-interest?year=${currentYear}`);
+
+  const isLoading = selectedReport === 'interest_income' ? isInterestLoading : isSummaryLoading;
+  const error = selectedReport === 'interest_income' ? interestError : summaryError;
+  const refetch = selectedReport === 'interest_income' ? fetchInterest : fetchSummary;
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportCSV = () => {
-    if (!reportResponse) return;
-    
     let csvContent = "";
     let filename = "";
     
-    if (selectedReport === 'cooperative_summary') {
-      filename = "laporan_ringkasan_koperasi.csv";
-      csvContent += "Parameter Keuangan & Operasional,Nilai/Jumlah\r\n";
-      csvContent += `Total Anggota Terdaftar,${reportResponse.members.totalMembers}\r\n`;
-      csvContent += `Anggota Berstatus Aktif,${reportResponse.members.activeMembers}\r\n`;
-      csvContent += `Total Dana Simpanan Anggota,${reportResponse.members.totalSavings}\r\n`;
-      csvContent += `Total Pinjaman Tersalurkan (Kredit Aktif),${reportResponse.loans.totalLoansAmount}\r\n`;
-      csvContent += `Total Penerimaan Angsuran Pinjaman,${reportResponse.loans.totalPaymentsReceived}\r\n`;
-    } else if (selectedReport === 'savings_summary') {
-      filename = "laporan_portfolio_simpanan.csv";
-      csvContent += "Jenis Simpanan,Total Akumulasi\r\n";
-      csvContent += `Simpanan Pokok (Modal Awal),${reportResponse.members.totalPokok}\r\n`;
-      csvContent += `Simpanan Wajib (Bulanan),${reportResponse.members.totalWajib}\r\n`;
-      csvContent += `Simpanan Sukarela (Tabungan Bebas),${reportResponse.members.totalSukarela}\r\n`;
-      csvContent += `Total Seluruh Simpanan,${reportResponse.members.totalSavings}\r\n`;
-    } else if (selectedReport === 'loans_summary') {
-      filename = "laporan_portfolio_pinjaman.csv";
-      csvContent += "Status Portofolio Kredit,Total Nominal\r\n";
-      csvContent += `Kredit Lancar Aktif (Disetujui),${reportResponse.loans.activeLoansAmount}\r\n`;
-      csvContent += `Kredit Lunas (Telah Diselesaikan),${reportResponse.loans.paidLoansAmount}\r\n`;
-      csvContent += `Kredit Bermasalah (Macet / NPL),${reportResponse.loans.badLoansAmount}\r\n`;
-      csvContent += `Total Kumulatif Penyaluran Pinjaman,${reportResponse.loans.totalLoansAmount}\r\n`;
+    if (selectedReport === 'interest_income') {
+      if (!monthlyInterestRes) return;
+      filename = `laporan_pendapatan_bunga_${currentYear}.csv`;
+      csvContent += "Bulan,Pendapatan Bunga\r\n";
+      for (const item of monthlyInterestRes) {
+        csvContent += `${item.monthName},${item.interestIncome}\r\n`;
+      }
+      csvContent += `Total Pendapatan Bunga Tahunan,${monthlyInterestRes.reduce((sum, item) => sum + item.interestIncome, 0)}\r\n`;
+    } else {
+      if (!reportResponse) return;
+      if (selectedReport === 'cooperative_summary') {
+        filename = "laporan_ringkasan_koperasi.csv";
+        csvContent += "Parameter Keuangan & Operasional,Nilai/Jumlah\r\n";
+        csvContent += `Total Anggota Terdaftar,${reportResponse.members.totalMembers}\r\n`;
+        csvContent += `Anggota Berstatus Aktif,${reportResponse.members.activeMembers}\r\n`;
+        csvContent += `Total Dana Simpanan Anggota,${reportResponse.members.totalSavings}\r\n`;
+        csvContent += `Total Pinjaman Tersalurkan (Kredit Aktif),${reportResponse.loans.totalLoansAmount}\r\n`;
+        csvContent += `Total Penerimaan Angsuran Pinjaman,${reportResponse.loans.totalPaymentsReceived}\r\n`;
+      } else if (selectedReport === 'savings_summary') {
+        filename = "laporan_portfolio_simpanan.csv";
+        csvContent += "Jenis Simpanan,Total Akumulasi\r\n";
+        csvContent += `Simpanan Pokok (Modal Awal),${reportResponse.members.totalPokok}\r\n`;
+        csvContent += `Simpanan Wajib (Bulanan),${reportResponse.members.totalWajib}\r\n`;
+        csvContent += `Simpanan Sukarela (Tabungan Bebas),${reportResponse.members.totalSukarela}\r\n`;
+        csvContent += `Total Seluruh Simpanan,${reportResponse.members.totalSavings}\r\n`;
+      } else if (selectedReport === 'loans_summary') {
+        filename = "laporan_portfolio_pinjaman.csv";
+        csvContent += "Status Portofolio Kredit,Total Nominal\r\n";
+        csvContent += `Kredit Lancar Aktif (Disetujui),${reportResponse.loans.activeLoansAmount}\r\n`;
+        csvContent += `Kredit Lunas (Telah Diselesaikan),${reportResponse.loans.paidLoansAmount}\r\n`;
+        csvContent += `Kredit Bermasalah (Macet / NPL),${reportResponse.loans.badLoansAmount}\r\n`;
+        csvContent += `Total Kumulatif Penyaluran Pinjaman,${reportResponse.loans.totalLoansAmount}\r\n`;
+      }
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -210,6 +227,22 @@ export default function ReportsTemplate() {
                     >
                       📈 Laporan Portofolio Pinjaman
                     </button>
+                    <button
+                      onClick={() => setSelectedReport('interest_income')}
+                      style={{
+                        textAlign: 'left',
+                        padding: '10px 14px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: selectedReport === 'interest_income' ? '#0171E3' : 'transparent',
+                        color: selectedReport === 'interest_income' ? 'white' : 'inherit',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      💵 Laporan Pendapatan Bunga
+                    </button>
                   </VStack>
                 </VStack>
               </Card>
@@ -217,8 +250,8 @@ export default function ReportsTemplate() {
 
             {/* Preview area card */}
             <StackItem style={{ flex: '1 1 auto' }}>
-              <DataStateView isLoading={isLoading} error={error} onRetry={fetchReport} errorTitle="Gagal Memuat Laporan">
-                {reportResponse && (
+              <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
+                {(reportResponse || monthlyInterestRes) && (
                   <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <VStack gap={5}>
                       {/* Document Header */}
@@ -235,6 +268,7 @@ export default function ReportsTemplate() {
                           {selectedReport === 'cooperative_summary' && 'LAPORAN RINGKASAN PERKEMBANGAN KOPERASI'}
                           {selectedReport === 'savings_summary' && 'LAPORAN PORTFOLIO SIMPANAN ANGGOTA'}
                           {selectedReport === 'loans_summary' && 'LAPORAN KINERJA DAN PORTOFOLIO PINJAMAN'}
+                          {selectedReport === 'interest_income' && 'LAPORAN REKAPITULASI PENDAPATAN BUNGA BULANAN'}
                         </Heading>
                         <Text type="supporting" color="secondary" style={{ marginTop: '4px' }}>
                           Per Tanggal: {formattedDate}
@@ -342,6 +376,54 @@ export default function ReportsTemplate() {
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Kumulatif Penyaluran Pinjaman</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600 }}>{formatRp(reportResponse.loans.totalLoansAmount)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </VStack>
+                      )}
+
+                      {selectedReport === 'interest_income' && monthlyInterestRes && (
+                        <VStack gap={4}>
+                          <Text type="body">
+                            Laporan realisasi pendapatan bunga pinjaman koperasi per bulan untuk tahun buku {currentYear}.
+                          </Text>
+
+                          <div className="no-print" style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={monthlyInterestRes}
+                                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="monthName" />
+                                <YAxis tickFormatter={(tick) => `Rp ${(tick / 1000).toLocaleString('id-ID')}k`} />
+                                <RechartsTooltip formatter={(value: any) => formatRp(value)} />
+                                <Bar dataKey="interestIncome" fill="#10B981" radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Bulan</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pendapatan Bunga</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {monthlyInterestRes.map((item) => (
+                                <tr key={item.monthKey} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                  <td style={{ padding: '12px 8px' }}>{item.monthName}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#10B981' }}>
+                                    {formatRp(item.interestIncome)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb', fontWeight: 600 }}>
+                                <td style={{ padding: '12px 8px' }}>Total Pendapatan Bunga Tahunan</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', color: '#10B981' }}>
+                                  {formatRp(monthlyInterestRes.reduce((sum, item) => sum + item.interestIncome, 0))}
+                                </td>
                               </tr>
                             </tbody>
                           </table>
