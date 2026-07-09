@@ -225,7 +225,7 @@ export default function MembersTemplate() {
     {
       key: 'actions',
       header: 'Aksi',
-      width: pixel(100),
+      width: pixel(180),
       renderCell: (item: MemberRow) => (
         <HStack gap={1}>
           {hasPermission('update:members') && (
