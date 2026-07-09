@@ -43,7 +43,15 @@ test.describe("Loans Management", () => {
     // Verify updated remaining debt: 2,360,000 - 500,000 = 1,860,000
     await expect(row.getByText("Sisa: Rp 1.860.000")).toBeVisible();
 
-    // 6. Delete the loan
+    // 6. Cancel deletion and verify UI is NOT frozen
+    await loansPage.cancelDeleteLoan(loanMemberName);
+    await adminPage.getByRole("button", { name: "Dasbor" }).click();
+    await expect(adminPage.getByRole("heading", { name: "Tren Pertumbuhan Koperasi" })).toBeVisible();
+    
+    // Go back to loans page to delete
+    await loansPage.goto();
+
+    // 7. Delete the loan
     await loansPage.deleteLoan(loanMemberName);
     await expect(row).not.toBeVisible();
   });
