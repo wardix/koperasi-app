@@ -78,7 +78,7 @@ export default function MembersTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useA11yDialog({purpose: 'form', width: 480});
   const toast = useToast();
-  const { isAdmin } = useAuth();
+  const { hasPermission } = useAuth();
   const apiAction = useApiAction();
   
   const [page, setPage] = useState(1);
@@ -228,23 +228,23 @@ export default function MembersTemplate() {
       width: pixel(100),
       renderCell: (item: MemberRow) => (
         <HStack gap={1}>
-          {isAdmin && (
-            <>
-              <IconButton 
-                icon={<Icon icon={PencilIcon} />} 
-                label="Edit" 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleEditMember(item)} 
-              />
-              <IconButton 
-                icon={<Icon icon={BanknotesIcon} />} 
-                label="Setor" 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleUpdateSavings(item)} 
-              />
-            </>
+          {hasPermission('update:members') && (
+            <IconButton 
+              icon={<Icon icon={PencilIcon} />} 
+              label="Edit" 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleEditMember(item)} 
+            />
+          )}
+          {hasPermission('update:savings') && (
+            <IconButton 
+              icon={<Icon icon={BanknotesIcon} />} 
+              label="Setor" 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleUpdateSavings(item)} 
+            />
           )}
           <IconButton 
             icon={<Icon icon={ClockIcon} />} 
@@ -253,7 +253,7 @@ export default function MembersTemplate() {
             size="sm" 
             onClick={() => handleShowHistory(item)} 
           />
-          {isAdmin && (
+          {hasPermission('delete:members') && (
             <IconButton 
               icon={<Icon icon={TrashIcon} />} 
               label="Hapus" 
@@ -266,7 +266,7 @@ export default function MembersTemplate() {
         </HStack>
       ),
     },
-  ], [isAdmin, handleEditMember, handleUpdateSavings, handleShowHistory, handleDelete]);
+  ], [hasPermission, handleEditMember, handleUpdateSavings, handleShowHistory, handleDelete]);
 
   const filtered = useMemo(() => {
     return applyFilters(filters, members);
@@ -311,7 +311,7 @@ export default function MembersTemplate() {
               icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
               variant="ghost"
             />
-            {isAdmin && (
+            {hasPermission('create:members') && (
               <Button
                 label="Tambah Anggota"
                 icon={<Icon icon={PlusIcon} size="sm" />}

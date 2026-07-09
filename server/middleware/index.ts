@@ -1,6 +1,7 @@
 import { jwt, decode } from 'hono/jwt'
 import { Context, Next } from 'hono'
 import db from '../db'
+import { hasPermission, type Permission } from '../../shared/permissions'
 
 export const secretKey = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
 if (!secretKey) {
@@ -33,6 +34,21 @@ export const authMiddleware = async (c: Context, next: Next) => {
   return jwtMiddleware(c, next)
 }
 
+export const requirePermission = (permission: Permission) => {
+  return async (c: Context, next: Next) => {
+    const payload = c.get('jwtPayload')
+    if (!payload || !payload.role) {
+      return c.json({ success: false, message: 'Unauthorized' }, 401)
+    }
+
+    if (!hasPermission(payload.role, permission)) {
+      return c.json({ success: false, message: `Forbidden: requires ${permission} permission` }, 403)
+    }
+
+    return next()
+  }
+}
+
 export const requireAdmin = async (c: Context, next: Next) => {
   const payload = c.get('jwtPayload')
   if (!payload || (payload.role !== 'admin' && payload.role !== 'superadmin')) {
@@ -43,7 +59,7 @@ export const requireAdmin = async (c: Context, next: Next) => {
 
 export async function rateLimitLogin(ip: string): Promise<boolean> {
   const rateLimitEnabled = (process.env.RATE_LIMIT_ENABLED ?? Bun.env.RATE_LIMIT_ENABLED ?? 'true') !== 'false';
-  if (!rateLimitEnabled || process.env.NODE_ENV === 'test' || Bun.env.NODE_ENV === 'test') {
+  if (!rateLimitEnabled || process.env.BYPASS_RATE_LIMIT === 'true' || Bun.env.BYPASS_RATE_LIMIT === 'true') {
     return true;
   }
   const now = Date.now();

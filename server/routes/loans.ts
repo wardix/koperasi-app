@@ -1,14 +1,14 @@
 import { Hono } from 'hono'
 import db from '../db'
 import { loanSchema, loanStatusSchema, paymentSchema } from '../schemas'
-import { requireAdmin } from '../middleware'
+import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { calculateLoanInterest } from '../services/loanService'
 import { clearStatsCache } from './stats'
 
 const loans = new Hono()
 
-loans.get('/', async (c) => {
+loans.get('/', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
@@ -47,7 +47,7 @@ loans.get('/', async (c) => {
   })
 })
 
-loans.post('/', requireAdmin, async (c) => {
+loans.post('/', requirePermission('create:loans'), async (c) => {
   try {
     const body = await c.req.json()
     const parsed = loanSchema.safeParse(body)
@@ -72,7 +72,7 @@ loans.post('/', requireAdmin, async (c) => {
   }
 })
 
-loans.put('/:id/status', requireAdmin, async (c) => {
+loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
   try {
     const id = c.req.param('id')
     console.log("Hono PUT /api/loans/:id/status called with id:", id)
@@ -98,13 +98,13 @@ loans.put('/:id/status', requireAdmin, async (c) => {
   }
 })
 
-loans.get('/:id/payments', async (c) => {
+loans.get('/:id/payments', requirePermission('read:loans'), async (c) => {
   const id = c.req.param('id')
   const payments = await db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
   return c.json({ success: true, data: payments })
 })
 
-loans.post('/:id/payments', requireAdmin, async (c) => {
+loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
   try {
     const loanId = c.req.param('id')
     const body = await c.req.json()

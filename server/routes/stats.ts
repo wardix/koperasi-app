@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import { requirePermission } from '../middleware'
 
 const stats = new Hono()
 
@@ -12,7 +13,7 @@ export function clearStatsCache() {
   cacheTime = 0;
 }
 
-stats.get('/', async (c) => {
+stats.get('/', requirePermission('read:stats'), async (c) => {
   if (cachedStats && Date.now() - cacheTime < CACHE_TTL) {
     return c.json({ success: true, data: cachedStats })
   }

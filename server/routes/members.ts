@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
 import db from '../db'
 import { memberSchema, savingsSchema } from '../schemas'
-import { requireAdmin } from '../middleware'
+import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { clearStatsCache } from './stats'
 
 const members = new Hono()
 
-members.get('/', async (c) => {
+members.get('/', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
   
@@ -25,7 +25,7 @@ members.get('/', async (c) => {
   })
 })
 
-members.delete('/:id', requireAdmin, async (c) => {
+members.delete('/:id', requirePermission('delete:members'), async (c) => {
   const id = c.req.param('id')
   try {
     await db.query("DELETE FROM members WHERE id = ?").run(id)
@@ -39,7 +39,7 @@ members.delete('/:id', requireAdmin, async (c) => {
   }
 })
 
-members.post('/', requireAdmin, async (c) => {
+members.post('/', requirePermission('create:members'), async (c) => {
   try {
     const body = await c.req.json()
     const parsed = memberSchema.safeParse(body)
@@ -65,7 +65,7 @@ members.post('/', requireAdmin, async (c) => {
   }
 })
 
-members.put('/:id', requireAdmin, async (c) => {
+members.put('/:id', requirePermission('update:members'), async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
@@ -91,7 +91,7 @@ members.put('/:id', requireAdmin, async (c) => {
   }
 })
 
-members.put('/:id/savings', requireAdmin, async (c) => {
+members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
@@ -145,7 +145,7 @@ members.put('/:id/savings', requireAdmin, async (c) => {
   }
 })
 
-members.get('/:id/transactions', async (c) => {
+members.get('/:id/transactions', requirePermission('read:members'), async (c) => {
   const id = c.req.param('id')
   const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC").all(id)
   return c.json({ success: true, data: rows })

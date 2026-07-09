@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
 import db from '../db'
 import { settingsSchema } from '../schemas'
-import { requireAdmin } from '../middleware'
+import { requirePermission } from '../middleware'
 import { clearStatsCache } from './stats'
 
 const settings = new Hono()
 
-settings.get('/', async (c) => {
+settings.get('/', requirePermission('read:settings'), async (c) => {
   const settingsArray = await db.query("SELECT * FROM settings").all() as {key: string, value: string}[]
   const settingsObj: Record<string, string> = {}
   for (const s of settingsArray) {
@@ -15,7 +15,7 @@ settings.get('/', async (c) => {
   return c.json({ success: true, data: settingsObj })
 })
 
-settings.put('/', requireAdmin, async (c) => {
+settings.put('/', requirePermission('update:settings'), async (c) => {
   try {
     const body = await c.req.json()
     const parsed = settingsSchema.safeParse(body)
