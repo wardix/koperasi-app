@@ -93,9 +93,12 @@ app.route('/api/v1/settings', settingsRoutes)
 app.route('/api/v1/shu', shuRoutes)
 app.route('/api/v1/stats', statsRoutes)
 
-console.log('Hono server running on http://localhost:3000')
+const port = parseInt(process.env.PORT || '3000', 10)
+
+console.log(`Hono server running on http://localhost:${port}`)
+console.log(`Started development server: http://localhost:${port}`)
 
 export default {
-  port: 3000,
+  port,
   fetch: app.fetch,
 }
