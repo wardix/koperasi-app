@@ -28,6 +28,47 @@ export default function ReportsTemplate() {
     window.print();
   };
 
+  const handleExportCSV = () => {
+    if (!reportResponse) return;
+    
+    let csvContent = "";
+    let filename = "";
+    
+    if (selectedReport === 'cooperative_summary') {
+      filename = "laporan_ringkasan_koperasi.csv";
+      csvContent += "Parameter Keuangan & Operasional,Nilai/Jumlah\r\n";
+      csvContent += `Total Anggota Terdaftar,${reportResponse.members.totalMembers}\r\n`;
+      csvContent += `Anggota Berstatus Aktif,${reportResponse.members.activeMembers}\r\n`;
+      csvContent += `Total Dana Simpanan Anggota,${reportResponse.members.totalSavings}\r\n`;
+      csvContent += `Total Pinjaman Tersalurkan (Kredit Aktif),${reportResponse.loans.totalLoansAmount}\r\n`;
+      csvContent += `Total Penerimaan Angsuran Pinjaman,${reportResponse.loans.totalPaymentsReceived}\r\n`;
+    } else if (selectedReport === 'savings_summary') {
+      filename = "laporan_portfolio_simpanan.csv";
+      csvContent += "Jenis Simpanan,Total Akumulasi\r\n";
+      csvContent += `Simpanan Pokok (Modal Awal),${reportResponse.members.totalPokok}\r\n`;
+      csvContent += `Simpanan Wajib (Bulanan),${reportResponse.members.totalWajib}\r\n`;
+      csvContent += `Simpanan Sukarela (Tabungan Bebas),${reportResponse.members.totalSukarela}\r\n`;
+      csvContent += `Total Seluruh Simpanan,${reportResponse.members.totalSavings}\r\n`;
+    } else if (selectedReport === 'loans_summary') {
+      filename = "laporan_portfolio_pinjaman.csv";
+      csvContent += "Status Portofolio Kredit,Total Nominal\r\n";
+      csvContent += `Kredit Lancar Aktif (Disetujui),${reportResponse.loans.activeLoansAmount}\r\n`;
+      csvContent += `Kredit Lunas (Telah Diselesaikan),${reportResponse.loans.paidLoansAmount}\r\n`;
+      csvContent += `Kredit Bermasalah (Macet / NPL),${reportResponse.loans.badLoansAmount}\r\n`;
+      csvContent += `Total Kumulatif Penyaluran Pinjaman,${reportResponse.loans.totalLoansAmount}\r\n`;
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const formattedDate = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
@@ -45,23 +86,42 @@ export default function ReportsTemplate() {
               <Heading level={1}>Laporan Koperasi</Heading>
             </StackItem>
             <StackItem>
-              <button
-                onClick={handlePrint}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#0171E3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                🖨️ Cetak Laporan
-              </button>
+              <HStack gap={2}>
+                <button
+                  onClick={handleExportCSV}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#10B981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  📥 Ekspor CSV
+                </button>
+                <button
+                  onClick={handlePrint}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#0171E3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  🖨️ Cetak Laporan
+                </button>
+              </HStack>
             </StackItem>
           </HStack>
         </LayoutHeader>
