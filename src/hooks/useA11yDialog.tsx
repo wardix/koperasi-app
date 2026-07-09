@@ -7,17 +7,24 @@ type DialogOptions = Parameters<typeof useImperativeDialog>[0];
 export function useA11yDialog(defaultOptions?: DialogOptions) {
   const dialog = useImperativeDialog(defaultOptions);
 
+  const element = useMemo(() => (
+    <FocusTrap active={dialog.isOpen}>
+      <div style={{ display: 'contents' }}>
+        {dialog.element}
+      </div>
+    </FocusTrap>
+  ), [dialog.element, dialog.isOpen]);
+
   return useMemo(() => ({
     ...dialog,
+    element,
     show: (content: ReactNode, options?: DialogOptions) => {
       dialog.show(
-        <FocusTrap>
-          <div tabIndex={-1} style={{ outline: 'none' }}>
-            {content}
-          </div>
-        </FocusTrap>,
+        <div tabIndex={-1} style={{ outline: 'none' }}>
+          {content}
+        </div>,
         options
       );
     }
-  }), [dialog]);
+  }), [dialog, element]);
 }

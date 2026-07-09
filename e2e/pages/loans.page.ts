@@ -87,4 +87,11 @@ export class LoansPage {
     await clickReactElement(button);
     await this.page.getByRole("dialog").getByRole("button", { name: "Hapus", exact: true }).click();
   }
+
+  async cancelDeleteLoan(borrowerName: string) {
+    const row = this.getRow(borrowerName);
+    const button = row.getByRole("button", { name: "Hapus" });
+    await clickReactElement(button);
+    await this.page.getByRole("dialog").getByRole("button", { name: "Batal", exact: true }).click();
+  }
 }
