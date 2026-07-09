@@ -770,6 +770,59 @@ describe("API Endpoints", () => {
     expect(resDelete.status).toBe(200);
   });
 
+  test("DELETE /api/v1/loans/:id deletes loan or blocks based on permission", async () => {
+    const { secretKey } = require("./middleware");
+    const { sign } = require("hono/jwt");
+    const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
+
+    const createReq = new Request("http://localhost/api/v1/loans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        memberId: "1",
+        name: "Budi Santoso",
+        amount: 2000000,
+        tenor: 12,
+        purpose: "Salah Input",
+        status: "Menunggu"
+      })
+    });
+    const createRes = await server.fetch(createReq);
+    expect(createRes.status).toBe(201);
+    const createBody = await createRes.json();
+    const loanId = createBody.id;
+
+    const deleteViewerReq = new Request(`http://localhost/api/v1/loans/${loanId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${viewerToken}`
+      }
+    });
+    const deleteViewerRes = await server.fetch(deleteViewerReq);
+    expect(deleteViewerRes.status).toBe(403);
+
+    const deleteSuperadminReq = new Request(`http://localhost/api/v1/loans/${loanId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    const deleteSuperadminRes = await server.fetch(deleteSuperadminReq);
+    expect(deleteSuperadminRes.status).toBe(200);
+
+    const deleteNonExistentReq = new Request(`http://localhost/api/v1/loans/${loanId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    const deleteNonExistentRes = await server.fetch(deleteNonExistentReq);
+    expect(deleteNonExistentRes.status).toBe(404);
+  });
+
   afterAll(async () => {
     try {
       // Clean up postgres test database tables

@@ -145,4 +145,20 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
   }
 })
 
+loans.delete('/:id', requirePermission('delete:loans'), async (c) => {
+  try {
+    const id = c.req.param('id')
+    const loan = await db.query("SELECT id FROM loans WHERE id = ?").get(id)
+    if (!loan) {
+      return c.json({ success: false, message: 'Loan not found' }, 404)
+    }
+    const stmt = await db.prepare("DELETE FROM loans WHERE id = ?")
+    await stmt.run(id)
+    clearStatsCache()
+    return c.json({ success: true, message: 'Loan deleted successfully' })
+  } catch (error) {
+    throw error
+  }
+})
+
 export default loans

@@ -1,7 +1,7 @@
 export type Permission =
   | 'read:stats'
   | 'read:members' | 'create:members' | 'update:members' | 'delete:members' | 'update:savings'
-  | 'read:loans' | 'create:loans' | 'approve:loans' | 'create:payments'
+  | 'read:loans' | 'create:loans' | 'approve:loans' | 'delete:loans' | 'create:payments'
   | 'read:shu'
   | 'read:settings' | 'update:settings'
   | 'manage:users';
@@ -24,7 +24,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   superadmin: [
     'read:stats',
     'read:members', 'create:members', 'update:members', 'delete:members', 'update:savings',
-    'read:loans', 'create:loans', 'approve:loans', 'create:payments',
+    'read:loans', 'create:loans', 'approve:loans', 'delete:loans', 'create:payments',
     'read:shu',
     'read:settings', 'update:settings',
     'manage:users'

@@ -80,4 +80,11 @@ export class LoansPage {
     
     await this.page.getByRole("button", { name: "Close" }).or(this.page.locator(".dialog-close-button")).or(this.page.locator("button[aria-label='Close']")).or(this.page.getByRole("button", { name: "×" })).first().click(); // Close dialog
   }
+
+  async deleteLoan(borrowerName: string) {
+    const row = this.getRow(borrowerName);
+    const button = row.getByRole("button", { name: "Hapus" });
+    await clickReactElement(button);
+    await this.page.getByRole("dialog").getByRole("button", { name: "Hapus", exact: true }).click();
+  }
 }
