@@ -21,7 +21,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "NODE_ENV=test DATABASE_URL=postgres://koperasi:koperasi_pass@localhost:5432/koperasi_e2e_test JWT_SECRET=e2e-secret bun run server/index.ts > hono.log 2>&1",
+      command: "NODE_ENV=test BYPASS_RATE_LIMIT=true DATABASE_URL=postgres://koperasi:koperasi_pass@localhost:5432/koperasi_e2e_test JWT_SECRET=e2e-secret bun run server/index.ts > hono.log 2>&1",
       port: 3000,
       reuseExistingServer: !process.env.CI,
       cwd: "..",
