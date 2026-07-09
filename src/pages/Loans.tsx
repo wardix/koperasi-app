@@ -24,6 +24,7 @@ import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
+import {Card} from '@astryxdesign/core/Card';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Avatar} from '@astryxdesign/core/Avatar';
@@ -38,6 +39,7 @@ import {
   XMarkIcon,
   PlusIcon,
   EyeIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddLoanDialogContent} from '../components/AddLoanDialog';
@@ -111,6 +113,36 @@ export default function LoansTemplate() {
     );
   }, [dialog, apiAction, fetchLoans]);
 
+  const handleDeleteLoan = useCallback((loan: LoanRow) => {
+    dialog.show(
+      <Card style={{ padding: '24px', width: '100%', boxSizing: 'border-box' }}>
+        <VStack gap={4}>
+          <Heading level={4}>Konfirmasi Hapus</Heading>
+          <Text type="body">Apakah Anda yakin ingin menghapus data pengajuan pinjaman untuk {loan.name} senilai {formatRp(loan.amount)}?</Text>
+          <HStack gap={2} hAlign="end">
+            <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
+            <Button color="error" label="Hapus" onClick={() => {
+              apiAction.execute(
+                () => api.delete(`/api/loans/${loan.id}`),
+                {
+                  successMsg: 'Pengajuan pinjaman berhasil dihapus',
+                  errorMsg: 'Gagal menghapus pengajuan pinjaman',
+                  onSuccess: () => {
+                    dialog.hide();
+                    setTimeout(() => {
+                      fetchLoans();
+                    }, 100);
+                  },
+                  onFinally: () => dialog.hide()
+                }
+              );
+            }} />
+          </HStack>
+        </VStack>
+      </Card>
+    );
+  }, [dialog, apiAction, fetchLoans]);
+
   const columns: TableColumn<LoanRow>[] = useMemo(() => [
     {
       key: 'name',
@@ -164,7 +196,7 @@ export default function LoansTemplate() {
     {
       key: 'actions',
       header: 'Aksi',
-      width: pixel(120),
+      width: pixel(160),
       renderCell: (item: LoanRow) => {
         return (
           <HStack gap={2}>
@@ -191,11 +223,21 @@ export default function LoansTemplate() {
                 }} 
               />
             )}
+            {hasPermission('delete:loans') && (
+              <IconButton 
+                icon={<Icon icon={TrashIcon} />} 
+                label="Hapus" 
+                variant="ghost" 
+                color="error" 
+                size="sm" 
+                onClick={() => handleDeleteLoan(item)} 
+              />
+            )}
           </HStack>
         );
       },
     },
-  ], [hasPermission, handleUpdateStatus, dialog, fetchLoans]);
+  ], [hasPermission, handleUpdateStatus, dialog, fetchLoans, handleDeleteLoan]);
 
   return (
     <>
