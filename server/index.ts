@@ -12,6 +12,7 @@ import shuRoutes from './routes/shu'
 import statsRoutes from './routes/stats'
 import adminsRoutes from './routes/admins'
 import savingsRoutes from './routes/savings'
+import cashflowRoutes from './routes/cashflow'
 
 import { HTTPException } from 'hono/http-exception'
 
@@ -96,6 +97,7 @@ app.route('/api/v1/shu', shuRoutes)
 app.route('/api/v1/stats', statsRoutes)
 app.route('/api/v1/admins', adminsRoutes)
 app.route('/api/v1/savings', savingsRoutes)
+app.route('/api/v1/cashflow', cashflowRoutes)
 
 const port = parseInt(process.env.PORT || '3000', 10)
 

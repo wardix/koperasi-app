@@ -64,6 +64,22 @@ describe("API Endpoints", () => {
       expect(raw_body.data.data[0]).toHaveProperty("memberName");
     }
   });
+
+  test("GET /api/v1/cashflow returns cashflow summary and ledger array", async () => {
+    const req = new Request("http://localhost/api/v1/cashflow", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const raw_body = await res.json();
+    expect(raw_body).toHaveProperty("success", true);
+    expect(raw_body.data).toHaveProperty("data");
+    expect(Array.isArray(raw_body.data.data)).toBe(true);
+    expect(raw_body.data).toHaveProperty("summary");
+    expect(raw_body.data.summary).toHaveProperty("totalInflow");
+    expect(raw_body.data.summary).toHaveProperty("totalOutflow");
+    expect(raw_body.data.summary).toHaveProperty("netCash");
+  });
   
   test("POST /api/v1/login rate limit works", async () => {
     // Generate many requests to hit rate limit

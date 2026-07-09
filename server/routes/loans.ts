@@ -58,12 +58,13 @@ loans.post('/', requirePermission('create:loans'), async (c) => {
 
     const { memberId, name, amount, tenor, purpose, status } = parsed.data
     const id = crypto.randomUUID()
+    const createdAt = new Date().toISOString()
 
     const insert = await db.prepare(`
-      INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    await insert.run(id, memberId, name, amount, tenor, purpose, status)
+    await insert.run(id, memberId, name, amount, tenor, purpose, status, createdAt)
     clearStatsCache()
     
     return c.json({ success: true, message: 'Loan created successfully', id }, 201)
