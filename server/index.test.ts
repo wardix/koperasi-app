@@ -113,6 +113,21 @@ describe("API Endpoints", () => {
     expect(raw_body.data.loans).toHaveProperty("totalLoansCount");
     expect(raw_body.data.loans).toHaveProperty("totalLoansAmount");
   });
+
+  test("GET /api/v1/reports/monthly-interest returns monthly interest data", async () => {
+    const req = new Request(`http://localhost/api/v1/reports/monthly-interest?year=${new Date().getFullYear()}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const raw_body = await res.json();
+    expect(raw_body).toHaveProperty("success", true);
+    expect(Array.isArray(raw_body.data)).toBe(true);
+    expect(raw_body.data.length).toBe(12); // Should return all 12 months
+    expect(raw_body.data[0]).toHaveProperty("monthKey");
+    expect(raw_body.data[0]).toHaveProperty("monthName");
+    expect(raw_body.data[0]).toHaveProperty("interestIncome");
+  });
   
   test("POST /api/v1/login rate limit works", async () => {
     // Generate many requests to hit rate limit

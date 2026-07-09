@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import db from '../db'
 import { requirePermission } from '../middleware'
+import { calculateLoanInterest } from '../services/loanService'
 
 const reports = new Hono()
 
@@ -54,6 +55,57 @@ reports.get('/summary', requirePermission('read:stats'), async (c) => {
       timestamp: new Date().toISOString()
     }
   })
+})
+
+reports.get('/monthly-interest', requirePermission('read:stats'), async (c) => {
+  try {
+    const year = c.req.query('year') || new Date().getFullYear().toString();
+    const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+    const bungaRate = parseFloat(bungaSetting?.value || '18');
+
+    const payments = await db.query(`
+      SELECT lp.amount as paymentAmount, l.amount as principalAmount, l.tenor, lp.paymentDate
+      FROM loan_payments lp
+      JOIN loans l ON lp.loanId = l.id
+      WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
+    `).all(year) as any[];
+
+    // Initialize all 12 months
+    const monthlyInterestMap: Record<string, number> = {};
+    for (let m = 1; m <= 12; m++) {
+      const monthKey = `${year}-${String(m).padStart(2, '0')}`;
+      monthlyInterestMap[monthKey] = 0;
+    }
+
+    for (const p of payments) {
+      const pAmt = p.paymentAmount ?? p.paymentamount ?? 0;
+      const princAmt = p.principalAmount ?? p.principalamount ?? 0;
+      const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor, bungaRate);
+      const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
+      
+      const paymentDate = p.paymentDate || p.paymentdate;
+      if (paymentDate) {
+        const monthKey = paymentDate.substring(0, 7); // YYYY-MM
+        if (monthlyInterestMap[monthKey] !== undefined) {
+          monthlyInterestMap[monthKey] += interestPaid;
+        }
+      }
+    }
+
+    const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const data = Object.entries(monthlyInterestMap).map(([key, val]) => {
+      const monthIndex = parseInt(key.split('-')[1]) - 1;
+      return {
+        monthKey: key,
+        monthName: monthNames[monthIndex],
+        interestIncome: val
+      };
+    }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+
+    return c.json({ success: true, data });
+  } catch (error) {
+    throw error
+  }
 })
 
 export default reports
