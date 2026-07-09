@@ -124,3 +124,24 @@ export interface NplResponse {
     badAccountsCount: number;
   };
 }
+
+export interface ReportData {
+  members: {
+    totalMembers: number;
+    activeMembers: number;
+    passiveMembers: number;
+    totalPokok: number;
+    totalWajib: number;
+    totalSukarela: number;
+    totalSavings: number;
+  };
+  loans: {
+    totalLoansCount: number;
+    totalLoansAmount: number;
+    activeLoansAmount: number;
+    badLoansAmount: number;
+    paidLoansAmount: number;
+    totalPaymentsReceived: number;
+  };
+  timestamp: string;
+}
