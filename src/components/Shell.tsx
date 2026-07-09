@@ -32,6 +32,7 @@ const Settings = React.lazy(() => import('../pages/Settings'));
 const SHU = React.lazy(() => import('../pages/SHU'));
 const Roles = React.lazy(() => import('../pages/Roles'));
 const Savings = React.lazy(() => import('../pages/Savings'));
+const LoansTx = React.lazy(() => import('../pages/LoansTx'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell() {
@@ -161,7 +162,7 @@ export default function Shell() {
           {/* Coming Soon Routes */}
           <Route path="/reports" element={<ComingSoon title="Laporan Koperasi" description="Modul pelaporan keuangan dan aktivitas koperasi sedang dalam tahap pengembangan." />} />
           <Route path="/savings" element={<Savings />} />
-          <Route path="/loans-tx" element={<ComingSoon title="Riwayat Transaksi Pinjaman" description="Fitur pemantauan jejak angsuran dan pencairan pinjaman segera hadir." />} />
+          <Route path="/loans-tx" element={<LoansTx />} />
           <Route path="/cashflow" element={<ComingSoon title="Arus Kas Koperasi" description="Pemantauan keluar-masuk dana koperasi masih dalam proses pembuatan." />} />
           <Route path="/npl" element={<ComingSoon title="Analisis Kredit Macet (NPL)" description="Dashboard khusus penganalisaan Non-Performing Loan sedang dikembangkan." />} />
           <Route path="/roles" element={<Roles />} />

@@ -10,7 +10,7 @@ savings.get('/transactions', requirePermission('read:members'), async (c) => {
   const offset = (page - 1) * limit
 
   const rows = await db.query(`
-    SELECT t.*, m.name as memberName 
+    SELECT t.*, m.name as "memberName" 
     FROM transactions t
     LEFT JOIN members m ON t.memberId = m.id
     ORDER BY t.createdAt DESC 

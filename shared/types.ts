@@ -65,3 +65,12 @@ export interface SavingsTransactionRow {
   createdAt: string;
   createdBy: string;
 }
+
+export interface LoanPaymentRow {
+  id: string;
+  loanId: string;
+  borrowerName?: string;
+  amount: number;
+  paymentDate: string;
+  method: string;
+}
