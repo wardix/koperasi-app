@@ -52,6 +52,7 @@ export interface SettingsData {
   viewReports?: string | boolean;
   selfRegister?: string | boolean;
   twoFactor?: string | boolean;
+  ssoAutoRegister?: string | boolean;
 }
 
 export interface SavingsTransactionRow {

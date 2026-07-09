@@ -79,6 +79,7 @@ export default function SettingsTemplate() {
   const [viewReports, setViewReports] = useState(false);
   const [selfRegister, setSelfRegister] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
+  const [ssoAutoRegister, setSsoAutoRegister] = useState(true);
   
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
@@ -96,6 +97,7 @@ export default function SettingsTemplate() {
       if (settingsData.viewReports !== undefined) setViewReports(settingsData.viewReports === 'true' || settingsData.viewReports === true);
       if (settingsData.selfRegister !== undefined) setSelfRegister(settingsData.selfRegister === 'true' || settingsData.selfRegister === true);
       if (settingsData.twoFactor !== undefined) setTwoFactor(settingsData.twoFactor === 'true' || settingsData.twoFactor === true);
+      if (settingsData.ssoAutoRegister !== undefined) setSsoAutoRegister(settingsData.ssoAutoRegister === 'true' || settingsData.ssoAutoRegister === true);
     }
   }, [settingsData]);
 
@@ -106,7 +108,8 @@ export default function SettingsTemplate() {
         bungaPinjaman, bungaSimpanan, denda,
         viewReports: String(viewReports),
         selfRegister: String(selfRegister),
-        twoFactor: String(twoFactor)
+        twoFactor: String(twoFactor),
+        ssoAutoRegister: String(ssoAutoRegister)
       }),
       {
         successMsg: 'Pengaturan berhasil disimpan!',
@@ -261,6 +264,13 @@ export default function SettingsTemplate() {
                   description="Wajibkan 2FA untuk pengurus koperasi (Ketua, Bendahara)."
                   value={twoFactor}
                   onChange={setTwoFactor}
+                  disabled={!hasPermission('update:settings')}
+                />
+                <CheckboxInput
+                  label="Registrasi Otomatis via Google SSO"
+                  description="Mendaftarkan secara otomatis akun Google baru dengan role Viewer."
+                  value={ssoAutoRegister}
+                  onChange={setSsoAutoRegister}
                   disabled={!hasPermission('update:settings')}
                 />
                 {hasPermission('update:settings') && (
