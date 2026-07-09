@@ -388,8 +388,10 @@ describe("API Endpoints", () => {
     const getAllBody = await getAllRes.json();
     expect(getAllBody.success).toBe(true);
     expect(Array.isArray(getAllBody.data.data)).toBe(true);
-    expect(getAllBody.data.data.length).toBeGreaterThanOrEqual(1);
-    expect(getAllBody.data.data[0].borrowerName).toBe("Test Loan Member");
+    
+    const testPayment = getAllBody.data.data.find((p: any) => p.borrowerName === "Test Loan Member");
+    expect(testPayment).toBeDefined();
+    expect(testPayment.amount).toBe(1000);
   });
   
   test("POST /api/v1/loans/:id/payments prevents overpayment", async () => {

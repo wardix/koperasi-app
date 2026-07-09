@@ -27,8 +27,14 @@ const methodValues = [
   {value: 'Transfer', label: 'Transfer Bank'},
 ];
 
+const typeValues = [
+  {value: 'pencairan', label: 'Pencairan Pinjaman'},
+  {value: 'angsuran', label: 'Angsuran Pinjaman'},
+];
+
 const fieldDefs = [
   {key: 'borrowerName', type: 'string', label: 'Nama Anggota'},
+  {key: 'type', type: 'enum', label: 'Tipe Transaksi', enumValues: typeValues},
   {key: 'method', type: 'enum', label: 'Metode Pembayaran', enumValues: methodValues},
 ] as const;
 
@@ -62,14 +68,31 @@ export default function LoansTxTemplate() {
       ),
     },
     {
-      key: 'amount',
-      header: 'Nominal Pembayaran',
+      key: 'type',
+      header: 'Tipe Transaksi',
       width: proportional(1.5),
-      renderCell: (item: LoanPaymentRow) => (
-        <Text type="body" style={{ fontWeight: 500, color: '#10b981' }}>
-          {formatRp(item.amount)}
-        </Text>
-      ),
+      renderCell: (item: LoanPaymentRow) => {
+        const isDisbursement = item.type === 'pencairan';
+        return (
+          <Badge 
+            variant={isDisbursement ? 'error' : 'success'} 
+            label={isDisbursement ? 'Pencairan' : 'Angsuran'} 
+          />
+        );
+      },
+    },
+    {
+      key: 'amount',
+      header: 'Nominal Transaksi',
+      width: proportional(1.5),
+      renderCell: (item: LoanPaymentRow) => {
+        const isDisbursement = item.type === 'pencairan';
+        return (
+          <Text type="body" style={{ fontWeight: 500, color: isDisbursement ? '#ef4444' : '#10b981' }}>
+            {isDisbursement ? '-' : '+'}{formatRp(item.amount)}
+          </Text>
+        );
+      },
     },
     {
       key: 'method',
@@ -84,7 +107,7 @@ export default function LoansTxTemplate() {
     },
     {
       key: 'paymentDate',
-      header: 'Tanggal Pembayaran',
+      header: 'Tanggal Transaksi',
       width: proportional(2.5),
       renderCell: (item: LoanPaymentRow) => (
         <Text type="supporting" color="secondary">

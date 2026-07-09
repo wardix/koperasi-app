@@ -73,6 +73,7 @@ export interface LoanPaymentRow {
   amount: number;
   paymentDate: string;
   method: string;
+  type?: 'pencairan' | 'angsuran';
 }
 
 export interface CashflowRow {
