@@ -30,12 +30,13 @@ const Members = React.lazy(() => import('../pages/Members'));
 const Loans = React.lazy(() => import('../pages/Loans'));
 const Settings = React.lazy(() => import('../pages/Settings'));
 const SHU = React.lazy(() => import('../pages/SHU'));
+const Roles = React.lazy(() => import('../pages/Roles'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin, logout } = useAuth();
+  const { hasPermission, logout } = useAuth();
 
   const path = location.pathname;
   return (
@@ -135,7 +136,7 @@ export default function Shell() {
               isSelected={path === '/settings'}
               onClick={() => navigate('/settings')}
             />
-            {isAdmin && (
+            {hasPermission('manage:users') && (
               <SideNavItem 
                 label="Hak Akses" 
                 icon={UsersIcon} 
@@ -162,7 +163,7 @@ export default function Shell() {
           <Route path="/loans-tx" element={<ComingSoon title="Riwayat Transaksi Pinjaman" description="Fitur pemantauan jejak angsuran dan pencairan pinjaman segera hadir." />} />
           <Route path="/cashflow" element={<ComingSoon title="Arus Kas Koperasi" description="Pemantauan keluar-masuk dana koperasi masih dalam proses pembuatan." />} />
           <Route path="/npl" element={<ComingSoon title="Analisis Kredit Macet (NPL)" description="Dashboard khusus penganalisaan Non-Performing Loan sedang dikembangkan." />} />
-          <Route path="/roles" element={<ComingSoon title="Manajemen Peran & Akses" description="Fitur pengelolaan akses spesifik untuk pengurus koperasi segera dirilis." />} />
+          <Route path="/roles" element={<Roles />} />
         </Routes>
       </Suspense>
     </AppShell>
