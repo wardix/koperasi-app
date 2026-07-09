@@ -56,7 +56,58 @@ members.post('/', requirePermission('create:members'), async (c) => {
       INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    await insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+
+    await db.transaction(async () => {
+      await insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+      
+      if (simpananPokok > 0) {
+        await db.query(`
+          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          crypto.randomUUID(),
+          id,
+          'setor_pokok',
+          simpananPokok,
+          0,
+          simpananPokok,
+          new Date().toISOString(),
+          (c.get('jwtPayload') as any)?.email || 'admin'
+        )
+      }
+      if (simpananWajib > 0) {
+        await db.query(`
+          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          crypto.randomUUID(),
+          id,
+          'setor_wajib',
+          simpananWajib,
+          simpananPokok,
+          simpananPokok + simpananWajib,
+          new Date().toISOString(),
+          (c.get('jwtPayload') as any)?.email || 'admin'
+        )
+      }
+      if (simpananSukarela > 0) {
+        const balBefore = simpananPokok + simpananWajib
+        await db.query(`
+          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          crypto.randomUUID(),
+          id,
+          'setor_sukarela',
+          simpananSukarela,
+          balBefore,
+          balBefore + simpananSukarela,
+          new Date().toISOString(),
+          (c.get('jwtPayload') as any)?.email || 'admin'
+        )
+      }
+    })()
+
     clearStatsCache()
     
     return c.json({ success: true, message: 'Member created successfully', id }, 201)

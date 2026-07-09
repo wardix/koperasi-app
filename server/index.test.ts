@@ -153,6 +153,45 @@ describe("API Endpoints", () => {
     expect(res.status).toBe(403);
   });
 
+  test("POST /api/v1/members records initial savings as transaction log", async () => {
+    const uniqueName = `Initial Deposit Test ${crypto.randomUUID()}`;
+    const req = new Request("http://localhost/api/v1/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: uniqueName,
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 500000,
+        simpananWajib: 10000,
+        simpananSukarela: 0
+      })
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    const newId = body.id;
+
+    const txReq = new Request(`http://localhost/api/v1/members/${newId}/transactions`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const txRes = await server.fetch(txReq);
+    expect(txRes.status).toBe(200);
+    const txListResponse = await txRes.json();
+    const txList = txListResponse.data;
+    
+    expect(txList).toBeArray();
+    expect(txList.length).toBe(2);
+    
+    const types = txList.map((t: any) => t.type);
+    expect(types).toContain("setor_pokok");
+    expect(types).toContain("setor_wajib");
+  });
+
   test("PUT /api/v1/members/:id updates member", async () => {
     // 1. First create a member to get an ID
     const createReq = new Request("http://localhost/api/v1/members", {
@@ -237,7 +276,7 @@ describe("API Endpoints", () => {
     expect(txRes.status).toBe(200);
     const txBody = (await txRes.json()).data;
     expect(Array.isArray(txBody)).toBe(true);
-    expect(txBody.length).toBe(1);
+    expect(txBody.length).toBe(2);
     expect(txBody[0].amount).toBe(2000);
     expect(txBody[0].type).toBe("setor_sukarela");
     expect(txBody[0].balanceBefore).toBe(5000);
