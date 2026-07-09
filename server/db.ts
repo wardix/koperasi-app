@@ -157,6 +157,13 @@ const migrations = [
       ALTER TABLE admins ADD COLUMN auth_provider TEXT DEFAULT 'local';
       INSERT INTO settings (key, value) VALUES ('ssoAutoRegister', 'true');
     `
+  },
+  {
+    name: '0007_add_createdAt_to_loans',
+    sql: `
+      ALTER TABLE loans ADD COLUMN createdAt TEXT;
+      UPDATE loans SET createdAt = '2026-01-01T00:00:00.000Z' WHERE createdAt IS NULL;
+    `
   }
 ];
 

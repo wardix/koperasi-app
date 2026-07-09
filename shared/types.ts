@@ -74,3 +74,25 @@ export interface LoanPaymentRow {
   paymentDate: string;
   method: string;
 }
+
+export interface CashflowRow {
+  source: 'savings' | 'loan_payment' | 'loan_disbursement';
+  id: string;
+  date: string;
+  partyName?: string;
+  description: string;
+  amount: number;
+  flowType: 'inflow' | 'outflow';
+}
+
+export interface CashflowResponse {
+  data: CashflowRow[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalInflow: number;
+    totalOutflow: number;
+    netCash: number;
+  };
+}
