@@ -11,7 +11,7 @@ describe("API Endpoints", () => {
   let token = "";
   
   test("setup token", async () => {
-    token = await sign({ email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
+    token = await sign({ sub: "super-admin-1", email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
   });
 
   test("GET /api/v1/stats returns stats", async () => {
@@ -677,6 +677,97 @@ describe("API Endpoints", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  test("Roles & Access Management: Admins CRUD protection and functions", async () => {
+    const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
+    const superadminToken = token;
+
+    // 1. GET /api/v1/admins (Viewer - 403)
+    const reqGetViewer = new Request("http://localhost/api/v1/admins", {
+      headers: { Authorization: `Bearer ${viewerToken}` }
+    });
+    const resGetViewer = await server.fetch(reqGetViewer);
+    expect(resGetViewer.status).toBe(403);
+
+    // 2. GET /api/v1/admins (Superadmin - 200)
+    const reqGetSuper = new Request("http://localhost/api/v1/admins", {
+      headers: { Authorization: `Bearer ${superadminToken}` }
+    });
+    const resGetSuper = await server.fetch(reqGetSuper);
+    expect(resGetSuper.status).toBe(200);
+    const bodyGetSuper = await resGetSuper.json() as any;
+    expect(bodyGetSuper.success).toBe(true);
+    expect(Array.isArray(bodyGetSuper.data)).toBe(true);
+
+    // 3. POST /api/v1/admins (Create new admin)
+    const newAdminEmail = `admin-test-${Date.now()}@example.com`;
+    const reqCreate = new Request("http://localhost/api/v1/admins", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${superadminToken}`
+      },
+      body: JSON.stringify({
+        email: newAdminEmail,
+        password: "password123",
+        role: "admin",
+        name: "Test Admin Baru"
+      })
+    });
+    const resCreate = await server.fetch(reqCreate);
+    expect(resCreate.status).toBe(201);
+    const bodyCreate = await resCreate.json() as any;
+    expect(bodyCreate.success).toBe(true);
+    const createdId = bodyCreate.id;
+
+    // 4. PUT /api/v1/admins/:id (Update role to viewer)
+    const reqUpdate = new Request(`http://localhost/api/v1/admins/${createdId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${superadminToken}`
+      },
+      body: JSON.stringify({
+        role: "viewer"
+      })
+    });
+    const resUpdate = await server.fetch(reqUpdate);
+    expect(resUpdate.status).toBe(200);
+
+    // 5. Verify self-update prevention
+    const selfUpdateReq = new Request(`http://localhost/api/v1/admins/super-admin-1`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${superadminToken}`
+      },
+      body: JSON.stringify({
+        role: "viewer"
+      })
+    });
+    const resSelfUpdate = await server.fetch(selfUpdateReq);
+    expect(resSelfUpdate.status).toBe(400);
+
+    // 6. Verify self-delete prevention
+    const selfDeleteReq = new Request(`http://localhost/api/v1/admins/super-admin-1`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${superadminToken}`
+      }
+    });
+    const resSelfDelete = await server.fetch(selfDeleteReq);
+    expect(resSelfDelete.status).toBe(400);
+
+    // 7. DELETE /api/v1/admins/:id (Delete admin)
+    const reqDelete = new Request(`http://localhost/api/v1/admins/${createdId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${superadminToken}`
+      }
+    });
+    const resDelete = await server.fetch(reqDelete);
+    expect(resDelete.status).toBe(200);
   });
 
   afterAll(async () => {
