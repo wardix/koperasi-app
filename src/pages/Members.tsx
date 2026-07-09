@@ -108,7 +108,12 @@ export default function MembersTemplate() {
                 {
                   successMsg: 'Anggota berhasil dihapus',
                   errorMsg: 'Gagal menghapus anggota',
-                  onSuccess: () => setMembers(members => members.filter(m => m.id !== member.id)),
+                  onSuccess: () => {
+                    dialog.hide();
+                    setTimeout(() => {
+                      setMembers(members => members.filter(m => m.id !== member.id));
+                    }, 100);
+                  },
                   onFinally: () => dialog.hide()
                 }
               );
