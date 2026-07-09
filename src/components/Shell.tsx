@@ -34,6 +34,7 @@ const Roles = React.lazy(() => import('../pages/Roles'));
 const Savings = React.lazy(() => import('../pages/Savings'));
 const LoansTx = React.lazy(() => import('../pages/LoansTx'));
 const Cashflow = React.lazy(() => import('../pages/Cashflow'));
+const NPL = React.lazy(() => import('../pages/NPL'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell() {
@@ -165,7 +166,7 @@ export default function Shell() {
           <Route path="/savings" element={<Savings />} />
           <Route path="/loans-tx" element={<LoansTx />} />
           <Route path="/cashflow" element={<Cashflow />} />
-          <Route path="/npl" element={<ComingSoon title="Analisis Kredit Macet (NPL)" description="Dashboard khusus penganalisaan Non-Performing Loan sedang dikembangkan." />} />
+          <Route path="/npl" element={<NPL />} />
           <Route path="/roles" element={<Roles />} />
         </Routes>
       </Suspense>
