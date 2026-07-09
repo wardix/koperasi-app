@@ -60,6 +60,9 @@ describe("API Endpoints", () => {
     expect(raw_body).toHaveProperty("success", true);
     expect(raw_body.data).toHaveProperty("data");
     expect(Array.isArray(raw_body.data.data)).toBe(true);
+    if (raw_body.data.data.length > 0) {
+      expect(raw_body.data.data[0]).toHaveProperty("memberName");
+    }
   });
   
   test("POST /api/v1/login rate limit works", async () => {
@@ -287,6 +290,18 @@ describe("API Endpoints", () => {
     expect(Array.isArray(getBody)).toBe(true);
     expect(getBody.length).toBe(1);
     expect(getBody[0].amount).toBe(1000);
+
+    // 5. Get all payments
+    const getAllReq = new Request("http://localhost/api/v1/loans/payments", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const getAllRes = await server.fetch(getAllReq);
+    expect(getAllRes.status).toBe(200);
+    const getAllBody = await getAllRes.json();
+    expect(getAllBody.success).toBe(true);
+    expect(Array.isArray(getAllBody.data.data)).toBe(true);
+    expect(getAllBody.data.data.length).toBeGreaterThanOrEqual(1);
+    expect(getAllBody.data.data[0].borrowerName).toBe("Test Loan Member");
   });
   
   test("POST /api/v1/loans/:id/payments prevents overpayment", async () => {

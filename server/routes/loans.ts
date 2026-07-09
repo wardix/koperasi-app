@@ -98,6 +98,31 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
   }
 })
 
+loans.get('/payments', requirePermission('read:loans'), async (c) => {
+  const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
+  const offset = (page - 1) * limit
+
+  const rows = await db.query(`
+    SELECT p.*, l.name as "borrowerName" 
+    FROM loan_payments p
+    LEFT JOIN loans l ON p.loanId = l.id
+    ORDER BY p.paymentDate DESC
+    LIMIT ? OFFSET ?
+  `).all(limit, offset) as any[]
+
+  const totalRes = await db.query("SELECT COUNT(*) as count FROM loan_payments").get() as { count: number }
+
+  return c.json({
+    success: true,
+    data: {
+      data: rows,
+      total: totalRes.count,
+      page,
+      limit
+    }
+  })
+})
+
 loans.get('/:id/payments', requirePermission('read:loans'), async (c) => {
   const id = c.req.param('id')
   const payments = await db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
