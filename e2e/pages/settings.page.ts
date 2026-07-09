@@ -24,7 +24,7 @@ export class SettingsPage {
     this.saveProfileButton = page.getByRole("button", { name: "Simpan Perubahan" });
 
     // Parameter Bunga
-    this.interestLoanInput = page.getByLabel("Bunga Pinjaman (%)");
+    this.interestLoanInput = page.getByLabel("Bunga Pinjaman (% per Tahun)");
     this.interestSavingsInput = page.getByLabel("Bunga Simpanan (%)");
     this.penaltyInput = page.getByLabel("Denda Keterlambatan (%)");
     this.saveParameterButton = page.getByRole("button", { name: "Simpan Parameter" });

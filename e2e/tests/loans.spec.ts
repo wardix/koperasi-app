@@ -33,15 +33,15 @@ test.describe("Loans Management", () => {
     await expect(row.getByText("Disetujui")).toBeVisible();
 
     // 5. Pay installment
-    // Total Amount with interest (default bungaPinjaman: 1.5% * 12 months = 18%, total = 2,360,000)
-    // Sisa should start with Rp 2.360.000
-    await expect(row.getByText("Sisa: Rp 2.360.000")).toBeVisible();
+    // Total Amount with annuity interest (default bungaPinjaman: 18% p.a., monthly payment = 183,360, total = 2,200,320)
+    // Sisa should start with Rp 2.200.320
+    await expect(row.getByText("Sisa: Rp 2.200.320")).toBeVisible();
     
     // Pay 500,000
     await loansPage.payInstallment(loanMemberName, "500000");
     
-    // Verify updated remaining debt: 2,360,000 - 500,000 = 1,860,000
-    await expect(row.getByText("Sisa: Rp 1.860.000")).toBeVisible();
+    // Verify updated remaining debt: 2,200,320 - 500,000 = 1,700,320
+    await expect(row.getByText("Sisa: Rp 1.700.320")).toBeVisible();
 
     // 6. Cancel deletion and verify UI is NOT frozen
     await loansPage.cancelDeleteLoan(loanMemberName);

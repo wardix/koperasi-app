@@ -44,9 +44,11 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
 
   const simulation = useMemo(() => {
     if (parsedAmount <= 0) return null;
-    const interestAmount = Math.round(parsedAmount * (bungaRate / 100) * parsedTenor);
-    const totalRepayment = parsedAmount + interestAmount;
-    const monthlyInstallment = Math.ceil(totalRepayment / parsedTenor);
+    const i = bungaRate / 1200; // Annual rate to monthly rate decimal
+    const power = Math.pow(1 + i, parsedTenor);
+    const monthlyInstallment = Math.ceil(parsedAmount * (i * power) / (power - 1));
+    const totalRepayment = monthlyInstallment * parsedTenor;
+    const interestAmount = totalRepayment - parsedAmount;
 
     return {
       interestAmount,
@@ -111,7 +113,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
 
       {simulation && (
         <VStack gap={2} style={{ padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-          <Text type="body" style={{ fontWeight: 600 }}>Simulasi Pinjaman (Bunga {simulation.bungaRate}%/bln):</Text>
+          <Text type="body" style={{ fontWeight: 600 }}>Simulasi Pinjaman Anuitas (Bunga {simulation.bungaRate}% p.a.):</Text>
           <HStack hAlign="space-between">
             <Text type="supporting" color="secondary">Pokok Pinjaman</Text>
             <Text type="body" style={{ fontWeight: 500 }}>{formatRp(parsedAmount)}</Text>

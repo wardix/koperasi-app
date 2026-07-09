@@ -47,7 +47,7 @@ const SETTINGS_ITEMS: SearchableItem[] = [
   {id: '2', label: 'Alamat'},
   {id: '3', label: 'No. Telepon'},
   {id: '4', label: 'Email'},
-  {id: '5', label: 'Bunga Pinjaman (%)'},
+  {id: '5', label: 'Bunga Pinjaman (% per Tahun)'},
   {id: '6', label: 'Bunga Simpanan (%)'},
   {id: '7', label: 'Denda Keterlambatan'},
   {id: '8', label: 'Izinkan Anggota Melihat Laporan'},
@@ -203,7 +203,7 @@ export default function SettingsTemplate() {
               <VStack gap={4}>
                 <Grid columns={3} gap={4}>
                   <TextInput 
-                    label="Bunga Pinjaman (%)" 
+                    label="Bunga Pinjaman (% per Tahun)" 
                     type="number" 
                     value={bungaPinjaman} 
                     onChange={setBungaPinjaman}
