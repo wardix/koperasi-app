@@ -212,7 +212,7 @@ await db.run(`
 
 // Insert initial seed data if table is empty
 const memberCount = await db.query("SELECT COUNT(*) as count FROM members").get() as { count: any };
-if (Number(memberCount.count) === 0) {
+if (Number(memberCount.count) === 0 && process.env.NODE_ENV === 'test') {
   const insert = await db.prepare("INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)");
   await insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
   await insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
@@ -223,7 +223,7 @@ if (Number(memberCount.count) === 0) {
 // Seed data goes below
 
 const loanCount = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: any };
-if (Number(loanCount.count) === 0) {
+if (Number(loanCount.count) === 0 && process.env.NODE_ENV === 'test') {
   const insertLoan = await db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
   await insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
   await insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
