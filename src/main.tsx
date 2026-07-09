@@ -24,6 +24,18 @@ function Root() {
 import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import React, { Suspense } from 'react'
+import { ThemeProvider, useThemeMode } from './contexts/ThemeContext'
+import { Theme } from '@astryxdesign/core/theme'
+import { neutralTheme } from '@astryxdesign/theme-neutral'
+
+function AppThemeProvider({ children }: { children: React.ReactNode }) {
+  const { mode } = useThemeMode();
+  return (
+    <Theme theme={neutralTheme} mode={mode}>
+      {children}
+    </Theme>
+  );
+}
 
 function LazyRoot() {
   return (
@@ -37,9 +49,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-        <AuthProvider>
-          <LazyRoot />
-        </AuthProvider>
+        <ThemeProvider>
+          <AppThemeProvider>
+            <AuthProvider>
+              <LazyRoot />
+            </AuthProvider>
+          </AppThemeProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>,

@@ -17,6 +17,8 @@ import {
   ClipboardDocumentCheckIcon,
   ExclamationTriangleIcon,
   ArrowRightOnRectangleIcon,
+  SunIcon,
+  MoonIcon,
 } from '@heroicons/react/24/outline';
 import {HomeIcon} from '@heroicons/react/24/solid';
 import {CubeIcon} from '@heroicons/react/24/outline';
@@ -24,6 +26,9 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { useThemeMode } from '../contexts/ThemeContext';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { Icon } from '@astryxdesign/core/Icon';
 
 const App = React.lazy(() => import('../App'));
 const Members = React.lazy(() => import('../pages/Members'));
@@ -42,8 +47,11 @@ export default function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasPermission, logout } = useAuth();
+  const { mode, setMode } = useThemeMode();
 
   const path = location.pathname;
+  const isDark = mode === 'dark';
+
   return (
     <AppShell
       contentPadding={6}
@@ -67,6 +75,14 @@ export default function Shell() {
               <TopNavItem label="Layanan" />
               <TopNavItem label="Pengaturan" isSelected={path === '/settings'} onClick={() => navigate('/settings')} />
             </>
+          }
+          endContent={
+            <IconButton
+              label={isDark ? "Aktifkan Mode Terang" : "Aktifkan Mode Gelap"}
+              icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+              variant="ghost"
+              onClick={() => setMode(isDark ? 'light' : 'dark')}
+            />
           }
         />
       }
