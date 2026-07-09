@@ -42,7 +42,8 @@ export const requireAdmin = async (c: Context, next: Next) => {
 }
 
 export async function rateLimitLogin(ip: string): Promise<boolean> {
-  if (process.env.NODE_ENV === 'test' || Bun.env.NODE_ENV === 'test') {
+  const rateLimitEnabled = (process.env.RATE_LIMIT_ENABLED ?? Bun.env.RATE_LIMIT_ENABLED ?? 'true') !== 'false';
+  if (!rateLimitEnabled || process.env.NODE_ENV === 'test' || Bun.env.NODE_ENV === 'test') {
     return true;
   }
   const now = Date.now();
