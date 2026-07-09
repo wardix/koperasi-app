@@ -49,6 +49,18 @@ describe("API Endpoints", () => {
     expect(body).toHaveProperty("data");
     expect(Array.isArray(body.data)).toBe(true);
   });
+
+  test("GET /api/v1/savings/transactions returns transactions array", async () => {
+    const req = new Request("http://localhost/api/v1/savings/transactions", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const raw_body = await res.json();
+    expect(raw_body).toHaveProperty("success", true);
+    expect(raw_body.data).toHaveProperty("data");
+    expect(Array.isArray(raw_body.data.data)).toBe(true);
+  });
   
   test("POST /api/v1/login rate limit works", async () => {
     // Generate many requests to hit rate limit

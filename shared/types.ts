@@ -53,3 +53,15 @@ export interface SettingsData {
   selfRegister?: string | boolean;
   twoFactor?: string | boolean;
 }
+
+export interface SavingsTransactionRow {
+  id: string;
+  memberId: string;
+  memberName?: string;
+  type: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  createdAt: string;
+  createdBy: string;
+}
