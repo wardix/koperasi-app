@@ -471,7 +471,8 @@ describe("API Endpoints", () => {
     const member = (await resMem.json()) as any;
 
     // 2. Create a loan for 1,000,000 with 12 months tenor.
-    // Interest is 1.5% per month, so 1.5% * 12 = 18%. Total amount is 1,180,000.
+    // Interest is 18% annual, which corresponds to 1.5% monthly under Annuity.
+    // Monthly payment = 91,680. Total amount = 1,100,160.
     const createLoanReq = new Request("http://localhost/api/v1/loans", {
       method: "POST",
       headers: {
@@ -490,7 +491,7 @@ describe("API Endpoints", () => {
     const resLoan = await server.fetch(createLoanReq);
     const loan = (await resLoan.json()) as any;
 
-    // 3. Make a payment of 1,100,000 (exceeds 1,000,000 principal but is within 1,180,000 total amount)
+    // 3. Make a payment of 1,050,000 (exceeds 1,000,000 principal but is within 1,100,160 total amount)
     const payReq1 = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
       method: "POST",
       headers: {
@@ -498,14 +499,14 @@ describe("API Endpoints", () => {
         "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify({
-        amount: 1100000,
+        amount: 1050000,
         method: "Transfer"
       })
     });
     const resPay1 = await server.fetch(payReq1);
     expect(resPay1.status).toBe(201);
 
-    // 4. Try another payment of 100,000 (making total paid 1,200,000, which exceeds 1,180,000)
+    // 4. Try another payment of 100,000 (making total paid 1,150,000, which exceeds 1,100,160)
     const payReq2 = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
       method: "POST",
       headers: {
@@ -523,7 +524,7 @@ describe("API Endpoints", () => {
     expect(bodyPay2.success).toBe(false);
     expect(bodyPay2.message).toBe("Total pembayaran melebihi jumlah pinjaman");
 
-    // 5. Pay the remaining 80,000 (which completes the 1,180,000 total)
+    // 5. Pay the remaining 50,160 (which completes the 1,100,160 total)
     const payReq3 = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
       method: "POST",
       headers: {
@@ -531,7 +532,7 @@ describe("API Endpoints", () => {
         "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify({
-        amount: 80000,
+        amount: 50160,
         method: "Transfer"
       })
     });

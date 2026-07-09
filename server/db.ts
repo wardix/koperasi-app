@@ -242,7 +242,7 @@ if (!hasKoperasiName) {
   await insertSetting.run("alamat", "Jl. Jend. Sudirman No. 123, Jakarta");
   await insertSetting.run("telepon", "021-555-0192");
   await insertSetting.run("email", "info@majubersama.co.id");
-  await insertSetting.run("bungaPinjaman", "1.5");
+  await insertSetting.run("bungaPinjaman", "18");
   await insertSetting.run("bungaSimpanan", "4.0");
   await insertSetting.run("denda", "0.5");
   await insertSetting.run("viewReports", "false");
