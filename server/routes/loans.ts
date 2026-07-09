@@ -104,14 +104,41 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
   const offset = (page - 1) * limit
 
   const rows = await db.query(`
-    SELECT p.*, l.name as "borrowerName" 
-    FROM loan_payments p
-    LEFT JOIN loans l ON p.loanId = l.id
-    ORDER BY p.paymentDate DESC
+    SELECT * FROM (
+      SELECT 
+        'pencairan' as "type",
+        l.id || '-disburse' as "id",
+        l.id as "loanId",
+        l.amount as "amount",
+        l.createdAt as "paymentDate",
+        'Transfer' as "method",
+        l.name as "borrowerName"
+      FROM loans l
+      WHERE l.status IN ('Disetujui', 'Lunas', 'Macet')
+
+      UNION ALL
+
+      SELECT 
+        'angsuran' as "type",
+        p.id as "id",
+        p.loanId as "loanId",
+        p.amount as "amount",
+        p.paymentDate as "paymentDate",
+        p.method as "method",
+        l.name as "borrowerName"
+      FROM loan_payments p
+      LEFT JOIN loans l ON p.loanId = l.id
+    ) combined
+    ORDER BY "paymentDate" DESC
     LIMIT ? OFFSET ?
   `).all(limit, offset) as any[]
 
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM loan_payments").get() as { count: number }
+  const totalRes = await db.query(`
+    SELECT (
+      (SELECT COUNT(*) FROM loans WHERE status IN ('Disetujui', 'Lunas', 'Macet')) +
+      (SELECT COUNT(*) FROM loan_payments)
+    ) as count
+  `).get() as { count: number }
 
   return c.json({
     success: true,
