@@ -61,3 +61,14 @@ export const settingsSchema = z.record(
   z.string().refine(key => ALLOWED_SETTINGS_KEYS.includes(key), { message: "Invalid setting key" }),
   z.union([z.string().transform(xss), z.boolean(), z.number()])
 )
+
+export const adminCreationSchema = z.object({
+  email: z.string().email("Format email tidak valid"),
+  password: z.string().min(6, "Password minimal 6 karakter").optional().or(z.literal("")),
+  role: z.enum(["viewer", "admin", "superadmin"]),
+  name: z.string().min(1, "Nama wajib diisi").transform(xss).optional(),
+})
+
+export const adminUpdateSchema = z.object({
+  role: z.enum(["viewer", "admin", "superadmin"]),
+})
