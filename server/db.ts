@@ -218,16 +218,14 @@ if (Number(memberCount.count) === 0 && process.env.NODE_ENV === 'test') {
   await insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
   await insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 2000000);
   await insert.run("4", "Joko Widodo", "Anggota", "Pasif", "10 Apr 2024", 1000000);
-}
 
-// Seed data goes below
-
-const loanCount = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: any };
-if (Number(loanCount.count) === 0 && process.env.NODE_ENV === 'test') {
-  const insertLoan = await db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-  await insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
-  await insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
-  await insertLoan.run("3", "3", "Dewi Lestari", 10000000, 24, "Renovasi Rumah", "Disetujui");
+  const loanCount = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: any };
+  if (Number(loanCount.count) === 0) {
+    const insertLoan = await db.prepare("INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    await insertLoan.run("1", "1", "Budi Santoso", 5000000, 12, "Modal Usaha Warung", "Menunggu");
+    await insertLoan.run("2", "2", "Siti Aminah", 2500000, 6, "Biaya Pendidikan", "Menunggu");
+    await insertLoan.run("3", "3", "Dewi Lestari", 10000000, 24, "Renovasi Rumah", "Disetujui");
+  }
 }
 
 const adminCount = await db.query("SELECT COUNT(*) as count FROM admins").get() as { count: any };
