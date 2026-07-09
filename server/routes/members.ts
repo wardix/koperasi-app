@@ -126,79 +126,16 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
 
-    const { name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela } = parsed.data
-    const totalSavings = simpananPokok + simpananWajib + simpananSukarela
+    const { name, role, status, joinDate } = parsed.data
 
-    const oldMember = await db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?").get(id) as {simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number}
+    const oldMember = await db.query("SELECT id FROM members WHERE id = ?").get(id)
     if (!oldMember) return c.json({success: false, message: 'Member not found'}, 404)
 
-    const diffPokok = simpananPokok - (oldMember.simpananPokok || 0)
-    const diffWajib = simpananWajib - (oldMember.simpananWajib || 0)
-    const diffSukarela = simpananSukarela - (oldMember.simpananSukarela || 0)
-
-    await db.transaction(async () => {
-      const update = await db.prepare(`
-        UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?, simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ?
-        WHERE id = ?
-      `)
-      await update.run(name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, id)
-
-      let currentBal = oldMember.totalSavings || 0
-
-      if (diffPokok !== 0) {
-        const nextBal = currentBal + diffPokok
-        await db.query(`
-          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          id,
-          diffPokok > 0 ? 'setor_pokok' : 'tarik_pokok',
-          Math.abs(diffPokok),
-          currentBal,
-          nextBal,
-          new Date().toISOString(),
-          (c.get('jwtPayload') as any)?.email || 'admin'
-        )
-        currentBal = nextBal
-      }
-
-      if (diffWajib !== 0) {
-        const nextBal = currentBal + diffWajib
-        await db.query(`
-          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          id,
-          diffWajib > 0 ? 'setor_wajib' : 'tarik_wajib',
-          Math.abs(diffWajib),
-          currentBal,
-          nextBal,
-          new Date().toISOString(),
-          (c.get('jwtPayload') as any)?.email || 'admin'
-        )
-        currentBal = nextBal
-      }
-
-      if (diffSukarela !== 0) {
-        const nextBal = currentBal + diffSukarela
-        await db.query(`
-          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          id,
-          diffSukarela > 0 ? 'setor_sukarela' : 'tarik_sukarela',
-          Math.abs(diffSukarela),
-          currentBal,
-          nextBal,
-          new Date().toISOString(),
-          (c.get('jwtPayload') as any)?.email || 'admin'
-        )
-        currentBal = nextBal
-      }
-    })()
+    const update = await db.prepare(`
+      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?
+      WHERE id = ?
+    `)
+    await update.run(name, role, status, joinDate, id)
 
     clearStatsCache()
     

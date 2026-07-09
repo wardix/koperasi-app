@@ -7,7 +7,8 @@ import {apiFetch} from '../config';
 import {Typeahead} from '@astryxdesign/core/Typeahead';
 import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
 import {useApiQuery} from '../hooks/useApiQuery';
-import type {PaginatedResponse, MemberRow, LoanRow} from '../shared/types';
+import type {PaginatedResponse, MemberRow, LoanRow, SettingsData} from '../shared/types';
+import {formatRp} from '../utils/format';
 
 interface Props {
   onClose: () => void;
@@ -21,7 +22,10 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   const [purpose, setPurpose] = useState('');
 
   const { data: membersRes } = useApiQuery<PaginatedResponse<MemberRow>>('/api/members?page=1&limit=1000');
+  const { data: settings } = useApiQuery<SettingsData>('/api/settings');
+  
   const members = membersRes?.data || [];
+  const bungaRate = parseFloat(settings?.bungaPinjaman || '1.5');
 
   const memberItems: SearchableItem[] = useMemo(() => {
     return members.map(m => ({ id: m.id, label: m.name }));
@@ -34,6 +38,23 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
       ),
     bootstrap: () => memberItems,
   };
+
+  const parsedAmount = Number(amount) || 0;
+  const parsedTenor = parseInt(tenor) || 12;
+
+  const simulation = useMemo(() => {
+    if (parsedAmount <= 0) return null;
+    const interestAmount = Math.round(parsedAmount * (bungaRate / 100) * parsedTenor);
+    const totalRepayment = parsedAmount + interestAmount;
+    const monthlyInstallment = Math.ceil(totalRepayment / parsedTenor);
+
+    return {
+      interestAmount,
+      totalRepayment,
+      monthlyInstallment,
+      bungaRate
+    };
+  }, [parsedAmount, parsedTenor, bungaRate]);
 
   const handleSave = () => {
     if (!selectedMember || !amount) return;
@@ -87,6 +108,28 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
           placeholder="Contoh: Modal Usaha"
         />
       </VStack>
+
+      {simulation && (
+        <VStack gap={2} style={{ padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+          <Text type="body" style={{ fontWeight: 600 }}>Simulasi Pinjaman (Bunga {simulation.bungaRate}%/bln):</Text>
+          <HStack hAlign="space-between">
+            <Text type="supporting" color="secondary">Pokok Pinjaman</Text>
+            <Text type="body" style={{ fontWeight: 500 }}>{formatRp(parsedAmount)}</Text>
+          </HStack>
+          <HStack hAlign="space-between">
+            <Text type="supporting" color="secondary">Total Bunga ({parsedTenor} bln)</Text>
+            <Text type="body" style={{ fontWeight: 500 }}>{formatRp(simulation.interestAmount)}</Text>
+          </HStack>
+          <HStack hAlign="space-between" style={{ borderTop: '1px dashed #e5e7eb', paddingTop: '8px', marginTop: '4px' }}>
+            <Text type="body" style={{ fontWeight: 600 }}>Total Pengembalian</Text>
+            <Text type="body" style={{ fontWeight: 700, color: 'var(--color-primary, #0171E3)' }}>{formatRp(simulation.totalRepayment)}</Text>
+          </HStack>
+          <HStack hAlign="space-between">
+            <Text type="body" style={{ fontWeight: 600 }}>Angsuran per Bulan</Text>
+            <Text type="body" style={{ fontWeight: 700, color: 'var(--color-success, #0B991F)' }}>{formatRp(simulation.monthlyInstallment)} / bln</Text>
+          </HStack>
+        </VStack>
+      )}
 
       <HStack gap={2} hAlign="end">
         <Button label="Batal" variant="secondary" onClick={onClose} />

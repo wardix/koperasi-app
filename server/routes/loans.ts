@@ -176,7 +176,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
     const bungaRate = parseFloat(bungaSetting?.value || '0');
     const { totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate);
     
-    const paid = (await db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0;
+    const paid = Number((await db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0);
     
     if (paid + amount > totalAmount) {
       return c.json({ success: false, message: 'Total pembayaran melebihi jumlah pinjaman' }, 400);
@@ -185,11 +185,19 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
     const id = crypto.randomUUID()
     const paymentDate = new Date().toISOString()
 
-    const stmt = await db.prepare(`
-      INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
-      VALUES (?, ?, ?, ?, ?)
-    `)
-    await stmt.run(id, loanId, amount, paymentDate, method)
+    await db.transaction(async () => {
+      const stmt = await db.prepare(`
+        INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+      await stmt.run(id, loanId, amount, paymentDate, method)
+
+      if (paid + amount === totalAmount) {
+        const updateStatus = await db.prepare("UPDATE loans SET status = 'Lunas' WHERE id = ?")
+        await updateStatus.run(loanId)
+      }
+    })()
+
     clearStatsCache()
     
     return c.json({ success: true, message: 'Payment recorded successfully', id }, 201)

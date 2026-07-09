@@ -522,6 +522,32 @@ describe("API Endpoints", () => {
     const bodyPay2 = (await resPay2.json()) as any;
     expect(bodyPay2.success).toBe(false);
     expect(bodyPay2.message).toBe("Total pembayaran melebihi jumlah pinjaman");
+
+    // 5. Pay the remaining 80,000 (which completes the 1,180,000 total)
+    const payReq3 = new Request(`http://localhost/api/v1/loans/${loan.id}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        amount: 80000,
+        method: "Transfer"
+      })
+    });
+    const resPay3 = await server.fetch(payReq3);
+    expect(resPay3.status).toBe(201);
+
+    // 6. Verify that loan status is now "Lunas"
+    const getLoansReq = new Request("http://localhost/api/v1/loans", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const resGetLoans = await server.fetch(getLoansReq);
+    expect(resGetLoans.status).toBe(200);
+    const bodyGetLoans = (await resGetLoans.json()).data.data as any[];
+    const updatedLoan = bodyGetLoans.find(l => l.id === loan.id);
+    expect(updatedLoan).toBeDefined();
+    expect(updatedLoan.status).toBe("Lunas");
   });
 
   test("GET /api/v1/shu returns correct SHU calculations and allocations", async () => {
