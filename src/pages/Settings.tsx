@@ -64,7 +64,7 @@ const settingsSearchSource: SearchSource<SearchableItem> = {
 export default function SettingsTemplate() {
   const isNarrow = useMediaQuery('(max-width: 768px)');
   const [activeNav, setActiveNav] = useState('Profil Koperasi');
-  const { isAdmin } = useAuth();
+  const { hasPermission } = useAuth();
   const apiAction = useApiAction();
   
   const [koperasiName, setKoperasiName] = useState('Koperasi Maju Bersama');
@@ -83,7 +83,6 @@ export default function SettingsTemplate() {
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
   const { data: settingsData, isLoading, error, refetch: fetchSettings } = useApiQuery<SettingsData>('/api/settings');
-  const toast = useToast();
 
   useEffect(() => {
     if (settingsData) {
@@ -94,9 +93,9 @@ export default function SettingsTemplate() {
       if (settingsData.bungaPinjaman) setBungaPinjaman(settingsData.bungaPinjaman);
       if (settingsData.bungaSimpanan) setBungaSimpanan(settingsData.bungaSimpanan);
       if (settingsData.denda) setDenda(settingsData.denda);
-      if (settingsData.viewReports) setViewReports(settingsData.viewReports === 'true');
-      if (settingsData.selfRegister) setSelfRegister(settingsData.selfRegister === 'true');
-      if (settingsData.twoFactor) setTwoFactor(settingsData.twoFactor === 'true');
+      if (settingsData.viewReports !== undefined) setViewReports(settingsData.viewReports === 'true' || settingsData.viewReports === true);
+      if (settingsData.selfRegister !== undefined) setSelfRegister(settingsData.selfRegister === 'true' || settingsData.selfRegister === true);
+      if (settingsData.twoFactor !== undefined) setTwoFactor(settingsData.twoFactor === 'true' || settingsData.twoFactor === true);
     }
   }, [settingsData]);
 
@@ -105,11 +104,14 @@ export default function SettingsTemplate() {
       () => api.put('/api/settings', {
         koperasiName, alamat, telepon, email,
         bungaPinjaman, bungaSimpanan, denda,
-        viewReports, selfRegister, twoFactor
+        viewReports: String(viewReports),
+        selfRegister: String(selfRegister),
+        twoFactor: String(twoFactor)
       }),
       {
         successMsg: 'Pengaturan berhasil disimpan!',
-        errorMsg: 'Terjadi kesalahan saat menyimpan pengaturan'
+        errorMsg: 'Terjadi kesalahan saat menyimpan pengaturan',
+        onSuccess: () => fetchSettings()
       }
     );
   };
@@ -175,13 +177,13 @@ export default function SettingsTemplate() {
                 </Text>
               </VStack>
               <VStack gap={4}>
-                <TextInput label="Nama Koperasi" value={koperasiName} onChange={setKoperasiName} disabled={!isAdmin} />
-                <TextInput label="Alamat Lengkap" value={alamat} onChange={setAlamat} disabled={!isAdmin} />
+                <TextInput label="Nama Koperasi" value={koperasiName} onChange={setKoperasiName} disabled={!hasPermission('update:settings')} />
+                <TextInput label="Alamat Lengkap" value={alamat} onChange={setAlamat} disabled={!hasPermission('update:settings')} />
                 <Grid columns={2} gap={4}>
-                  <TextInput label="No. Telepon" value={telepon} onChange={setTelepon} disabled={!isAdmin} />
-                  <TextInput label="Email Resmi" type="email" value={email} onChange={setEmail} disabled={!isAdmin} />
+                  <TextInput label="No. Telepon" value={telepon} onChange={setTelepon} disabled={!hasPermission('update:settings')} />
+                  <TextInput label="Email Resmi" type="email" value={email} onChange={setEmail} disabled={!hasPermission('update:settings')} />
                 </Grid>
-                {isAdmin && (
+                {hasPermission('update:settings') && (
                   <HStack hAlign="start">
                     <Button label="Simpan Perubahan" variant="primary" onClick={saveSettings} />
                   </HStack>
@@ -205,24 +207,24 @@ export default function SettingsTemplate() {
                     type="number" 
                     value={bungaPinjaman} 
                     onChange={setBungaPinjaman}
-                    disabled={!isAdmin} 
+                    disabled={!hasPermission('update:settings')} 
                   />
                   <TextInput 
                     label="Bunga Simpanan (%)" 
                     type="number" 
                     value={bungaSimpanan} 
                     onChange={setBungaSimpanan}
-                    disabled={!isAdmin} 
+                    disabled={!hasPermission('update:settings')} 
                   />
                   <TextInput 
                     label="Denda Keterlambatan (%)" 
                     type="number" 
                     value={denda} 
                     onChange={setDenda}
-                    disabled={!isAdmin} 
+                    disabled={!hasPermission('update:settings')} 
                   />
                 </Grid>
-                {isAdmin && (
+                {hasPermission('update:settings') && (
                   <HStack>
                     <Button label="Simpan Parameter" variant="primary" onClick={saveSettings} />
                   </HStack>
@@ -245,22 +247,27 @@ export default function SettingsTemplate() {
                   description="Anggota biasa dapat mengunduh laporan neraca tahunan."
                   value={viewReports}
                   onChange={setViewReports}
+                  disabled={!hasPermission('update:settings')}
                 />
                 <CheckboxInput
                   label="Aktifkan Pendaftaran Mandiri"
                   description="Calon anggota dapat mendaftar sendiri melalui aplikasi web."
                   value={selfRegister}
                   onChange={setSelfRegister}
+                  disabled={!hasPermission('update:settings')}
                 />
                 <CheckboxInput
                   label="Otentikasi Dua Langkah (2FA)"
                   description="Wajibkan 2FA untuk pengurus koperasi (Ketua, Bendahara)."
                   value={twoFactor}
                   onChange={setTwoFactor}
+                  disabled={!hasPermission('update:settings')}
                 />
-                <HStack>
-                  <Button label="Simpan Hak Akses" variant="primary" onClick={saveSettings} />
-                </HStack>
+                {hasPermission('update:settings') && (
+                  <HStack>
+                    <Button label="Simpan Hak Akses" variant="primary" onClick={saveSettings} />
+                  </HStack>
+                )}
               </VStack>
             </Grid>
           </VStack>

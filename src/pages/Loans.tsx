@@ -61,7 +61,7 @@ export default function LoansTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const dialog = useA11yDialog({purpose: 'form', width: 480});
   const toast = useToast();
-  const { isAdmin } = useAuth();
+  const { hasPermission } = useAuth();
   const apiAction = useApiAction();
   
   const [page, setPage] = useState(1);
@@ -168,7 +168,7 @@ export default function LoansTemplate() {
       renderCell: (item: LoanRow) => {
         return (
           <HStack gap={2}>
-            {isAdmin && item.status === 'Menunggu' && (
+            {hasPermission('approve:loans') && item.status === 'Menunggu' && (
               <>
                 <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Disetujui')} />
                 <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Ditolak')} />
@@ -195,7 +195,7 @@ export default function LoansTemplate() {
         );
       },
     },
-  ], [isAdmin, handleUpdateStatus, dialog, fetchLoans]);
+  ], [hasPermission, handleUpdateStatus, dialog, fetchLoans]);
 
   return (
     <>
@@ -212,7 +212,7 @@ export default function LoansTemplate() {
               icon={<Icon icon={FunnelIcon} size="sm" />}
               variant="ghost"
             />
-            {isAdmin && (
+            {hasPermission('create:loans') && (
               <Button
                 label="Tambah Pengajuan"
                 icon={<Icon icon={PlusIcon} size="sm" />}

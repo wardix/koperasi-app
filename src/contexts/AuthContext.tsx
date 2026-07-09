@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api } from '../services/api'
+import { hasPermission as verifyPermission, type Permission } from '../../shared/permissions'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -7,6 +8,7 @@ interface AuthContextType {
   role: string
   isAdmin: boolean
   isSuperAdmin: boolean
+  hasPermission: (permission: Permission) => boolean
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: (credential: string) => Promise<void>
   confirmLogin: () => void
@@ -71,8 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = role === 'admin' || role === 'superadmin'
   const isSuperAdmin = role === 'superadmin'
 
+  const hasPermission = useCallback((permission: Permission) => {
+    return verifyPermission(role, permission);
+  }, [role]);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isChecking, role, isAdmin, isSuperAdmin, login, loginWithGoogle, confirmLogin, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isChecking, role, isAdmin, isSuperAdmin, hasPermission, login, loginWithGoogle, confirmLogin, logout }}>
       {children}
     </AuthContext.Provider>
   )
