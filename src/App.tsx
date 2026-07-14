@@ -50,40 +50,6 @@ import {StopIcon} from '@heroicons/react/24/solid';
 
 import type {DashboardData} from '../shared/types';
 
-const defaultMetrics = [
-  {
-    label: 'Total Anggota Aktif',
-    value: '...',
-    change: '+15.2%',
-    positive: true,
-  },
-  {
-    label: 'Total Simpanan',
-    value: '...',
-    change: '+12.5%',
-    positive: true,
-  },
-  {
-    label: 'Pinjaman Berjalan',
-    value: '...',
-    change: '-2.3%',
-    positive: true,
-  },
-  {
-    label: 'Kredit Macet (NPL)',
-    value: '1.2%',
-    change: '-0.4%',
-    positive: true,
-  },
-];
-
-const sparklines = [
-  [48, 46, 44, 42, 40, 18, 16, 38, 36, 34, 32, 30, 12, 10, 28, 26, 28, 32, 36, 14, 12, 40, 44, 48, 52, 56, 28, 24, 58, 62],
-  [36, 38, 35, 37, 36, 14, 12, 38, 36, 34, 37, 35, 12, 10, 36, 34, 36, 35, 38, 14, 12, 40, 44, 50, 54, 56, 26, 22, 58, 60],
-  [58, 56, 60, 58, 62, 30, 26, 60, 58, 62, 60, 58, 28, 24, 56, 54, 50, 46, 42, 18, 14, 38, 36, 34, 32, 30, 10, 8, 28, 26],
-  [52, 56, 50, 54, 58, 62, 60, 54, 52, 56, 50, 54, 60, 58, 50, 48, 46, 44, 40, 46, 44, 38, 36, 34, 36, 32, 38, 36, 30, 28],
-];
-
 // ============= CHART COMPONENTS =============
 
 const chartColors = {
@@ -189,13 +155,11 @@ const MetricCard = React.memo(function MetricCard({
   value,
   change,
   positive,
-  sparkline,
 }: {
   label: string;
   value: string;
-  change: string;
-  positive: boolean;
-  sparkline: number[];
+  change?: string;
+  positive?: boolean;
 }) {
   return (
     <Card>
@@ -203,21 +167,24 @@ const MetricCard = React.memo(function MetricCard({
         <Heading level={4}>{label}</Heading>
         <HStack gap={2} vAlign="center">
           <Heading level={2}>{value}</Heading>
-          <HStack gap={1} vAlign="center">
-            {positive ? (
-              <Icon icon={ArrowUpIcon} size="xsm" color="success" />
-            ) : (
-              <Icon icon={ArrowDownIcon} size="xsm" color="error" />
-            )}
-            <Text type="body" color="secondary">
-              {change}
-            </Text>
-          </HStack>
+          {change && positive !== undefined && (
+            <HStack gap={1} vAlign="center">
+              {positive ? (
+                <Icon icon={ArrowUpIcon} size="xsm" color="success" />
+              ) : (
+                <Icon icon={ArrowDownIcon} size="xsm" color="error" />
+              )}
+              <Text type="body" color="secondary">
+                {change}
+              </Text>
+            </HStack>
+          )}
         </HStack>
-        <Text type="supporting" color="secondary">
-          Bulan Terakhir vs Sebelumnya
-        </Text>
-        <Sparkline data={sparkline} />
+        {change && (
+          <Text type="supporting" color="secondary">
+            Bulan Terakhir vs Sebelumnya
+          </Text>
+        )}
       </VStack>
     </Card>
   );
@@ -323,18 +290,20 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
 // ============= MAIN COMPONENT =============
 
 export default function DashboardTemplate() {
-  const [metrics, setMetrics] = useState(defaultMetrics);
+  const [metrics, setMetrics] = useState<Array<{label: string; value: string}>>([]);
   const { data: dashboardData, isLoading, error, refetch: fetchStats } = useApiQuery<DashboardData>('/api/stats');
 
   useEffect(() => {
     if (dashboardData) {
       const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M';
       setMetrics([
-        { ...defaultMetrics[0], value: dashboardData.activeMembers as string },
-        { ...defaultMetrics[1], value: formatRp(dashboardData.totalSavings) },
-        { ...defaultMetrics[2], value: formatRp(dashboardData.totalLoans) },
-        { ...defaultMetrics[3], value: dashboardData.npl }
+        { label: 'Total Anggota Aktif', value: dashboardData.activeMembers },
+        { label: 'Total Simpanan', value: formatRp(dashboardData.totalSavings) },
+        { label: 'Pinjaman Berjalan', value: formatRp(dashboardData.totalLoans) },
+        { label: 'Kredit Macet (NPL)', value: dashboardData.npl },
       ]);
+    } else {
+      setMetrics([]);
     }
   }, [dashboardData]);
 
@@ -357,26 +326,30 @@ export default function DashboardTemplate() {
                   onClick={fetchStats}
                 />
               </HStack>
-              {dashboardData?.monthlyData && <MonthlyChart data={dashboardData.monthlyData} />}
+              {dashboardData?.monthlyData && dashboardData.monthlyData.length > 0 ? (
+                <MonthlyChart data={dashboardData.monthlyData} />
+              ) : (
+                <Text type="supporting" color="secondary">Belum ada data tren</Text>
+              )}
             </VStack>
 
             {/* Metric Cards */}
-            <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
-              {[0, 2].map(start => (
-                <Grid
-                  key={start}
-                  columns={{minWidth: 240, repeat: 'fit'}}
-                  gap={4}>
-                  {metrics.slice(start, start + 2).map((m, i) => (
-                    <MetricCard
-                      key={m.label}
-                      {...m}
-                      sparkline={sparklines[start + i]}
-                    />
-                  ))}
-                </Grid>
-              ))}
-            </Grid>
+            {metrics.length > 0 ? (
+              <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
+                {[0, 2].map(start => (
+                  <Grid
+                    key={start}
+                    columns={{minWidth: 240, repeat: 'fit'}}
+                    gap={4}>
+                    {metrics.slice(start, start + 2).map(m => (
+                      <MetricCard key={m.label} {...m} />
+                    ))}
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Text type="supporting" color="secondary">Memuat metrik...</Text>
+            )}
 
             <Divider />
 
@@ -393,7 +366,11 @@ export default function DashboardTemplate() {
 
             {/* Recent Activities */}
             <VStack gap={4}>
-              <RecentActivitiesTable data={dashboardData?.recentActivities || []} />
+              {dashboardData?.recentActivities && dashboardData.recentActivities.length > 0 ? (
+                <RecentActivitiesTable data={dashboardData.recentActivities} />
+              ) : (
+                <Text type="supporting" color="secondary">Belum ada aktivitas</Text>
+              )}
             </VStack>
           </VStack>
           </DataStateView>
