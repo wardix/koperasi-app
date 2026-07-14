@@ -12,6 +12,18 @@ export const memberSchema = z.object({
   totalSavings: z.number().nonnegative().optional(),
 })
 
+// Strict transaction types for savings operations
+export const SAVINGS_TRANSACTION_TYPES = [
+  'setor_pokok',
+  'setor_wajib',
+  'setor_sukarela',
+  'tarik_pokok',
+  'tarik_wajib',
+  'tarik_sukarela'
+] as const;
+
+export type SavingsTransactionType = typeof SAVINGS_TRANSACTION_TYPES[number];
+
 export const savingsSchema = z.object({
   additionalSavings: z.union([
     z.number(),
@@ -19,6 +31,9 @@ export const savingsSchema = z.object({
   ]),
   savingsType: z.enum(["pokok", "wajib", "sukarela"]).default("sukarela")
 })
+
+// Schema for transaction type validation
+export const transactionTypeSchema = z.enum(SAVINGS_TRANSACTION_TYPES);
 
 export const loanSchema = z.object({
   memberId: z.string().min(1, "Member ID is required").transform(xss),

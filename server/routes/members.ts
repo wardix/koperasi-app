@@ -164,15 +164,34 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
     let newPokok = member.simpananPokok ?? member.simpananpokok ?? 0
     let newWajib = member.simpananWajib ?? member.simpananwajib ?? 0
     let newSukarela = member.simpananSukarela ?? member.simpanansukarela ?? 0
-    
+
     if (savingsType === 'pokok') newPokok += additionalSavingsNum
     else if (savingsType === 'wajib') newWajib += additionalSavingsNum
     else newSukarela += additionalSavingsNum
-    
+
+    // Withdrawal guard: check if withdrawal exceeds available voluntary savings (sukarela)
+    // Simpanan pokok dan wajib bersifat terikat, hanya simpanan sukarela yang bisa ditarik
+    if (additionalSavingsNum < 0) {
+      const withdrawalAmount = Math.abs(additionalSavingsNum)
+
+      // For withdraw operations, check against available sukarela balance
+      // This ensures we don't overdraw from the voluntary savings pool
+      if (newSukarela < 0) {
+        return c.json({ success: false, message: "Penarikan melebihi saldo sukarela tersedia" }, 400)
+      }
+
+      // Additional guard: totalSavings must remain non-negative after withdrawal
+      const newTotal = newPokok + newWajib + newSukarela
+      if (newTotal < 0) {
+        return c.json({ success: false, message: "Penarikan melebihi total simpanan tersedia" }, 400)
+      }
+    }
+
+    // Check for negative balances after all operations
     if (newPokok < 0 || newWajib < 0 || newSukarela < 0) {
       return c.json({ success: false, message: "Saldo tidak mencukupi" }, 400)
     }
-    
+
     const newTotal = newPokok + newWajib + newSukarela
 
     await db.transaction(async () => {
