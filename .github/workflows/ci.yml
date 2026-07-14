@@ -26,7 +26,6 @@ jobs:
     env:
       JWT_SECRET: test-secret-key-123
       DATABASE_URL: postgres://koperasi:koperasi_pass@localhost:5432/koperasi_test
-      BYPASS_RATE_LIMIT: "true"
     steps:
     - uses: actions/checkout@v4
 
@@ -42,7 +41,8 @@ jobs:
       run: bun run lint
 
     - name: Test
-      run: bun test
+      # Use package script so only server/src unit tests run (excludes Playwright e2e/)
+      run: bun run test
 
     - name: Build
       run: bun run build
