@@ -53,6 +53,20 @@ export const paymentSchema = z.object({
   method: z.string().min(1).transform(xss)
 })
 
+// Common passwords blocklist (top 100 most common)
+const COMMON_PASSWORDS = [
+  'password', '123456789', 'qwerty123', 'admin123', 'letmein1',
+  'welcome', 'monkey', 'dragon', 'master', 'abc123',
+  'password1', '12345678', '00000000', 'iloveyou', 'sunshine',
+  'princess', 'football', 'shadow', 'superman', 'michael',
+  'login', 'starwars', 'trustno1', 'mustang', 'access',
+  'hello', 'charlie', 'donald', 'baseball', 'qwerty',
+  'batman', 'test', 'pass', 'guest', 'changeme'
+];
+
+// Password complexity regex: min 12 chars, at least one uppercase, one lowercase, one digit
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{12,}$/;
+
 export const loginSchema = z.object({
   email: z.string().email("Invalid email format"),
   password: z.string().min(1, "Password is required"),
@@ -78,7 +92,15 @@ export const settingsSchema = z.record(
 
 export const adminCreationSchema = z.object({
   email: z.string().email("Format email tidak valid"),
-  password: z.string().min(6, "Password minimal 6 karakter").optional().or(z.literal("")),
+  password: z.string()
+    .min(12, "Password minimal 12 karakter")
+    .regex(STRONG_PASSWORD_REGEX, "Password harus mengandung huruf besar, huruf kecil, dan angka")
+    .refine(password => !COMMON_PASSWORDS.includes(password.toLowerCase()), {
+      message: "Password terlalu umum"
+    })
+    .optional()
+    .or(z.literal("")) // Allow empty for Google SSO auto-register
+  ,
   role: z.enum(["viewer", "admin", "superadmin"]),
   name: z.string().min(1, "Nama wajib diisi").transform(xss).optional(),
 })

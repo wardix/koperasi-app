@@ -66,12 +66,24 @@ app.use('/*', cors({
 
 const cleanupTokenBlacklist = async () => {
   const now = Date.now();
+  // Clean up expired access token blacklists (by jti_token)
   await db.run("DELETE FROM token_blacklist WHERE expires_at < ?", [now]);
 };
 
 const tokenCleanupInterval = setInterval(cleanupTokenBlacklist, 60 * 60 * 1000); // 1 hour
 if (typeof tokenCleanupInterval.unref === 'function') {
   tokenCleanupInterval.unref();
+}
+
+// Cleanup expired refresh tokens from refresh_token_blacklist
+const cleanupRefreshTokenBlacklist = async () => {
+  const now = Date.now();
+  await db.run("DELETE FROM refresh_token_blacklist WHERE expires_at < ?", [now]);
+};
+
+const refreshTokenCleanupInterval = setInterval(cleanupRefreshTokenBlacklist, 60 * 60 * 1000); // 1 hour
+if (typeof refreshTokenCleanupInterval.unref === 'function') {
+  refreshTokenCleanupInterval.unref();
 }
 
 const cleanupAttempts = async () => {
@@ -86,7 +98,8 @@ if (typeof cleanupInterval.unref === 'function') {
 
 export const _test = {
   cleanupAttempts,
-  cleanupTokenBlacklist
+  cleanupTokenBlacklist,
+  cleanupRefreshTokenBlacklist
 };
 
 app.use('/api/v1/*', authMiddleware)

@@ -8,6 +8,7 @@ import { createShuClosingMigration } from "./0010_shu_configurable_and_closing";
 import { createSavingsConstraintsMigration } from "./0011_add_savings_constraints";
 import { createAddAuditLogsMigration } from "./0012_add_audit_logs";
 import { createAddTotp2FaMigration } from "./0013_add_totp_2fa";
+import { createAddJTiBlacklistMigration } from "./0014_add_jti_blacklist";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -34,6 +35,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createSavingsConstraintsMigration(db),
     createAddAuditLogsMigration(db),
     createAddTotp2FaMigration(db),
+    createAddJTiBlacklistMigration(db),
   ];
 }
 
