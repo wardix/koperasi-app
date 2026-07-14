@@ -2,6 +2,7 @@ import { expect, test, describe, beforeAll, afterAll } from "bun:test";
 import server from "../index";
 import db from "../db";
 import { sign } from "hono/jwt";
+import { generateValidToken } from "../lib/totp";
 
 const secretKey = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
 
@@ -73,7 +74,6 @@ describe("TOTP 2FA Feature", () => {
     test("verifyToken validates correct token", async () => {
       const { generateSecret, verifyToken } = await import("../lib/totp");
       const secret = generateSecret();
-      const { generateSync: generateValidToken } = await import("otplib");
       const validToken = generateValidToken(secret);
 
       expect(verifyToken(secret, validToken)).toBe(true);
@@ -112,7 +112,7 @@ describe("TOTP 2FA Feature", () => {
       const uri = totpUrl(secret, "test@example.com");
 
       expect(uri).toMatch(/^otpauth:\/\/totp\//);
-      expect(uri).toContain("test@example.com");
+      expect(decodeURIComponent(uri)).toContain("test@example.com");
       expect(uri).toContain("secret=");
       expect(uri).toContain("issuer=");
     });
@@ -147,7 +147,6 @@ describe("TOTP 2FA Feature", () => {
 
     test("login with 2FA enabled but no token: returns requiresTotp=true", async () => {
       // First enable 2FA for second admin using a valid TOTP token
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup TOTP
       const setupRes = await server.fetch(
@@ -159,7 +158,7 @@ describe("TOTP 2FA Feature", () => {
       const setupBody = await setupRes.json() as any;
 
       // Generate valid token from the secret
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       // Verify to enable 2FA
       const verifyRes = await server.fetch(
@@ -198,7 +197,6 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("login with 2FA enabled and valid token: returns JWT", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup TOTP for admin (first time)
       const setupRes = await server.fetch(
@@ -210,7 +208,7 @@ describe("TOTP 2FA Feature", () => {
       const setupBody = await setupRes.json() as any;
 
       // Generate valid token from the secret
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       // Verify to enable 2FA
       const verifyRes = await server.fetch(
@@ -249,7 +247,6 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("login with 2FA enabled and wrong token: returns 401", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup TOTP for admin (first time)
       const setupRes = await server.fetch(
@@ -261,7 +258,7 @@ describe("TOTP 2FA Feature", () => {
       const setupBody = await setupRes.json() as any;
 
       // Generate valid token from the secret and verify to enable 2FA
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
@@ -320,7 +317,6 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("POST /api/v1/auth/totp/verify enables 2FA with correct token", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup TOTP first (this stores the secret)
       const setupRes = await server.fetch(
@@ -332,7 +328,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token from the secret
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       // Verify with valid token
       const verifyRes = await server.fetch(
@@ -356,6 +352,9 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("POST /api/v1/auth/totp/verify fails with invalid token", async () => {
+      // Ensure clean 2FA state for test
+      await db.run("UPDATE admins SET two_factor_enabled = FALSE WHERE id = ?", [adminId]);
+
       // Setup TOTP first
       const setupRes = await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/setup", {
@@ -416,7 +415,6 @@ describe("TOTP 2FA Feature", () => {
 
   describe("TOTP Disable", () => {
     test("POST /api/v1/auth/totp/disable works with valid recovery code", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup and enable 2FA for admin
       const setupRes = await server.fetch(
@@ -431,7 +429,7 @@ describe("TOTP 2FA Feature", () => {
       const recoveryCode = setupBody.data.recoveryCodes[0];
 
       // Generate valid token and verify to enable 2FA
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
           method: "POST",
@@ -469,7 +467,6 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("POST /api/v1/auth/totp/disable works with valid TOTP token", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup and enable 2FA for admin
       const setupRes = await server.fetch(
@@ -481,7 +478,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token and verify to enable 2FA
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
@@ -516,7 +513,6 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("POST /api/v1/auth/totp/disable fails with invalid recovery code", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup and enable 2FA for admin
       const setupRes = await server.fetch(
@@ -528,7 +524,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token and verify to enable 2FA
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
@@ -557,7 +553,6 @@ describe("TOTP 2FA Feature", () => {
     });
 
     test("POST /api/v1/auth/totp/disable fails without any credential", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup and enable 2FA for admin first
       const setupRes = await server.fetch(
@@ -569,7 +564,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token and verify to enable 2FA
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
@@ -604,7 +599,6 @@ describe("TOTP 2FA Feature", () => {
 
   describe("Recovery Codes", () => {
     test("POST /api/v1/auth/totp/recovery-codes regenerates codes with valid token", async () => {
-      const { generateSync: genToken } = await import("otplib");
 
       // Setup and enable 2FA for admin
       const setupRes = await server.fetch(
@@ -616,7 +610,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token and verify to enable 2FA
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
@@ -664,7 +658,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token and verify to enable 2FA
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {
@@ -703,7 +697,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Generate valid token and verify to enable 2FA
       const setupBody = await setupRes.json() as any;
-      const validToken = genToken(setupBody.data.secret);
+      const validToken = generateValidToken(setupBody.data.secret);
 
       await server.fetch(
         new Request("http://localhost/api/v1/auth/totp/verify", {

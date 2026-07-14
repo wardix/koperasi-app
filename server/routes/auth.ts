@@ -402,7 +402,7 @@ auth.post('/totp/recovery-codes', async (c) => {
   try {
     // Verify current TOTP token for security
     const admin = await db.query(
-      "SELECT totp_secret FROM admins WHERE id = ?"
+      "SELECT totp_secret, two_factor_enabled FROM admins WHERE id = ?"
     ).get(payload.sub) as any;
 
     if (!admin?.totp_secret || !admin.two_factor_enabled) {

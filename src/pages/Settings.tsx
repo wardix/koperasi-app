@@ -83,7 +83,7 @@ export default function SettingsTemplate() {
   // 2FA state (per-user, not org-wide)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [totpUri, setTotpUri] = useState<string | null>(null);
-  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [_totpSecret, setTotpSecret] = useState<string | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [showEnableModal, setShowEnableModal] = useState(false);
   const [verifyToken, setVerifyToken] = useState('');
