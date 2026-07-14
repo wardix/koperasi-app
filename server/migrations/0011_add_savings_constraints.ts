@@ -21,6 +21,36 @@ export function createSavingsConstraintsMigration(db: {
       await db.run(`ALTER TABLE members DROP CONSTRAINT IF EXISTS chk_members_simpanan_sukarela_non_negative`);
       await db.run(`ALTER TABLE members DROP CONSTRAINT IF EXISTS chk_members_total_savings_match`);
 
+      // Correct any existing data mismatches or NULL values before adding constraints
+      await db.run(`
+        UPDATE members
+        SET simpananPokok = COALESCE(simpananPokok, 0),
+            simpananWajib = COALESCE(simpananWajib, 0),
+            simpananSukarela = COALESCE(simpananSukarela, 0),
+            totalSavings = COALESCE(totalSavings, 0)
+      `);
+
+      await db.run(`
+        UPDATE members
+        SET simpananSukarela = CASE
+              WHEN totalSavings >= simpananPokok + simpananWajib THEN totalSavings - simpananPokok - simpananWajib
+              ELSE 0
+            END,
+            simpananPokok = CASE
+              WHEN totalSavings < simpananPokok + simpananWajib THEN totalSavings - simpananWajib
+              ELSE simpananPokok
+            END,
+            simpananWajib = CASE
+              WHEN totalSavings < simpananWajib THEN totalSavings
+              ELSE simpananWajib
+            END
+      `);
+
+      await db.run(`
+        UPDATE members
+        SET totalSavings = simpananPokok + simpananWajib + simpananSukarela
+      `);
+
       // Add CHECK constraint for non-negative balances on members table
       await db.run(`
         ALTER TABLE members
