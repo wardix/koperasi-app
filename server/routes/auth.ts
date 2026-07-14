@@ -4,7 +4,7 @@ import { sign, verify, decode } from 'hono/jwt'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import db from '../db'
 import { loginSchema } from '../schemas'
-import { secretKey, rateLimitLogin } from '../middleware'
+import { secretKey, checkRateLimit, rateLimitLogin } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
 import { generateSecret, verifyToken, generateRecoveryCodes, totpUrl } from '../lib/totp'
 
@@ -17,7 +17,8 @@ auth.post('/login', async (c) => {
     ip = info?.remote?.address || 'unknown-ip';
   } catch (e) {}
 
-  if (!(await rateLimitLogin(ip))) {
+  // Rate limit: max 5 requests per 15 minutes per IP (atomic, race-safe)
+  if (!(await checkRateLimit(`ip:${ip}`, 5, 15 * 60 * 1000))) {
     return c.json({ success: false, message: 'Too many login attempts. Please try again later.' }, 429);
   }
 
@@ -97,6 +98,17 @@ auth.post('/login', async (c) => {
 })
 
 auth.post('/google', async (c) => {
+  // Rate limit SSO endpoint: max 5 requests per 15 minutes per IP (atomic, race-safe)
+  let ssoIp = 'unknown-ip';
+  try {
+    const info = getConnInfo(c);
+    ssoIp = info?.remote?.address || 'unknown-ip';
+  } catch (e) {}
+
+  if (!(await checkRateLimit(`ip:${ssoIp}`, 5, 15 * 60 * 1000))) {
+    return c.json({ success: false, message: 'Too many SSO attempts. Please try again later.' }, 429);
+  }
+
   try {
     const body = await c.req.json();
     const { credential } = body;
@@ -193,6 +205,17 @@ auth.post('/google', async (c) => {
 })
 
 auth.post('/refresh', async (c) => {
+  // Rate limit refresh endpoint: max 30 requests per hour per IP (atomic, race-safe)
+  let refreshIp = 'unknown-ip';
+  try {
+    const info = getConnInfo(c);
+    refreshIp = info?.remote?.address || 'unknown-ip';
+  } catch (e) {}
+
+  if (!(await checkRateLimit(`ip:${refreshIp}`, 30, 60 * 60 * 1000))) {
+    return c.json({ success: false, message: 'Too many refresh attempts. Please try again later.' }, 429);
+  }
+
   const refreshToken = getCookie(c, 'refreshToken')
   if (!refreshToken) {
     return c.json({ success: false, message: 'No refresh token' }, 401)
