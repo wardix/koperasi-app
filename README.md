@@ -52,7 +52,17 @@ Aplikasi lengkap (API + DB):
 docker compose up --build
 ```
 
-Skema diinisialisasi otomatis saat server boot (`server/db.ts` — `CREATE TABLE IF NOT EXISTS` + migrasi ber-versi).
+Skema diinisialisasi lewat **migrasi formal** (forward-only, fail-fast):
+
+- Runner: `server/migrations/` (`001_baseline`, data migrations `0003` / `0004`, …)
+- Tracking: tabel `schema_migrations`
+- Dijalankan otomatis saat boot (`import` `server/db.ts`) atau:
+  ```bash
+  bun run db:migrate
+  ```
+- Seed terpisah di `server/seed.ts` (admin/settings default; demo members hanya jika `NODE_ENV=test` atau `SEED_DEMO=true`)
+
+Jangan menelan error migrasi — proses harus gagal jika `up()` throw.
 
 ### Konvensi penamaan kolom
 
