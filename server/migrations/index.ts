@@ -3,6 +3,7 @@ import { createBaselineMigration } from "./001_baseline";
 import { createConvertCurrencyMigration } from "./0003_convert_currency_to_int";
 import { createHashAdminPasswordsMigration } from "./0004_hash_admin_passwords";
 import { createLoanTermSnapshotsMigration } from "./0008_loan_term_snapshots";
+import { createLoanSchedulesMigration } from "./0009_add_loan_schedules";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -24,6 +25,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createConvertCurrencyMigration(db),
     createHashAdminPasswordsMigration(db),
     createLoanTermSnapshotsMigration(db),
+    createLoanSchedulesMigration(db),
   ];
 }
 
