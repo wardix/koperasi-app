@@ -51,7 +51,6 @@ export interface SettingsData {
   denda?: string;
   viewReports?: string | boolean;
   selfRegister?: string | boolean;
-  twoFactor?: string | boolean;
   ssoAutoRegister?: string | boolean;
 }
 
