@@ -54,7 +54,6 @@ export async function seedDefaults(db: AppDb): Promise<void> {
       await insertSetting.run("denda", "0.5");
       await insertSetting.run("viewReports", "false");
       await insertSetting.run("selfRegister", "true");
-      await insertSetting.run("twoFactor", "false");
       await insertSetting.run("ssoAutoRegister", "true");
     }
   } else {
