@@ -6,6 +6,7 @@ import db from '../db'
 import { loginSchema } from '../schemas'
 import { secretKey, rateLimitLogin } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
+import { generateSecret, verifyToken, generateRecoveryCodes, totpUrl } from '../lib/totp'
 
 const auth = new Hono()
 
@@ -15,13 +16,14 @@ auth.post('/login', async (c) => {
     const info = getConnInfo(c);
     ip = info?.remote?.address || 'unknown-ip';
   } catch (e) {}
-  
+
   if (!(await rateLimitLogin(ip))) {
     return c.json({ success: false, message: 'Too many login attempts. Please try again later.' }, 429);
   }
 
   try {
     const body = await c.req.json()
+    // Extend login schema to optionally include TOTP token
     const parsed = loginSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -29,7 +31,7 @@ auth.post('/login', async (c) => {
     }
 
     const { email, password } = parsed.data
-    
+
     const admin = await db.query("SELECT * FROM admins WHERE email = ?").get(email) as any
     if (!admin) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
@@ -38,6 +40,24 @@ auth.post('/login', async (c) => {
     const isMatch = await Bun.password.verify(password, admin.password)
     if (!isMatch) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
+    }
+
+    // Check if user has 2FA enabled
+    if (admin.two_factor_enabled) {
+      const token = body.token;
+      if (!token) {
+        return c.json({
+          success: true,
+          requiresTotp: true,
+          data: { userId: admin.id, email: admin.email }
+        }, 200);
+      }
+
+      // Verify TOTP token
+      const valid = verifyToken(admin.totp_secret, token);
+      if (!valid) {
+        return c.json({ success: false, message: 'Invalid two-factor authentication code' }, 401);
+      }
     }
 
     const payload = {
@@ -207,5 +227,215 @@ auth.post('/logout', async (c) => {
 auth.get('/verify', async (c) => {
   return c.json({ success: true, message: 'Token is valid' })
 })
+
+// ---------------------------------------------------------------------------
+// TOTP Two-Factor Authentication Endpoints
+// ---------------------------------------------------------------------------
+
+/** GET /api/v1/auth/totp/status — Get current user's 2FA status */
+auth.get('/totp/status', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string; email?: string } | undefined;
+  if (!payload?.sub || !payload.email) {
+    return c.json({ success: false, message: 'Unauthorized' }, 401);
+  }
+
+  try {
+    const admin = await db.query(
+      "SELECT two_factor_enabled FROM admins WHERE id = ?"
+    ).get(payload.sub) as any;
+
+    return c.json({
+      success: true,
+      data: {
+        twoFactorEnabled: admin?.two_factor_enabled || false
+      }
+    });
+  } catch (error) {
+    console.error('TOTP status error:', error);
+    return c.json({ success: false, message: 'Failed to get TOTP status' }, 500);
+  }
+});
+
+/** GET /api/v1/auth/totp/setup — Generate enrollment data for 2FA */
+auth.get('/totp/setup', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string; email?: string } | undefined;
+  if (!payload?.sub || !payload.email) {
+    return c.json({ success: false, message: 'Unauthorized' }, 401);
+  }
+
+  try {
+    // Generate new secret and recovery codes
+    const secret = generateSecret();
+    const recoveryCodes = generateRecoveryCodes(8);
+
+    // Store in database (but don't enable 2FA yet)
+    await db.run(
+      `UPDATE admins SET totp_secret = ?, recovery_codes = ? WHERE id = ?`,
+      [secret, JSON.stringify(recoveryCodes), payload.sub]
+    );
+
+    // Return URI for QR code generation and the secret as fallback
+    const uri = totpUrl(secret, payload.email);
+
+    return c.json({
+      success: true,
+      data: {
+        uri,
+        secret,
+        recoveryCodes // Show once! User should save these.
+      }
+    });
+  } catch (error) {
+    console.error('TOTP setup error:', error);
+    return c.json({ success: false, message: 'Failed to generate TOTP setup data' }, 500);
+  }
+});
+
+/** POST /api/v1/auth/totp/verify — Verify enrollment token and enable 2FA */
+auth.post('/totp/verify', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string; email?: string } | undefined;
+  if (!payload?.sub || !payload.email) {
+    return c.json({ success: false, message: 'Unauthorized' }, 401);
+  }
+
+  try {
+    const body = await c.req.json();
+    const { token } = body as { token?: string };
+
+    if (!token) {
+      return c.json({ success: false, message: 'Token is required' }, 400);
+    }
+
+    // Get stored secret for this user
+    const admin = await db.query(
+      "SELECT totp_secret FROM admins WHERE id = ?"
+    ).get(payload.sub) as any;
+
+    if (!admin?.totp_secret) {
+      return c.json({ success: false, message: 'No TOTP setup found. Please start the enrollment process first.' }, 400);
+    }
+
+    // Verify token against stored secret
+    const valid = verifyToken(admin.totp_secret, token);
+    if (!valid) {
+      return c.json({ success: false, message: 'Invalid verification code' }, 401);
+    }
+
+    // Enable 2FA
+    await db.run(
+      "UPDATE admins SET two_factor_enabled = TRUE WHERE id = ?",
+      [payload.sub]
+    );
+
+    return c.json({ success: true, message: 'Two-factor authentication enabled successfully' });
+  } catch (error) {
+    console.error('TOTP verify error:', error);
+    return c.json({ success: false, message: 'Failed to verify TOTP token' }, 500);
+  }
+});
+
+/** POST /api/v1/auth/totp/disable — Disable 2FA using recovery code or current TOTP */
+auth.post('/totp/disable', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string; email?: string } | undefined;
+  if (!payload?.sub || !payload.email) {
+    return c.json({ success: false, message: 'Unauthorized' }, 401);
+  }
+
+  try {
+    const body = await c.req.json();
+    const { recoveryCode, token } = body as { recoveryCode?: string; token?: string };
+
+    if (!recoveryCode && !token) {
+      return c.json({ success: false, message: 'Either recovery code or TOTP token is required' }, 400);
+    }
+
+    // Get admin record with recovery codes and secret
+    const admin = await db.query(
+      "SELECT totp_secret, recovery_codes FROM admins WHERE id = ?"
+    ).get(payload.sub) as any;
+
+    if (!admin?.totp_secret || !admin.recovery_codes) {
+      return c.json({ success: false, message: 'Two-factor authentication is not enabled' }, 400);
+    }
+
+    let valid = false;
+
+    // Try recovery code first (JSON array stored in DB)
+    if (recoveryCode && admin.recovery_codes.length > 0) {
+      try {
+        const codes: string[] = JSON.parse(admin.recovery_codes);
+        valid = codes.includes(recoveryCode.toUpperCase());
+      } catch {
+        // Invalid JSON format, ignore recovery code
+      }
+    }
+
+    // Try TOTP token if recovery code didn't work
+    if (!valid && token) {
+      valid = verifyToken(admin.totp_secret, token);
+    }
+
+    if (!valid) {
+      return c.json({ success: false, message: 'Invalid recovery code or TOTP token' }, 401);
+    }
+
+    // Disable 2FA and clear all related data
+    await db.run(
+      "UPDATE admins SET two_factor_enabled = FALSE, totp_secret = NULL, recovery_codes = '[]' WHERE id = ?",
+      [payload.sub]
+    );
+
+    return c.json({ success: true, message: 'Two-factor authentication disabled' });
+  } catch (error) {
+    console.error('TOTP disable error:', error);
+    return c.json({ success: false, message: 'Failed to disable two-factor authentication' }, 500);
+  }
+});
+
+/** POST /api/v1/auth/totp/recovery-codes — Regenerate recovery codes */
+auth.post('/totp/recovery-codes', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string; email?: string } | undefined;
+  if (!payload?.sub || !payload.email) {
+    return c.json({ success: false, message: 'Unauthorized' }, 401);
+  }
+
+  try {
+    // Verify current TOTP token for security
+    const admin = await db.query(
+      "SELECT totp_secret FROM admins WHERE id = ?"
+    ).get(payload.sub) as any;
+
+    if (!admin?.totp_secret || !admin.two_factor_enabled) {
+      return c.json({ success: false, message: 'Two-factor authentication is not enabled' }, 400);
+    }
+
+    const body = await c.req.json();
+    const { token } = body as { token?: string };
+
+    if (!token) {
+      return c.json({ success: false, message: 'Current TOTP token is required to regenerate recovery codes' }, 400);
+    }
+
+    // Verify current TOTP token
+    const valid = verifyToken(admin.totp_secret, token);
+    if (!valid) {
+      return c.json({ success: false, message: 'Invalid TOTP token' }, 401);
+    }
+
+    // Generate new recovery codes
+    const newCodes = generateRecoveryCodes(8);
+
+    // Update in database
+    await db.run(
+      "UPDATE admins SET recovery_codes = ? WHERE id = ?",
+      [JSON.stringify(newCodes), payload.sub]
+    );
+
+    return c.json({ success: true, data: { recoveryCodes: newCodes } });
+  } catch (error) {
+    console.error('TOTP recovery codes error:', error);
+    return c.json({ success: false, message: 'Failed to regenerate recovery codes' }, 500);
+  }
+});
 
 export default auth

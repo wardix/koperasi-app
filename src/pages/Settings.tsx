@@ -78,12 +78,21 @@ export default function SettingsTemplate() {
   
   const [viewReports, setViewReports] = useState(false);
   const [selfRegister, setSelfRegister] = useState(true);
-  const [twoFactor, setTwoFactor] = useState(false);
   const [ssoAutoRegister, setSsoAutoRegister] = useState(true);
-  
+
+  // 2FA state (per-user, not org-wide)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [totpUri, setTotpUri] = useState<string | null>(null);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [showEnableModal, setShowEnableModal] = useState(false);
+  const [verifyToken, setVerifyToken] = useState('');
+  const [step, setStep] = useState<'setup' | 'verify'>('setup');
+
   const [searchValue, setSearchValue] = useState<SearchableItem | null>(null);
 
   const { data: settingsData, isLoading, error, refetch: fetchSettings } = useApiQuery<SettingsData>('/api/settings');
+  const { data: totpStatus, refetch: fetchTotpStatus } = useApiQuery<{ twoFactorEnabled: boolean }>('/api/auth/totp/status');
 
   useEffect(() => {
     if (settingsData) {
@@ -96,10 +105,16 @@ export default function SettingsTemplate() {
       if (settingsData.denda) setDenda(settingsData.denda);
       if (settingsData.viewReports !== undefined) setViewReports(settingsData.viewReports === 'true' || settingsData.viewReports === true);
       if (settingsData.selfRegister !== undefined) setSelfRegister(settingsData.selfRegister === 'true' || settingsData.selfRegister === true);
-      if (settingsData.twoFactor !== undefined) setTwoFactor(settingsData.twoFactor === 'true' || settingsData.twoFactor === true);
       if (settingsData.ssoAutoRegister !== undefined) setSsoAutoRegister(settingsData.ssoAutoRegister === 'true' || settingsData.ssoAutoRegister === true);
     }
   }, [settingsData]);
+
+  // Update 2FA status when fetched
+  useEffect(() => {
+    if (totpStatus?.twoFactorEnabled !== undefined) {
+      setTwoFactorEnabled(totpStatus.twoFactorEnabled);
+    }
+  }, [totpStatus]);
 
   const saveSettings = () => {
     apiAction.execute(
@@ -108,7 +123,6 @@ export default function SettingsTemplate() {
         bungaPinjaman, bungaSimpanan, denda,
         viewReports: String(viewReports),
         selfRegister: String(selfRegister),
-        twoFactor: String(twoFactor),
         ssoAutoRegister: String(ssoAutoRegister)
       }),
       {
@@ -117,6 +131,73 @@ export default function SettingsTemplate() {
         onSuccess: () => fetchSettings()
       }
     );
+  };
+
+  // ---------------------------------------------------------------------------
+  // 2FA handlers
+  // ---------------------------------------------------------------------------
+  const handleEnable2Fa = async () => {
+    try {
+      const res = await api.get('/api/auth/totp/setup');
+      const data = await res.json();
+      if (data.success) {
+        setTotpUri(data.data.uri);
+        setTotpSecret(data.data.secret);
+        setRecoveryCodes(data.data.recoveryCodes);
+        setStep('setup');
+        setShowEnableModal(true);
+      }
+    } catch (e) {
+      console.error('Failed to setup 2FA:', e);
+    }
+  };
+
+  const handleVerify2Fa = async () => {
+    try {
+      const res = await api.post('/api/auth/totp/verify', { token: verifyToken });
+      const data = await res.json();
+      if (data.success) {
+        setShowEnableModal(false);
+        setVerifyToken('');
+        fetchTotpStatus();
+      } else {
+        alert(data.message || 'Verifikasi gagal');
+      }
+    } catch (e) {
+      console.error('Failed to verify 2FA:', e);
+    }
+  };
+
+  const handleDisable2Fa = async () => {
+    const code = prompt('Masukkan kode pemulihan atau token TOTP untuk menonaktifkan 2FA:');
+    if (!code) return;
+    try {
+      const res = await api.post('/api/auth/totp/disable', { recoveryCode: code });
+      const data = await res.json();
+      if (data.success) {
+        fetchTotpStatus();
+      } else {
+        alert(data.message || 'Penonaktifan gagal');
+      }
+    } catch (e) {
+      console.error('Failed to disable 2FA:', e);
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async () => {
+    const token = prompt('Masukkan token TOTP Anda untuk verifikasi:');
+    if (!token) return;
+    try {
+      const res = await api.post('/api/auth/totp/recovery-codes', { token });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Kode pemulihan baru:\n${data.data.recoveryCodes.join('\n')}\n\nSimpan kode ini dengan aman!`);
+      } else {
+        alert(data.message || 'Regenerasi gagal');
+      }
+    } catch (e) {
+      console.error('Failed to regenerate recovery codes:', e);
+    }
   };
 
   return (
@@ -259,13 +340,182 @@ export default function SettingsTemplate() {
                   onChange={setSelfRegister}
                   disabled={!hasPermission('update:settings')}
                 />
-                <CheckboxInput
-                  label="Otentikasi Dua Langkah (2FA)"
-                  description="Wajibkan 2FA untuk pengurus koperasi (Ketua, Bendahara)."
-                  value={twoFactor}
-                  onChange={setTwoFactor}
-                  disabled={!hasPermission('update:settings')}
-                />
+                <VStack gap={3}>
+                  <HStack justify="space-between">
+                    <div>
+                      <Text type="body" fontWeight="600">Otentikasi Dua Langkah (2FA)</Text>
+                      <Text type="supporting" color="secondary">
+                        Tambahkan lapisan keamanan ekstra pada akun Anda.
+                      </Text>
+                    </div>
+                    {twoFactorEnabled ? (
+                      <span style={{
+                        padding: '4px 12px',
+                        borderRadius: '9999px',
+                        backgroundColor: 'var(--color-success-500)',
+                        color: 'white',
+                        fontSize: '12px',
+                        fontWeight: 600
+                      }}>
+                        Aktif
+                      </span>
+                    ) : (
+                      <Button
+                        label="Aktifkan"
+                        variant="secondary"
+                        onClick={handleEnable2Fa}
+                        size="sm"
+                      />
+                    )}
+                  </HStack>
+
+                  {twoFactorEnabled && (
+                    <VStack gap={2} style={{ paddingLeft: '4px' }}>
+                      <Text type="supporting">
+                        2FA telah diaktifkan untuk akun Anda. Gunakan aplikasi autentikator (Google Authenticator, Authy, dll.) untuk mendapatkan kode verifikasi saat login.
+                      </Text>
+                      <HStack gap={3}>
+                        <Button
+                          label="Regenerasi Kode Pemulihan"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleRegenerateRecoveryCodes}
+                        />
+                        <Button
+                          label="Nonaktifkan 2FA"
+                          variant="danger"
+                          size="sm"
+                          onClick={handleDisable2Fa}
+                        />
+                      </HStack>
+                    </VStack>
+                  )}
+
+                  {/* Enable 2FA Modal */}
+                  {showEnableModal && (step === 'setup' || step === 'verify') && (
+                    <div style={{
+                      position: 'fixed',
+                      inset: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1000
+                    }}>
+                      <div style={{
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        padding: '32px',
+                        maxWidth: '480px',
+                        width: '90%',
+                        maxHeight: '90vh',
+                        overflow: 'auto'
+                      }}>
+                        <Heading level={3} style={{ marginTop: 0 }}>
+                          {step === 'setup' ? 'Aktifkan 2FA' : 'Verifikasi 2FA'}
+                        </Heading>
+
+                        {step === 'setup' && (
+                          <>
+                            <Text type="body" style={{ marginBottom: '16px' }}>
+                              Scan QR code di bawah ini dengan aplikasi autentikator Anda, atau masukkan kunci manual:
+                            </Text>
+
+                            {/* QR Code placeholder - in production, use a QR code library */}
+                            {totpUri && (
+                              <div style={{
+                                backgroundColor: 'f8f9fa',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                padding: '24px',
+                                textAlign: 'center',
+                                marginBottom: '16px'
+                              }}>
+                                <div style={{ fontSize: '14px', color: '#718096', marginBottom: '8px' }}>
+                                  QR Code untuk scan dengan autentikator
+                                </div>
+                                <div style={{ fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all', color: '#4a5568' }}>
+                                  {totpUri}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Recovery codes */}
+                            {recoveryCodes && recoveryCodes.length > 0 && (
+                              <div style={{
+                                backgroundColor: 'fffbeb',
+                                border: '1px solid #f59e0b',
+                                borderRadius: '8px',
+                                padding: '16px',
+                                marginBottom: '16px'
+                              }}>
+                                <Text type="body" fontWeight="600" style={{ color: '#92400e', marginBottom: '8px' }}>
+                                  Kode Pemulihan (simpan dengan aman!)
+                                </Text>
+                                <pre style={{
+                                  fontFamily: 'monospace',
+                                  fontSize: '12px',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                                  padding: '12px',
+                                  borderRadius: '4px',
+                                  overflow: 'auto',
+                                  maxHeight: '200px'
+                                }}>
+{recoveryCodes.join('\n')}
+                                </pre>
+                              </div>
+                            )}
+
+                            <Button
+                              label="Saya Sudah Memindai QR Code"
+                              variant="primary"
+                              fullWidth
+                              onClick={() => setStep('verify')}
+                            />
+                          </>
+                        )}
+
+                        {step === 'verify' && (
+                          <>
+                            <Text type="body" style={{ marginBottom: '16px' }}>
+                              Masukkan kode 6 digit dari aplikasi autentikator Anda:
+                            </Text>
+                            <TextInput
+                              label="Kode Verifikasi"
+                              placeholder="000000"
+                              value={verifyToken}
+                              onChange={setVerifyToken}
+                              maxLength={6}
+                              style={{ marginBottom: '16px' }}
+                            />
+                            <HStack gap={3}>
+                              <Button
+                                label="Kembali"
+                                variant="secondary"
+                                onClick={() => setStep('setup')}
+                              />
+                              <Button
+                                label="Verifikasi"
+                                variant="primary"
+                                fullWidth
+                                onClick={handleVerify2Fa}
+                              />
+                            </HStack>
+                          </>
+                        )}
+
+                        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                          <Button
+                            label="Batal"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setShowEnableModal(false); setStep('setup'); }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </VStack>
                 <CheckboxInput
                   label="Registrasi Otomatis via Google SSO"
                   description="Mendaftarkan secara otomatis akun Google baru dengan role Viewer."
