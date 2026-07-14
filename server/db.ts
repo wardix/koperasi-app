@@ -1,12 +1,22 @@
 import { SQL } from "bun";
+import { AsyncLocalStorage } from "node:async_hooks";
+
 const sql = new SQL(process.env.DATABASE_URL || "postgres://koperasi:koperasi_pass@localhost:5432/koperasi_test");
 
+/** Active transactional client (same connection that issued BEGIN). */
+const txStorage = new AsyncLocalStorage<SQL>();
+
+function getSql(): SQL {
+  return txStorage.getStore() ?? sql;
+}
+
 class Statement {
-  constructor(queryStr) { this.queryStr = queryStr; }
+  queryStr: string;
+  constructor(queryStr: string) { this.queryStr = queryStr; }
   getPgQuery() { let i = 1; return this.queryStr.replace(/\?/g, () => "$" + (i++)); }
-  mapRow(row) {
+  mapRow(row: Record<string, unknown> | null) {
     if (!row) return row;
-    const keyMap = {
+    const keyMap: Record<string, string> = {
       balancebefore: 'balanceBefore',
       balanceafter: 'balanceAfter',
       paymentdate: 'paymentDate',
@@ -23,22 +33,49 @@ class Statement {
       loanid: 'loanId',
       paidamount: 'paidAmount'
     };
-    const mapped = {};
+    const mapped: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
       mapped[keyMap[k] || k] = v;
     }
     return mapped;
   }
-  async get(...args) { const rows = await sql.unsafe(this.getPgQuery(), args); return rows.length > 0 ? this.mapRow(rows[0]) : null; }
-  async all(...args) { const res = await sql.unsafe(this.getPgQuery(), args); return Array.isArray(res) ? res.map(r => this.mapRow(r)) : []; }
-  async run(...args) { await sql.unsafe(this.getPgQuery(), args); }
+  async get(...args: unknown[]) {
+    const rows = await getSql().unsafe(this.getPgQuery(), args);
+    return rows.length > 0 ? this.mapRow(rows[0]) : null;
+  }
+  async all(...args: unknown[]) {
+    const res = await getSql().unsafe(this.getPgQuery(), args);
+    return Array.isArray(res) ? res.map((r: Record<string, unknown>) => this.mapRow(r)) : [];
+  }
+  async run(...args: unknown[]) {
+    await getSql().unsafe(this.getPgQuery(), args);
+  }
 }
 
 const db = {
-  query: (q) => new Statement(q),
-  prepare: (q) => new Statement(q),
-  run: async (q, args = []) => { await new Statement(q).run(...args); },
-  transaction: (cb) => async (...args) => await cb(...args),
+  query: (q: string) => new Statement(q),
+  prepare: (q: string) => new Statement(q),
+  run: async (q: string, args: unknown[] = []) => { await new Statement(q).run(...args); },
+  /**
+   * Run work inside a real Postgres transaction on one reserved connection.
+   * Keeps the historical call shape: `await db.transaction(async () => { ... })()`.
+   * Nested calls reuse the outer transaction (no nested BEGIN).
+   */
+  transaction: <TArgs extends unknown[], TResult>(
+    cb: (...args: TArgs) => Promise<TResult> | TResult
+  ) => {
+    return async (...args: TArgs): Promise<TResult> => {
+      const existing = txStorage.getStore();
+      if (existing) {
+        return await cb(...args);
+      }
+      return await sql.begin(async (tx) => {
+        return await txStorage.run(tx as unknown as SQL, async () => {
+          return await cb(...args);
+        });
+      });
+    };
+  },
   close: () => sql.end()
 };
 
@@ -167,26 +204,35 @@ const migrations = [
   }
 ];
 
-await db.transaction(async () => {
+// Each migration runs in its own transaction. Do not wrap the whole loop in one
+// transaction: Postgres aborts the whole txn after a failed statement, so the
+// historical "swallow duplicate column then mark applied" pattern would break.
+{
   const applied = new Set((await db.query('SELECT name FROM schema_migrations').all() as any[]).map(m => m.name));
   for (const m of migrations) {
     if (!applied.has(m.name)) {
       try {
-        const stmts = m.sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
-        for (const stmt of stmts) {
-          await db.run(stmt);
-        }
-        await db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
-      } catch (err: any) {
-        if (err.message && (err.message.includes('duplicate column') || err.message.includes('already exists') || err.message.includes('no such column'))) {
+        await db.transaction(async () => {
+          const stmts = m.sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+          for (const stmt of stmts) {
+            await db.run(stmt);
+          }
           await db.run('INSERT INTO schema_migrations (name) VALUES (?)', [m.name]);
+        })();
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        if (msg.includes('duplicate column') || msg.includes('already exists') || msg.includes('no such column')) {
+          await db.run(
+            'INSERT INTO schema_migrations (name) VALUES (?) ON CONFLICT (name) DO NOTHING',
+            [m.name]
+          );
         } else {
           throw err;
         }
       }
     }
   }
-})();
+}
 
 await db.query(`
   CREATE TABLE IF NOT EXISTS loan_payments (

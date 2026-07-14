@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "oxlint",
+    "lint": "oxlint src server shared",
     "preview": "vite preview",
-    "test": "JWT_SECRET=test-secret-key-123 bun test",
+    "test": "JWT_SECRET=test-secret-key-123 bun test server src",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
     "start": "bun run server/index.ts"
   },

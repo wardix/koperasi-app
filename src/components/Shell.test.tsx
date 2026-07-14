@@ -3,14 +3,17 @@ import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Shell from "./Shell";
 import { AuthProvider } from "../contexts/AuthContext";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import * as apiModule from "../services/api";
 
 function renderShell(initialEntries = ["/"]) {
   render(
     <MemoryRouter initialEntries={initialEntries}>
-      <AuthProvider>
-        <Shell />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Shell />
+        </AuthProvider>
+      </ThemeProvider>
     </MemoryRouter>
   );
 }
@@ -21,9 +24,9 @@ describe("Shell Component", () => {
     localStorage.clear();
   });
 
-  test("shows Hak Akses menu for admin role", async () => {
+  test("shows Hak Akses menu for superadmin role", async () => {
     localStorage.setItem("token", "test-token");
-    localStorage.setItem("role", "admin");
+    localStorage.setItem("role", "superadmin");
     spyOn(apiModule.api, "get").mockResolvedValue({});
     renderShell();
     await waitFor(() => expect(screen.getByText("Hak Akses")).toBeTruthy());
