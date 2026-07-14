@@ -130,14 +130,47 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
         const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
         const bungaRatePercent = parseFloat(bungaSetting?.value || '0');
 
-        const loan = await db.query("SELECT amount, tenor FROM loans WHERE id = ?").get(id) as { amount: number, tenor: string } | null;
-        if (loan) {
+        const loan = await db.query("SELECT amount, tenor, scheduleGenerated FROM loans WHERE id = ?").get(id) as { amount: number, tenor: string, scheduleGenerated: boolean } | null;
+        if (loan && !loan.scheduleGenerated) {
           // Use calculateLoanInterest from loanService for consistent calculation
           const { interestAmount, totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRatePercent);
           const monthlyPayment = Math.ceil(totalAmount / parseInt(loan.tenor));
 
           await db.run(`UPDATE loans SET interestRate = ?, monthlyPayment = ?, totalAmount = ?, interestAmount = ? WHERE id = ?`,
             [bungaRatePercent, monthlyPayment, totalAmount, interestAmount, id]);
+
+          // Generate installment schedule
+          const tenorMonths = parseInt(loan.tenor);
+          const annualRatePercent = bungaRatePercent;
+          const i = annualRatePercent / 1200; // Monthly rate
+          const power = Math.pow(1 + i, tenorMonths);
+          const baseMonthlyPayment = loan.amount * (i * power) / (power - 1);
+          const roundedBasePayment = Math.ceil(baseMonthlyPayment);
+
+          for (let month = 1; month <= tenorMonths; month++) {
+            const dueDate = new Date();
+            dueDate.setMonth(dueDate.getMonth() + month);
+
+            // Calculate principal and interest for this installment
+            const remainingPrincipal = loan.amount - (loan.amount * (month - 1) / tenorMonths);
+            const currentPrincipal = Math.floor(remainingPrincipal / (tenorMonths - month + 1));
+            const currentInterest = Math.round((loan.amount - currentPrincipal * (tenorMonths - month + 1)) * i);
+
+            await db.run(`
+              INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
+              VALUES (?, ?, ?, ?, ?, ?, 0, 'Pending')
+              ON CONFLICT (loanId, installmentNo) DO NOTHING
+            `, [
+              `${loan.id}-${month}`,
+              loan.id,
+              month,
+              dueDate.toISOString().split('T')[0], // YYYY-MM-DD format
+              currentPrincipal,
+              currentInterest
+            ]);
+          }
+
+          await db.run(`UPDATE loans SET scheduleGenerated = TRUE, totalInstallments = ? WHERE id = ?`, [tenorMonths, id]);
         }
       })();
     } else {
@@ -229,7 +262,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
     // Use snapshot values for approved loans (historical consistency)
     let totalAmount: number;
     if (loan.approvedAt && loan.totalAmount !== null) {
-      totalAmount = loan.totalAmount;
+      totalAmount = Number(loan.totalAmount);
     } else {
       const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
       const bungaRate = parseFloat(bungaSetting?.value || '0');
@@ -246,15 +279,101 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
     const paymentDate = new Date().toISOString()
 
     await db.transaction(async () => {
+      // Record the payment
       const stmt = await db.prepare(`
         INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
         VALUES (?, ?, ?, ?, ?)
       `)
       await stmt.run(id, loanId, amount, paymentDate, method)
 
-      if (paid + amount === totalAmount) {
-        const updateStatus = await db.prepare("UPDATE loans SET status = 'Lunas' WHERE id = ?")
-        await updateStatus.run(loanId)
+      // Allocate payment to oldest unpaid installments first
+      const remainingPayment = paid + amount - totalAmount > 0 ? 0 : amount; // Simplified: assume payment fits within total
+      let allocatedAmount = amount;
+
+      // Get all pending installments for this loan, ordered by due date
+      const pendingSchedules = await db.query(`
+        SELECT * FROM loan_schedules
+        WHERE loanId = ? AND status = 'Pending'
+        ORDER BY installmentNo ASC
+      `).all(loanId) as any[];
+
+      if (pendingSchedules.length > 0) {
+        for (const schedule of pendingSchedules) {
+          if (allocatedAmount <= 0) break;
+
+          const dueDate = new Date(schedule.dueDate);
+          const today = new Date();
+          const daysLate = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Check for late fee if applicable
+          let lateFee = 0;
+          if (daysLate > 0) {
+            const dendaSetting = await db.query("SELECT value FROM settings WHERE key = 'denda'").get() as { value: string } | undefined;
+            const dendaPercent = parseFloat(dendaSetting?.value || '0');
+            lateFee = Math.round(schedule.principalAmount * (dendaPercent / 100));
+          }
+
+          const totalDue = Number(schedule.principalAmount) + Number(schedule.interestAmount) + lateFee;
+          const paymentForThisInstallment = Math.min(allocatedAmount, totalDue - Number(schedule.paidAmount || 0));
+
+          if (paymentForThisInstallment > 0) {
+            // Update the schedule with partial or full payment
+            const newPaidAmount = Number(schedule.paidAmount || 0) + paymentForThisInstallment;
+            const isFullyPaid = newPaidAmount >= totalDue;
+
+            await db.run(`UPDATE loan_schedules SET paidAmount = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+              [newPaidAmount, isFullyPaid ? 'Paid' : 'Pending', schedule.id]);
+
+            allocatedAmount -= paymentForThisInstallment;
+
+            // If fully paid and there are more installments due, check aging for this loan
+            if (isFullyPaid) {
+              // Check if all installments are paid
+              const remainingPending = await db.query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Pending'`).get(loanId) as any;
+              if (Number(remainingPending.count || 0) === 0) {
+                // All installments paid, mark loan as Lunas
+                await db.run(`UPDATE loans SET status = 'Lunas', paidInstallments = totalInstallments WHERE id = ?`, [loanId]);
+              }
+            }
+          }
+        }
+
+        // Update loan paid installment count
+        const paidInstallmentCount = await db.query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Paid'`).get(loanId) as any;
+        if (paidInstallmentCount && Number(paidInstallmentCount.count || 0) > 0) {
+          await db.run(`UPDATE loans SET paidInstallments = ? WHERE id = ?`, [Number(paidInstallmentCount.count), loanId]);
+        }
+
+        // Check aging: if any installment is overdue, check DPD thresholds
+        const overdueSchedules = await db.query(`
+          SELECT * FROM loan_schedules
+          WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE
+          ORDER BY dueDate ASC LIMIT 1
+        `).all(loanId) as any[];
+
+        if (overdueSchedules.length > 0) {
+          const oldestOverdue = overdueSchedules[0];
+          const oldestDueDate = new Date(oldestOverdue.dueDate);
+          const dpd = Math.floor((today.getTime() - oldestDueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Apply aging based on DPD thresholds
+          if (dpd >= 90) {
+            await db.run(`UPDATE loans SET status = 'Macet' WHERE id = ?`, [loanId]);
+          } else if (dpd >= 60 && loan.status === 'Disetujui') {
+            // Could add intermediate status like 'Risiko Tinggi' if needed
+          } else if (dpd >= 30 && loan.status === 'Disetujui') {
+            // Could add warning status here
+          }
+
+          // Update schedule status to Late for overdue installments
+          await db.run(`UPDATE loan_schedules SET status = 'Late', updatedAt = CURRENT_TIMESTAMP WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE`, [loanId]);
+        }
+      } else {
+        // No schedules, check if all paid based on totalAmount
+        const newTotalPaid = paid + amount;
+        if (newTotalPaid >= totalAmount) {
+          await db.run(`UPDATE loans SET status = 'Lunas' WHERE id = ?`, [loanId]);
+        }
       }
     })()
 
