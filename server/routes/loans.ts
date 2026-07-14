@@ -5,6 +5,7 @@ import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { calculateLoanInterest } from '../services/loanService'
 import { clearStatsCache } from './stats'
+import { audit, getActor, getClientIp } from '../lib/audit'
 
 const loans = new Hono()
 
@@ -96,6 +97,17 @@ loans.post('/', requirePermission('create:loans'), async (c) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     await insert.run(id, memberId, name, amount, tenor, purpose, status, createdAt)
+
+    // Audit: log loan creation
+    await audit(db, {
+      actor: getActor(c),
+      action: 'create_loan',
+      entity: 'loans',
+      entityId: id,
+      after: { memberId, name, amount, tenor, purpose, status },
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
 
     return c.json({ success: true, message: 'Loan created successfully', id }, 201)
@@ -179,6 +191,20 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
     }
 
     console.log("Database update executed successfully")
+
+    // Audit: log loan status change (approve/reject)
+    const before = await db.query("SELECT status, memberId FROM loans WHERE id = ?").get(id) as any
+    const action = status === 'Disetujui' || status === 'Diterima' ? 'approve_loan' : 'reject_loan'
+    await audit(db, {
+      actor: getActor(c),
+      action,
+      entity: 'loans',
+      entityId: id,
+      before: before ? { status: before.status } : undefined,
+      after: { status },
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
     return c.json({ success: true, message: 'Loan status updated' })
   } catch (error) {
@@ -376,6 +402,16 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
         }
       }
     })()
+
+    // Audit: log payment creation
+    await audit(db, {
+      actor: getActor(c),
+      action: 'create_payment',
+      entity: 'loan_payments',
+      entityId: id,
+      after: { loanId, amount, method },
+      ip: getClientIp(c),
+    })
 
     clearStatsCache()
 
