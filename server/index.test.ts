@@ -957,6 +957,26 @@ describe("API Endpoints", () => {
     const { sign } = require("hono/jwt");
     const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
 
+    // Dynamically create a member to avoid dependency on seed data
+    const createMemReq = new Request("http://localhost/api/v1/members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: "Budi Santoso",
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "01 Jan 2024",
+        simpananPokok: 1000,
+        simpananWajib: 0,
+        simpananSukarela: 0
+      })
+    });
+    const resMem = await server.fetch(createMemReq);
+    const member = (await resMem.json()) as any;
+
     const createReq = new Request("http://localhost/api/v1/loans", {
       method: "POST",
       headers: {
@@ -964,7 +984,7 @@ describe("API Endpoints", () => {
         "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify({
-        memberId: "1",
+        memberId: member.id,
         name: "Budi Santoso",
         amount: 2000000,
         tenor: 12,

@@ -130,7 +130,7 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
         const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
         const bungaRatePercent = parseFloat(bungaSetting?.value || '0');
 
-        const loan = await db.query("SELECT amount, tenor, scheduleGenerated FROM loans WHERE id = ?").get(id) as { amount: number, tenor: string, scheduleGenerated: boolean } | null;
+        const loan = await db.query("SELECT id, amount, tenor, scheduleGenerated FROM loans WHERE id = ?").get(id) as { id: string, amount: number, tenor: string, scheduleGenerated: boolean } | null;
         if (loan && !loan.scheduleGenerated) {
           // Use calculateLoanInterest from loanService for consistent calculation
           const { interestAmount, totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRatePercent);
@@ -298,11 +298,11 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
       `).all(loanId) as any[];
 
       if (pendingSchedules.length > 0) {
+        const today = new Date();
         for (const schedule of pendingSchedules) {
           if (allocatedAmount <= 0) break;
 
           const dueDate = new Date(schedule.dueDate);
-          const today = new Date();
           const daysLate = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
 
           // Check for late fee if applicable

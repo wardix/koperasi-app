@@ -10,6 +10,9 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaRate = parseFloat(bungaSetting?.value || '0');
+
   // Get all active loans with their DPD (Days Past Due) based on schedules
   const rows = await db.query(`
     SELECT l.*,
@@ -19,7 +22,7 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
     LEFT JOIN loan_payments p ON l.id = p.loanId
     WHERE l.status IN ('Disetujui', 'Macet')
     GROUP BY l.id
-    ORDER BY COALESCE(ls.oldestOverdueDate, l.updatedAt) DESC NULLS LAST
+    ORDER BY COALESCE((SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE)::text, l.createdAt) DESC NULLS LAST
     LIMIT ? OFFSET ?
   `).all(limit, offset) as any[]
 
@@ -37,8 +40,6 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
     if (loan.approvedAt && loan.totalAmount !== null) {
       totalAmount = Number(loan.totalAmount);
     } else {
-      const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
-      const bungaRate = parseFloat(bungaSetting?.value || '0');
       ({ totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate));
     }
 
@@ -96,15 +97,18 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
   const agingBuckets = await db.query(`
     SELECT
       CASE
-        WHEN MIN(ls.dueDate) IS NULL OR MIN(ls.dueDate) >= CURRENT_DATE THEN 'Current'
-        WHEN MIN(ls.dueDate) >= CURRENT_DATE - INTERVAL '30 days' THEN '30-60'
-        WHEN MIN(ls.dueDate) >= CURRENT_DATE - INTERVAL '60 days' THEN '60-90'
+        WHEN oldestDueDate IS NULL OR oldestDueDate >= CURRENT_DATE THEN 'Current'
+        WHEN oldestDueDate >= CURRENT_DATE - INTERVAL '30 days' THEN '30-60'
+        WHEN oldestDueDate >= CURRENT_DATE - INTERVAL '60 days' THEN '60-90'
         ELSE '90+'
       END as bucket,
-      COUNT(DISTINCT l.id) as count
-    FROM loans l
-    JOIN loan_schedules ls ON l.id = ls.loanId AND ls.status != 'Paid'
-    WHERE l.status IN ('Disetujui', 'Macet')
+      COUNT(*) as count
+    FROM (
+      SELECT l.id,
+             (SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid') as oldestDueDate
+      FROM loans l
+      WHERE l.status IN ('Disetujui', 'Macet')
+    ) sub
     GROUP BY 1
   `).all() as any[];
 
@@ -117,8 +121,10 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
       limit,
       summary: {
         totalActivePrincipal,
+        totalBadPrincipal: totalBadPrincipalByStatus,
         totalBadPrincipalByStatus,
         totalNPLByDPD: totalNPLByDPDNum,
+        nplRatio: nplRatioByStatus,
         nplRatioByStatus,
         nplRatioByDPD,
         agingBuckets: Object.fromEntries(agingBuckets.map(b => [b.bucket, Number(b.count || 0)])),

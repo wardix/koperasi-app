@@ -53,7 +53,7 @@ export function createLoanSchedulesMigration(db: {
       }
 
       // Add columns to loans table if not exists (for schedule-related fields)
-      if (!(await columnExists('loans', 'scheduleGenerated')) {
+      if (!(await columnExists('loans', 'scheduleGenerated'))) {
         await db.run(`ALTER TABLE loans ADD COLUMN scheduleGenerated BOOLEAN DEFAULT FALSE`);
       }
       if (!(await columnExists('loans', 'totalInstallments'))) {
