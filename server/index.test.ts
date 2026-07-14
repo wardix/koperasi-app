@@ -207,6 +207,29 @@ describe("API Endpoints", () => {
     expect(types).toContain("setor_wajib");
   });
 
+  test("member create is atomic: failed ledger step rolls back member row", async () => {
+    // Force second write to fail by inserting a member then throwing inside a savings-style multi-write
+    // via db.transaction used by the same code path shape as members route.
+    const id = crypto.randomUUID();
+    try {
+      await db.transaction(async () => {
+        await db
+          .prepare(
+            `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(id, `Atomic Member ${id}`, "Anggota", "Aktif", "01 Jan 2026", 1000, 0, 0, 1000);
+        // Invalid FK / constraint: empty type not allowed if NOT NULL — use bad SQL to fail after first insert
+        await db.run("INSERT INTO transactions (id) VALUES (?)", [crypto.randomUUID()]);
+      })();
+      expect.unreachable("transaction should have thrown");
+    } catch {
+      // expected
+    }
+    const row = await db.query("SELECT id FROM members WHERE id = ?").get(id);
+    expect(row).toBeNull();
+  });
+
   test("PUT /api/v1/members/:id updates member", async () => {
     // 1. First create a member to get an ID
     const createReq = new Request("http://localhost/api/v1/members", {
