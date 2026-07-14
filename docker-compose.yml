@@ -6,10 +6,13 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      # SECURITY: NODE_ENV must be set explicitly. Default is 'production'.
+      - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
-      - DATABASE_URL=postgres://koperasi:koperasi_pass@db:5432/koperasi
-      - JWT_SECRET=${JWT_SECRET:-koperasi_super_secret_fallback}
+      # SECURITY: DATABASE_URL required - no hardcoded credentials in production
+      - DATABASE_URL=${DATABASE_URL:?ERROR: DATABASE_URL environment variable is required for production}
+      # SECURITY: JWT_SECRET required - must be strong random value, no fallback allowed
+      - JWT_SECRET=${JWT_SECRET:?ERROR: JWT_SECRET environment variable is required. Generate with: openssl rand -hex 64}
     depends_on:
       db:
         condition: service_healthy
