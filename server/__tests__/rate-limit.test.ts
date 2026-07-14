@@ -184,25 +184,11 @@ describe("API Rate Limiting (Issue #204)", () => {
       expect(res.status).toBe(429); // Should be rate limited
     });
 
-    test("SSO and login share same IP counter (both use 5/15min)", async () => {
-      const ip = "test-ip-shared";
+    test("SSO and login have independent counters", async () => {
+      const ip = "test-ip-independent";
 
-      // Make 3 requests to login
-      for (let i = 0; i < 3; i++) {
-        await server.fetch(
-          new Request("http://localhost/api/v1/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-forwarded-for": ip,
-            },
-            body: JSON.stringify({ email: "test@example.com", password: "wrong" }),
-          })
-        );
-      }
-
-      // Make 2 requests to SSO (total should be 5)
-      for (let i = 0; i < 2; i++) {
+      // Exhaust SSO quota (5 requests)
+      for (let i = 0; i < 5; i++) {
         await server.fetch(
           new Request("http://localhost/api/v1/auth/google", {
             method: "POST",
@@ -215,8 +201,8 @@ describe("API Rate Limiting (Issue #204)", () => {
         );
       }
 
-      // Next request (6th) to either endpoint should be rate limited
-      const res = await server.fetch(
+      // Login should still work (separate counter) - 6th request to login should be rate limited
+      const loginRes = await server.fetch(
         new Request("http://localhost/api/v1/login", {
           method: "POST",
           headers: {
@@ -226,7 +212,48 @@ describe("API Rate Limiting (Issue #204)", () => {
           body: JSON.stringify({ email: "test@example.com", password: "wrong" }),
         })
       );
-      expect(res.status).toBe(429); // Should be rate limited (5 total requests used)
+
+      // Login should NOT be rate limited (SSO quota exhausted doesn't affect login)
+      expect(loginRes.status).not.toBe(429);
+
+      // Now exhaust login quota (5 requests total including the one above)
+      for (let i = 0; i < 4; i++) {
+        await server.fetch(
+          new Request("http://localhost/api/v1/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-forwarded-for": ip,
+            },
+            body: JSON.stringify({ email: "test@example.com", password: "wrong" }),
+          })
+        );
+      }
+
+      // Now both should be rate limited
+      const loginRes2 = await server.fetch(
+        new Request("http://localhost/api/v1/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-forwarded-for": ip,
+          },
+          body: JSON.stringify({ email: "test@example.com", password: "wrong" }),
+        })
+      );
+      expect(loginRes2.status).toBe(429); // Login should be rate limited now
+
+      const ssoRes = await server.fetch(
+        new Request("http://localhost/api/v1/auth/google", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-forwarded-for": ip,
+          },
+          body: JSON.stringify({ credential: "test-credential" }),
+        })
+      );
+      expect(ssoRes.status).toBe(429); // SSO should be rate limited (5/5 used)
     });
   });
 
