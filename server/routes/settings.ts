@@ -3,6 +3,7 @@ import db from '../db'
 import { settingsSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { clearStatsCache } from './stats'
+import { audit, getActor, getClientIp } from '../lib/audit'
 
 const settings = new Hono()
 
@@ -25,13 +26,31 @@ settings.put('/', requirePermission('update:settings'), async (c) => {
     }
 
     const update = await db.prepare("UPDATE settings SET value = ? WHERE key = ?")
-    
+
+    // Capture before state for audit (current values)
+    const currentSettings = await db.query("SELECT * FROM settings").all() as {key: string, value: string}[]
+    const beforeMap: Record<string, string> = {}
+    for (const s of currentSettings) {
+      beforeMap[s.key] = s.value
+    }
+
     await db.transaction(async () => {
       for (const [key, value] of Object.entries(parsed.data)) {
         await update.run(String(value), key)
       }
     })()
-    
+
+    // Audit: log settings update
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_settings',
+      entity: 'settings',
+      entityId: null,
+      before: beforeMap,
+      after: Object.fromEntries(Object.entries(parsed.data).map(([k, v]) => [k, String(v)])),
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
     return c.json({ success: true })
   } catch (error) {
