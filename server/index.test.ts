@@ -13,6 +13,7 @@ describe("API Endpoints", () => {
   beforeAll(async () => {
     // Ensure migrations are applied and seed data is populated
     await import("./db");
+    await db.run("UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'");
   });
 
   test("setup token", async () => {
