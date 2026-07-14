@@ -4,6 +4,7 @@ import { memberSchema, savingsSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { clearStatsCache } from './stats'
+import { audit, getActor, getClientIp } from '../lib/audit'
 
 const members = new Hono()
 
@@ -27,8 +28,25 @@ members.get('/', requirePermission('read:members'), async (c) => {
 
 members.delete('/:id', requirePermission('delete:members'), async (c) => {
   const id = c.req.param('id')
+
+  // Capture before state for audit (fetch name/role before delete)
+  const before = await db.query("SELECT name, role FROM members WHERE id = ?").get(id) as any
+
   try {
     await db.query("DELETE FROM members WHERE id = ?").run(id)
+
+    // Audit: log member deletion
+    if (before) {
+      await audit(db, {
+        actor: getActor(c),
+        action: 'delete_member',
+        entity: 'members',
+        entityId: id,
+        before: { name: before.name, role: before.role },
+        ip: getClientIp(c),
+      })
+    }
+
     clearStatsCache()
     return c.json({ success: true })
   } catch (err: any) {
@@ -59,7 +77,7 @@ members.post('/', requirePermission('create:members'), async (c) => {
 
     await db.transaction(async () => {
       await insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
-      
+
       if (simpananPokok > 0) {
         await db.query(`
           INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
@@ -108,8 +126,18 @@ members.post('/', requirePermission('create:members'), async (c) => {
       }
     })()
 
+    // Audit: log member creation
+    await audit(db, {
+      actor: getActor(c),
+      action: 'create_member',
+      entity: 'members',
+      entityId: id,
+      after: { name, role, status, joinDate },
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
-    
+
     return c.json({ success: true, message: 'Member created successfully', id }, 201)
   } catch (error) {
     throw error
@@ -128,7 +156,7 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
 
     const { name, role, status, joinDate } = parsed.data
 
-    const oldMember = await db.query("SELECT id FROM members WHERE id = ?").get(id)
+    const oldMember = await db.query("SELECT id, name, role, status, joinDate FROM members WHERE id = ?").get(id) as any
     if (!oldMember) return c.json({success: false, message: 'Member not found'}, 404)
 
     const update = await db.prepare(`
@@ -137,8 +165,19 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
     `)
     await update.run(name, role, status, joinDate, id)
 
+    // Audit: log member update
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_member',
+      entity: 'members',
+      entityId: id,
+      before: oldMember ? { name: oldMember.name, role: oldMember.role } : undefined,
+      after: { name, role },
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
-    
+
     return c.json({ success: true, message: 'Member updated successfully' })
   } catch (error) {
     throw error
@@ -210,8 +249,20 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
         (c.get('jwtPayload') as any)?.email || 'admin'
       )
     })()
+
+    // Audit: log savings update
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_savings',
+      entity: 'members',
+      entityId: id,
+      before: { simpananPokok: member.simpananPokok, simpananWajib: member.simpananWajib, simpananSukarela: member.simpananSukarela },
+      after: { simpananPokok: newPokok, simpananWajib: newWajib, simpananSukarela: newSukarela, additionalSavings: additionalSavingsNum, savingsType },
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
-    
+
     return c.json({ success: true, data: { newTotal } })
   } catch (error) {
     throw error

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import db from '../db'
 import { adminCreationSchema, adminUpdateSchema } from '../schemas'
 import { requirePermission } from '../middleware'
+import { audit, getActor, getClientIp } from '../lib/audit'
 
 const admins = new Hono()
 
@@ -63,7 +64,17 @@ admins.post('/', async (c) => {
       VALUES (?, ?, ?, ?, ?, ?)
     `)
     await stmt.run(id, email, hashedPassword, role, name || null, authProvider)
-    
+
+    // Audit: log admin creation
+    await audit(db, {
+      actor: getActor(c),
+      action: 'create_admin',
+      entity: 'admins',
+      entityId: id,
+      after: { email, role, name },
+      ip: getClientIp(c),
+    })
+
     return c.json({ success: true, message: 'Pengurus berhasil ditambahkan', id }, 201)
   } catch (error) {
     throw error
@@ -91,7 +102,19 @@ admins.put('/:id', async (c) => {
     
     const stmt = await db.prepare("UPDATE admins SET role = ? WHERE id = ?")
     await stmt.run(role, id)
-    
+
+    // Audit: log admin role update
+    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get(id) as any
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_admin',
+      entity: 'admins',
+      entityId: id,
+      before: before ? { role: before.role } : undefined,
+      after: { role },
+      ip: getClientIp(c),
+    })
+
     return c.json({ success: true, message: 'Peran pengurus berhasil diperbarui' })
   } catch (error) {
     throw error
@@ -109,8 +132,23 @@ admins.delete('/:id', async (c) => {
       return c.json({ success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri' }, 400)
     }
 
+    // Capture before state for audit (fetch email/role before delete)
+    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get(id) as any
+
     const stmt = await db.prepare("DELETE FROM admins WHERE id = ?")
     await stmt.run(id)
+
+    // Audit: log admin deletion
+    if (before) {
+      await audit(db, {
+        actor: getActor(c),
+        action: 'delete_admin',
+        entity: 'admins',
+        entityId: id,
+        before: { email: before.email, role: before.role },
+        ip: getClientIp(c),
+      })
+    }
 
     return c.json({ success: true, message: 'Pengurus berhasil dihapus' })
   } catch (error) {
@@ -201,6 +239,17 @@ admins.post('/reconcile-savings', async (c) => {
 
     // Update the member with corrected total
     await db.query("UPDATE members SET totalSavings = ? WHERE id = ?").run(correctTotal, memberId)
+
+    // Audit: log savings reconciliation
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_savings',
+      entity: 'members',
+      entityId: memberId,
+      before: { totalSavings: Number(member.totalSavings) },
+      after: { totalSavings: correctTotal, reconciledBy: getActor(c) },
+      ip: getClientIp(c),
+    })
 
     return c.json({
       success: true,

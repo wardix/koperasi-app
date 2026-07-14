@@ -1,0 +1,82 @@
+import type { Context } from 'hono';
+
+/**
+ * Audit log helper for recording sensitive admin operations.
+ * All mutations should call audit() after successful write to maintain an immutable trail.
+ */
+
+export type AuditAction =
+  | 'create_admin'
+  | 'update_admin'
+  | 'delete_admin'
+  | 'approve_loan'
+  | 'reject_loan'
+  | 'create_member'
+  | 'update_member'
+  | 'delete_member'
+  | 'update_savings'
+  | 'update_settings'
+  | 'close_shu'
+  | 'reopen_shu'
+  | 'create_payment';
+
+export interface AuditRecord {
+  actor: string;        // admin email who performed the action
+  action: AuditAction;
+  entity: string;       // table/entity name (e.g. "loans", "settings")
+  entityId?: string;    // specific record id (NULL for bulk actions)
+  before?: Record<string, unknown>;  // previous state snapshot
+  after?: Record<string, unknown>;   // new state snapshot
+  ip?: string;          // client IP from request headers
+}
+
+/** Known sensitive field names to redact from audit snapshots. */
+const SENSITIVE_KEYS = ['password', 'newPassword', 'currentPassword', 'secret'];
+
+function sanitize(obj: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!obj) return obj;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = SENSITIVE_KEYS.includes(k.toLowerCase()) ? '***REDACTED***' : v;
+  }
+  return out;
+}
+
+interface AuditDb {
+  run: (q: string, args?: unknown[]) => Promise<void>;
+}
+
+export async function audit(db: AuditDb, record: AuditRecord): Promise<void> {
+  const cleanBefore = sanitize(record.before);
+  const cleanAfter = sanitize(record.after);
+
+  await db.run(
+    `INSERT INTO audit_logs (id, actor, action, entity, entity_id, before, after, ip, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [
+      crypto.randomUUID(),
+      record.actor,
+      record.action,
+      record.entity,
+      record.entityId ?? null,
+      cleanBefore ? JSON.stringify(cleanBefore) : null,
+      cleanAfter ? JSON.stringify(cleanAfter) : null,
+      record.ip ?? null,
+    ]
+  );
+}
+
+/** Extract actor email from JWT payload stored on the Hono context. */
+export function getActor(c: Context): string {
+  const payload = c.get('jwtPayload') as { email?: string } | undefined;
+  return payload?.email || 'system';
+}
+
+/** Extract client IP from request headers (handles proxies). */
+export function getClientIp(c: Context): string {
+  return (
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
+    c.req.header('x-real-ip') ||
+    'unknown'
+  );
+}

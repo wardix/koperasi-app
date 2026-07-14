@@ -6,6 +6,7 @@ import { createLoanTermSnapshotsMigration } from "./0008_loan_term_snapshots";
 import { createLoanSchedulesMigration } from "./0009_add_loan_schedules";
 import { createShuClosingMigration } from "./0010_shu_configurable_and_closing";
 import { createSavingsConstraintsMigration } from "./0011_add_savings_constraints";
+import { createAddAuditLogsMigration } from "./0012_add_audit_logs";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -30,6 +31,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createLoanSchedulesMigration(db),
     createShuClosingMigration(db),
     createSavingsConstraintsMigration(db),
+    createAddAuditLogsMigration(db),
   ];
 }
 

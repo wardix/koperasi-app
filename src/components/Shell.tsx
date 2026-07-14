@@ -41,6 +41,7 @@ const LoansTx = React.lazy(() => import('../pages/LoansTx'));
 const Cashflow = React.lazy(() => import('../pages/Cashflow'));
 const NPL = React.lazy(() => import('../pages/NPL'));
 const Reports = React.lazy(() => import('../pages/Reports'));
+const AuditLog = React.lazy(() => import('../pages/AuditLog'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 export default function Shell() {
@@ -151,19 +152,27 @@ export default function Shell() {
             />
           </SideNavSection>
           <SideNavSection title="Pengaturan">
-            <SideNavItem 
-              label="Konfigurasi Koperasi" 
-              icon={Cog6ToothIcon} 
+            <SideNavItem
+              label="Konfigurasi Koperasi"
+              icon={Cog6ToothIcon}
               isSelected={path === '/settings'}
               onClick={() => navigate('/settings')}
             />
             {hasPermission('manage:users') && (
-              <SideNavItem 
-                label="Hak Akses" 
-                icon={UsersIcon} 
-                isSelected={path === '/roles'}
-                onClick={() => navigate('/roles')}
-              />
+              <>
+                <SideNavItem
+                  label="Hak Akses"
+                  icon={UsersIcon}
+                  isSelected={path === '/roles'}
+                  onClick={() => navigate('/roles')}
+                />
+                <SideNavItem
+                  label="Log Audit"
+                  icon={ClipboardDocumentCheckIcon}
+                  isSelected={path === '/audit-log'}
+                  onClick={() => navigate('/audit-log')}
+                />
+              </>
             )}
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={logout} />
           </SideNavSection>
@@ -185,6 +194,7 @@ export default function Shell() {
           <Route path="/cashflow" element={<Cashflow />} />
           <Route path="/npl" element={<NPL />} />
           <Route path="/roles" element={<Roles />} />
+          <Route path="/audit-log" element={<AuditLog />} />
         </Routes>
       </Suspense>
     </AppShell>

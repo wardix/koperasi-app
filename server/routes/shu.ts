@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { calculateSHU, getShuConfig } from '../services/shuService'
 import { requirePermission } from '../middleware'
 import db from '../db'
+import { audit, getActor, getClientIp } from '../lib/audit'
 
 const shu = new Hono()
 
@@ -72,6 +73,16 @@ shu.post('/close', requirePermission('approve:loans'), async (c) => {
     }
   });
 
+  // Audit: log SHU year close
+  await audit(db, {
+    actor: getActor(c),
+    action: 'close_shu',
+    entity: 'shu_closes',
+    entityId: year,
+    after: { year, pendapatan: result.pendapatan, shuNetto: result.shuNetto },
+    ip: getClientIp(c),
+  })
+
   return c.json({ success: true, message: `Tahun Buku ${year} berhasil ditutup` });
 });
 
@@ -90,11 +101,26 @@ shu.post('/reopen', requirePermission('delete:members'), async (c) => {
     return c.json({ success: false, message: `Tahun ${year} belum ditutup` }, 400);
   }
 
+  // Capture before state for audit (fetch current closing data)
+  const beforeClose = await db.query("SELECT year, pendapatan, shuNetto FROM shu_closes WHERE year = ?").get(year) as any
+
   // Delete allocations and closing log inside a transaction
   await db.transaction(async () => {
     await db.run("DELETE FROM shu_member_allocations WHERE year = ?", [year]);
     await db.run("DELETE FROM shu_closes WHERE year = ?", [year]);
   });
+
+  // Audit: log SHU year reopen
+  if (beforeClose) {
+    await audit(db, {
+      actor: getActor(c),
+      action: 'reopen_shu',
+      entity: 'shu_closes',
+      entityId: year,
+      before: { year: beforeClose.year, pendapatan: beforeClose.pendapatan, shuNetto: beforeClose.shuNetto },
+      ip: getClientIp(c),
+    })
+  }
 
   return c.json({ success: true, message: `Tahun Buku ${year} berhasil dibuka kembali` });
 });
