@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "JWT_SECRET=test-secret-key-123 bun test server src",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
+    "db:migrate": "bun -e \"import('./server/db.ts').then(() => process.exit(0))\"",
     "start": "bun run server/index.ts"
   },
   "dependencies": {
