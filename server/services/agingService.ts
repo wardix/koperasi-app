@@ -45,19 +45,20 @@ export async function checkAndApplyAging(): Promise<{
 
     // Apply aging based on DPD thresholds
     if (dpd >= 90 && loan.status !== 'Macet') {
-      await db.run(`UPDATE loans SET status = 'Macet', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, [loan.id]);
+      await db.run(`UPDATE loans SET status = 'Macet' WHERE id = ?`, [loan.id]);
       updatedToMacet++;
     }
 
     // Mark overdue installments as Late
-    const lateCount = await db.query(`
+    const updatedRows = await db.query(`
       UPDATE loan_schedules
       SET status = 'Late', updatedAt = CURRENT_TIMESTAMP
       WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE
-    `).run(loan.id);
+      RETURNING id
+    `).all(loan.id);
 
-    if (lateCount.changes > 0) {
-      updatedToLate++;
+    if (updatedRows.length > 0) {
+      updatedToLate += updatedRows.length;
     }
   }
 
