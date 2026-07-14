@@ -17,16 +17,22 @@ describe('SHU Closing', () => {
 
     // Create 3 members with known savings (use ON CONFLICT for idempotent beforeEach)
     const members = [
-      { id: 'shu-m1', name: 'SHU Test A', savings: 1_000_000 },
-      { id: 'shu-m2', name: 'SHU Test B', savings: 2_000_000 },
-      { id: 'shu-m3', name: 'SHU Test C', savings: 3_000_000 },
+      { id: 'shu-m1', name: 'SHU Test A', pokok: 100000, wajib: 200000, sukarela: 700000 },
+      { id: 'shu-m2', name: 'SHU Test B', pokok: 200000, wajib: 400000, sukarela: 1400000 },
+      { id: 'shu-m3', name: 'SHU Test C', pokok: 300000, wajib: 600000, sukarela: 2100000 },
     ]
 
     for (const m of members) {
       await db.run(
-        `INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, totalSavings = EXCLUDED.totalSavings`,
-        [m.id, m.name, 'Anggota', 'Aktif', new Date().toISOString(), m.savings]
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           simpananPokok = EXCLUDED.simpananPokok,
+           simpananWajib = EXCLUDED.simpananWajib,
+           simpananSukarela = EXCLUDED.simpananSukarela,
+           totalSavings = EXCLUDED.totalSavings`,
+        [m.id, m.name, 'Anggota', 'Aktif', new Date().toISOString(), m.pokok, m.wajib, m.sukarela, (m.pokok + m.wajib + m.sukarela)]
       )
       memberIds.push(m.id)
     }

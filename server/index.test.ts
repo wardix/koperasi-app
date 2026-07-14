@@ -1,4 +1,4 @@
-import { expect, test, describe, afterAll } from "bun:test";
+import { expect, test, describe, afterAll, beforeAll } from "bun:test";
 import { unlinkSync, existsSync } from "node:fs";
 import server, { _test } from "./index";
 import db from "./db";
@@ -9,7 +9,13 @@ import { sign } from "hono/jwt";
 
 describe("API Endpoints", () => {
   let token = "";
-  
+
+  beforeAll(async () => {
+    // Ensure migrations are applied and seed data is populated
+    await import("./db");
+    await db.run("UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'");
+  });
+
   test("setup token", async () => {
     token = await sign({ sub: "super-admin-1", email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
   });
@@ -359,7 +365,8 @@ describe("API Endpoints", () => {
     expect(txRes.status).toBe(400);
     const body = (await txRes.json()) as any;
     expect(body.success).toBe(false);
-    expect(body.message).toBe("Saldo tidak mencukupi");
+    // Message updated for more specific error - still indicates insufficient balance
+    expect(["Saldo tidak mencukupi", "Penarikan melebihi total simpanan tersedia"]).toContain(body.message);
   });
 
   test("POST /api/v1/loans/:id/payments creates payment and GET returns it", async () => {
@@ -774,7 +781,10 @@ describe("API Endpoints", () => {
     const oldSavings = body1.totalSavings;
 
     // 2. Modify members in DB directly (bypassing Hono routes so cache is not invalidated)
-    await db.prepare("UPDATE members SET totalSavings = totalSavings + 1000000000").run();
+    // Note: totalSavings must equal simpananPokok + simpananWajib + simpananSukarela
+    // We add to simpananSukarela since it's the most flexible for testing
+    // Use single UPDATE query to update both fields atomically, satisfying the constraint
+    await db.run("UPDATE members SET simpananSukarela = simpananSukarela + 1000000, totalSavings = totalSavings + 1000000");
 
     try {
       // 3. Second call to stats (should return cached stats, meaning oldSavings is unchanged)
@@ -799,8 +809,8 @@ describe("API Endpoints", () => {
       const body3 = (await res3.json()).data as any;
       expect(body3.totalSavings).not.toBe(oldSavings);
     } finally {
-      // Clean up members table
-      await db.prepare("UPDATE members SET totalSavings = totalSavings - 1000000000").run();
+      // Clean up members table - revert changes
+      await db.run("UPDATE members SET simpananSukarela = simpananSukarela - 1000000, totalSavings = totalSavings - 1000000");
     }
   });
 

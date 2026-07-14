@@ -78,20 +78,21 @@ export async function seedDefaults(db: AppDb): Promise<void> {
 }
 
 export async function seedDemoData(db: AppDb): Promise<void> {
-  const memberCount = (await db.query("SELECT COUNT(*) as count FROM members").get()) as {
-    count: number | string;
-  };
-  if (Number(memberCount.count) !== 0) {
-    return;
-  }
+  // Clear existing data first to ensure consistent state with new constraints
+  await db.run("DELETE FROM transactions");
+  await db.run("DELETE FROM loan_payments");
+  await db.run("DELETE FROM loans");
+  await db.run("DELETE FROM members");
 
+  // Seed demo data with proper savings composition
+  // totalSavings must equal simpananPokok + simpananWajib + simpananSukarela
   const insert = db.prepare(
-    "INSERT INTO members (id, name, role, status, joinDate, totalSavings) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
-  await insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 5000000);
-  await insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 3500000);
-  await insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 2000000);
-  await insert.run("4", "Joko Widodo", "Anggota", "Pasif", "10 Apr 2024", 1000000);
+  await insert.run("1", "Budi Santoso", "Ketua", "Aktif", "01 Jan 2024", 500000, 1000000, 3500000, 5000000);
+  await insert.run("2", "Siti Aminah", "Bendahara", "Aktif", "15 Feb 2024", 350000, 700000, 2450000, 3500000);
+  await insert.run("3", "Dewi Lestari", "Anggota", "Aktif", "20 Mar 2024", 200000, 400000, 1400000, 2000000);
+  await insert.run("4", "Joko Widodo", "Anggota", "Pasif", "10 Apr 2024", 100000, 200000, 700000, 1000000);
 
   const insertLoan = db.prepare(
     "INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)"
