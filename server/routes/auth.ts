@@ -60,11 +60,16 @@ auth.post('/login', async (c) => {
       }
     }
 
+    // Generate unique JWT ID (jti) for token blacklist by jti
+    const accessJti = crypto.randomUUID();
+    const refreshJti = crypto.randomUUID();
+
     const payload = {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60
+      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+      jti: accessJti // Unique ID for token blacklist by jti
     }
     const accessToken = await sign(payload, secretKey)
 
@@ -72,7 +77,8 @@ auth.post('/login', async (c) => {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      jti: refreshJti // Unique ID for refresh token tracking/revocation
     }
     const refreshToken = await sign(refreshPayload, secretKey)
 
@@ -140,12 +146,17 @@ auth.post('/google', async (c) => {
       );
     }
 
-    // Issue JWT tokens (same as regular login)
+    // Generate unique JWT IDs for token blacklist by jti
+    const accessJti = crypto.randomUUID();
+    const refreshJti = crypto.randomUUID();
+
+    // Issue JWT tokens (same as regular login) with jti claims
     const payload = {
       sub: admin.id,
       email: admin.email || googleUser.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60 // 15 minutes
+      exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+      jti: accessJti // Unique ID for token blacklist by jti
     };
     const accessToken = await sign(payload, secretKey);
 
@@ -153,7 +164,8 @@ auth.post('/google', async (c) => {
       sub: admin.id,
       email: admin.email || googleUser.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
+      jti: refreshJti // Unique ID for refresh token tracking/revocation
     };
     const refreshToken = await sign(refreshPayload, secretKey);
 
@@ -186,21 +198,77 @@ auth.post('/refresh', async (c) => {
     return c.json({ success: false, message: 'No refresh token' }, 401)
   }
   try {
-    const payload = await verify(refreshToken, secretKey, 'HS256')
-    const admin = await db.query("SELECT * FROM admins WHERE id = ?").get(payload.sub as string) as any
+    // Decode refresh token to extract jti for reuse detection
+    const decodedRefresh = decode(refreshToken);
+    const refreshJti = decodedRefresh.payload?.jti as string;
+    const adminId = decodedRefresh.payload?.sub as string;
+
+    if (!adminId) {
+      return c.json({ success: false, message: 'Invalid refresh token' }, 401);
+    }
+
+    // Check if this refresh token was already rotated/revoked (reuse detection)
+    const existing = await db.query(
+      "SELECT 1 FROM refresh_token_blacklist WHERE jti_token = ?",
+      [refreshJti]
+    ).get();
+
+    if (existing) {
+      // Token reuse detected — revoke all user tokens for security
+      console.warn(`Token reuse detected for admin ${adminId}, revoking all sessions`);
+      await db.run(
+        "DELETE FROM refresh_token_blacklist WHERE admin_id = ?",
+        [adminId]
+      );
+      return c.json({ success: false, message: 'Sesi tidak valid. Silakan login kembali.' }, 401);
+    }
+
+    const admin = await db.query("SELECT * FROM admins WHERE id = ?").get(adminId) as any
     if (!admin) {
       return c.json({ success: false, message: 'User no longer exists or has been deactivated' }, 401)
     }
 
-    const newPayload = { 
+    // Blacklist old refresh token immediately (rotation)
+    const oldRefreshExpires = decodedRefresh.payload?.exp ? (decodedRefresh.payload.exp as number) * 1000 : Date.now() + 60 * 60 * 24 * 7 * 1000;
+    await db.run(
+      "INSERT INTO refresh_token_blacklist (jti_token, admin_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (jti_token) DO UPDATE SET revoked_at = CURRENT_TIMESTAMP",
+      [refreshJti, adminId, oldRefreshExpires]
+    );
+
+    // Generate new access and refresh tokens with fresh jti claims
+    const newAccessJti = crypto.randomUUID();
+    const newRefreshJti = crypto.randomUUID();
+
+    const newPayload = {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60 
+      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+      jti: newAccessJti
     }
     const newAccessToken = await sign(newPayload, secretKey)
+
+    const newRefreshPayload = {
+      sub: admin.id,
+      email: admin.email,
+      role: admin.role,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      jti: newRefreshJti
+    }
+    const newRefreshToken = await sign(newRefreshPayload, secretKey)
+
+    // Set new refresh token in cookie
+    setCookie(c, 'refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/'
+    })
+
     return c.json({ success: true, data: { token: newAccessToken } })
   } catch (err) {
+    console.error('Refresh error:', err);
     return c.json({ success: false, message: 'Invalid or expired refresh token' }, 401)
   }
 })
@@ -210,14 +278,27 @@ auth.post('/logout', async (c) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
-      const { payload } = decode(token);
+      const decoded = decode(token);
+      // Extract jti from payload for blacklist by jti_token
+      const jti = decoded.payload?.jti as string;
       let exp = Date.now() + 60 * 60 * 1000;
-      if (payload && payload.exp) {
-        exp = (payload.exp as number) * 1000;
+      if (decoded.payload && decoded.payload.exp) {
+        exp = (decoded.payload.exp as number) * 1000;
       }
-      await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", [token, exp]);
+
+      // Blacklist by jti_token instead of full JWT string
+      // Skip insert if no jti available (e.g., token from old system without jti claim)
+      if (jti) {
+        await db.run(
+          "INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at",
+          [jti, exp]
+        );
+      } else {
+        console.warn('Token tanpa jti di logout — skip blacklist');
+      }
     } catch (e) {
-      await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", [token, Date.now() + 60 * 60 * 1000]);
+      // If decoding fails, log warning and skip blacklist
+      console.warn('Failed to decode token for logout:', e);
     }
   }
   deleteCookie(c, 'refreshToken', { path: '/' })

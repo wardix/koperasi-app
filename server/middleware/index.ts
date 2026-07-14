@@ -18,12 +18,29 @@ export const authMiddleware = async (c: Context, next: Next) => {
   ) {
     return next()
   }
+
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    const blacklisted = await db.query("SELECT 1 FROM token_blacklist WHERE token = ?").get(token);
-    if (blacklisted) {
-      return c.json({ success: false, message: 'Token is blacklisted' }, 401);
+
+    // Decode token to extract jti for blacklist check (without full verification)
+    try {
+      const decoded = decode(token);
+      const jti = decoded.payload?.jti as string | undefined;
+
+      if (jti) {
+        // Check blacklist by jti_token instead of full JWT string
+        const blacklisted = await db.query(
+          "SELECT 1 FROM token_blacklist WHERE jti_token = ?",
+          [jti]
+        ).get();
+        if (blacklisted) {
+          return c.json({ success: false, message: 'Token is blacklisted' }, 401);
+        }
+      }
+    } catch (e) {
+      // If decoding fails, JWT middleware will handle it later
+      console.warn('Failed to decode token for blacklist check:', e);
     }
   }
 
