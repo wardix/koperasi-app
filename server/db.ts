@@ -14,6 +14,7 @@ class Statement {
   queryStr: string;
   constructor(queryStr: string) { this.queryStr = queryStr; }
   getPgQuery() { let i = 1; return this.queryStr.replace(/\?/g, () => "$" + (i++)); }
+  // Postgres returns unquoted identifiers lowercased; map back to app camelCase.
   mapRow(row: Record<string, unknown> | null) {
     if (!row) return row;
     const keyMap: Record<string, string> = {
@@ -79,22 +80,13 @@ const db = {
   close: () => sql.end()
 };
 
-import fs from "node:fs";
-import path from "node:path";
-
-// Create or open the SQLite database file
-const dbPath = process.env.DATABASE_PATH || Bun.env.DATABASE_PATH || "koperasi.sqlite";
-
-// Ensure parent directory exists if dbPath is not just a file name
-const dir = path.dirname(dbPath);
-if (dir && dir !== "." && !fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true });
-}
-
-
-
-// Enable foreign keys
-
+// ---------------------------------------------------------------------------
+// Schema bootstrap (PostgreSQL only — connection via DATABASE_URL above)
+//
+// Column naming: CREATE TABLE / SQL strings use camelCase identifiers. Postgres
+// folds unquoted identifiers to lowercase; Statement.mapRow remaps common keys
+// back to camelCase for the app. Prefer the same convention for new columns.
+// ---------------------------------------------------------------------------
 
 // Initialize schema if not exists
 await db.run(`
