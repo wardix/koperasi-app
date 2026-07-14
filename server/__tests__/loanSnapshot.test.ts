@@ -57,14 +57,19 @@ describe('Loan Interest Snapshot', () => {
     // Get initial snapshot values
     const initialLoan = await db.query("SELECT interestRate, totalAmount FROM loans WHERE id = ?").get(approvedLoanId) as any;
 
-    // Update the global bungaPinjaman setting to a different value
-    await db.run(`UPDATE settings SET value = '24' WHERE key = 'bungaPinjaman'`);
+    try {
+      // Update the global bungaPinjaman setting to a different value
+      await db.run(`UPDATE settings SET value = '24' WHERE key = 'bungaPinjaman'`);
 
-    // Query loan again - should still have original snapshot values
-    const updatedLoan = await db.query("SELECT interestRate, totalAmount FROM loans WHERE id = ?").get(approvedLoanId) as any;
+      // Query loan again - should still have original snapshot values
+      const updatedLoan = await db.query("SELECT interestRate, totalAmount FROM loans WHERE id = ?").get(approvedLoanId) as any;
 
-    expect(Number(updatedLoan.interestRate)).toBe(Number(initialLoan.interestRate));
-    expect(Number(updatedLoan.totalAmount)).toBe(Number(initialLoan.totalAmount));
+      expect(Number(updatedLoan.interestRate)).toBe(Number(initialLoan.interestRate));
+      expect(Number(updatedLoan.totalAmount)).toBe(Number(initialLoan.totalAmount));
+    } finally {
+      // Restore setting to avoid test pollution
+      await db.run(`UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'`);
+    }
   })
 
   it('should calculate monthly payment correctly based on snapshot', async () => {
