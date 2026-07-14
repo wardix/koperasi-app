@@ -29,6 +29,15 @@ async function reset() {
   // Now import db.ts to recreate and seed the database
   // We need to set the DATABASE_URL so db.ts uses the e2e test database
   process.env.DATABASE_URL = databaseUrl;
+
+  // SECURITY: Ensure NODE_ENV is set to 'test' for e2e reset path.
+  // This allows auto-seeding of default admin (admin@koperasi.com / admin123)
+  // which the E2E fixtures expect for login tests.
+  if (!process.env.NODE_ENV || process.env.NODE_ENV === "production") {
+    console.log("[SECURITY] NODE_ENV not set or is 'production' in e2e reset - setting to 'test'");
+    process.env.NODE_ENV = "test";
+  }
+
   console.log("Reinitializing database schema and seed data...");
   const db = (await import("../server/db")).default;
   await db.close();
