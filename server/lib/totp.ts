@@ -1,4 +1,4 @@
-import { verifySync, generateSync, generateURI, generateSecret } from "otplib";
+import { verifySync, generateSync, generateURI, generateSecret as otplibGenerateSecret } from "otplib";
 import crypto from "node:crypto";
 
 /** Default TOTP issuer name displayed in authenticator apps. */
@@ -20,7 +20,7 @@ const OPTIONS = {
  * otplib uses base32 encoding by default.
  */
 export function generateSecret(): string {
-  return generateSecret();
+  return otplibGenerateSecret();
 }
 
 /**
@@ -29,8 +29,8 @@ export function generateSecret(): string {
  */
 export function verifyToken(secret: string, token: string): boolean {
   try {
-    const result = verifySync(token, secret, OPTIONS);
-    return result === "ok";
+    const result = verifySync({ token, secret, ...OPTIONS });
+    return result.valid === true;
   } catch {
     return false;
   }
@@ -67,5 +67,5 @@ export function totpUrl(secret: string, email: string): string {
  * This is useful in tests where you need to simulate an authenticator app.
  */
 export function generateValidToken(secret: string): string {
-  return generateSync(secret);
+  return generateSync({ secret });
 }
