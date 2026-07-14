@@ -38,7 +38,16 @@ const db = {
   query: (q) => new Statement(q),
   prepare: (q) => new Statement(q),
   run: async (q, args = []) => { await new Statement(q).run(...args); },
-  transaction: (cb) => async (...args) => await cb(...args),
+  transaction: async (cb) => {
+    await db.run('BEGIN');
+    try {
+      await cb();
+      await db.run('COMMIT');
+    } catch (err) {
+      await db.run('ROLLBACK');
+      throw err;
+    }
+  },
   close: () => sql.end()
 };
 
