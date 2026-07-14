@@ -65,7 +65,8 @@ const COMMON_PASSWORDS = [
 ];
 
 // Password complexity regex: min 12 chars, at least one uppercase, one lowercase, one digit
-const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{12,}$/;
+// Uses \S (non-whitespace) to allow all common special characters (!@#$%^&*()_+-=[]{}|;':",./<>?)
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)\S{12,}$/;
 
 export const loginSchema = z.object({
   email: z.string().email("Invalid email format"),

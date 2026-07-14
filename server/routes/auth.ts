@@ -287,16 +287,18 @@ auth.post('/logout', async (c) => {
       }
 
       // Blacklist by jti_token instead of full JWT string
-      await db.run(
-        "INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at",
-        [jti || token, exp] // Fallback to full token if jti missing
-      );
+      // Skip insert if no jti available (e.g., token from old system without jti claim)
+      if (jti) {
+        await db.run(
+          "INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at",
+          [jti, exp]
+        );
+      } else {
+        console.warn('Token tanpa jti di logout — skip blacklist');
+      }
     } catch (e) {
-      // If decoding fails, blacklist by full token as fallback
-      await db.run(
-        "INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at",
-        [token, Date.now() + 60 * 60 * 1000]
-      );
+      // If decoding fails, log warning and skip blacklist
+      console.warn('Failed to decode token for logout:', e);
     }
   }
   deleteCookie(c, 'refreshToken', { path: '/' })
