@@ -1007,9 +1007,12 @@ describe("API Endpoints", () => {
 
   afterAll(async () => {
     try {
-      // Clean up postgres test database tables
+      // Clean up postgres test database tables.
+      // Do not db.close() here: the SQL pool is a module singleton shared with
+      // other test files in the same bun test process.
       await db.run("TRUNCATE TABLE schema_migrations, admins, members, loans, loan_payments, transactions, settings, token_blacklist, rate_limits CASCADE;");
-      db.close();
-    } catch (e) { }
+    } catch {
+      // ignore cleanup errors
+    }
   });
 });
