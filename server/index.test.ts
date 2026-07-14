@@ -723,8 +723,8 @@ describe("API Endpoints", () => {
 
   test("database migrations are successfully applied", async () => {
     const applied = (await db.query("SELECT name FROM schema_migrations").all() as any[]).map(m => m.name);
-    expect(applied).toContain("0001_add_memberId_to_loans");
-    expect(applied).toContain("0002_add_simpanan_columns_to_members");
+    // Formal runner: baseline folds historical ALTERs; data migrations kept by name
+    expect(applied).toContain("001_baseline");
     expect(applied).toContain("0003_convert_currency_to_int");
     expect(applied).toContain("0004_hash_admin_passwords");
   });
