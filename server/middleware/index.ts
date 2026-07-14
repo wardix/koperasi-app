@@ -74,33 +74,83 @@ export const requireAdmin = async (c: Context, next: Next) => {
   return next()
 }
 
-export async function rateLimitLogin(ip: string): Promise<boolean> {
-  const rateLimitEnabled = (process.env.RATE_LIMIT_ENABLED ?? Bun.env.RATE_LIMIT_ENABLED ?? 'true') !== 'false';
-  if (!rateLimitEnabled || process.env.BYPASS_RATE_LIMIT === 'true' || Bun.env.BYPASS_RATE_LIMIT === 'true') {
+/**
+ * Atomic rate limit check using PostgreSQL's ON CONFLICT ... DO UPDATE RETURNING.
+ * This is race-safe because the entire operation (check + increment) happens in a single SQL statement.
+ *
+ * @param key - Unique identifier for the rate limit bucket (e.g., 'ip:192.168.1.1', 'account:user123')
+ * @param limit - Maximum number of requests allowed within the window
+ * @param windowMs - Window duration in milliseconds
+ * @returns true if request is allowed, false if rate limited (429)
+ */
+export async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<boolean> {
+  const enabled = (process.env.RATE_LIMIT_ENABLED ?? Bun.env.RATE_LIMIT_ENABLED ?? 'true') !== 'false';
+  if (!enabled || process.env.BYPASS_RATE_LIMIT === 'true' || Bun.env.BYPASS_RATE_LIMIT === 'true') {
     return true;
   }
+
   const now = Date.now();
-  const limit = 5;
-  const windowMs = 15 * 60 * 1000; // 15 minutes
 
-  let attempt = await db.query("SELECT * FROM rate_limits WHERE ip = ?").get(ip) as any;
-  
-  if (!attempt) {
-    await db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES (?, 1, ?)", [ip, now + windowMs]);
-    return true;
-  }
+  // Atomic upsert: increment count atomically, reset window if expired
+  // ON CONFLICT uses the primary key (ip column) to determine if it's an insert or update
+  const result = await db.query(
+    `INSERT INTO rate_limits (ip, count, reset_at)
+     VALUES (?, 1, ?)
+     ON CONFLICT (ip) DO UPDATE SET
+       count = CASE
+         WHEN rate_limits.reset_at < ? THEN 1
+         ELSE rate_limits.count + 1
+       END,
+       reset_at = CASE
+         WHEN rate_limits.reset_at < ? THEN ?
+         ELSE rate_limits.reset_at
+       END
+     RETURNING count`
+  ).get(key, now + windowMs, now, now, now + windowMs) as any;
 
-  if (now > attempt.reset_at) {
-    await db.run("INSERT INTO rate_limits (ip, count, reset_at) VALUES ($2, 1, $1) ON CONFLICT (ip) DO UPDATE SET count = 1, reset_at = EXCLUDED.reset_at", [now + windowMs, ip]);
-    return true;
-  }
+  const currentCount = result?.count ?? 1;
 
-  const newCount = attempt.count + 1;
-  await db.run("UPDATE rate_limits SET count = ? WHERE ip = ?", [newCount, ip]);
-  
-  if (newCount > limit) {
-    return false;
-  }
-
-  return true;
+  // Return false (rate limited) if limit exceeded
+  return currentCount <= limit;
 }
+
+/**
+ * @deprecated Use checkRateLimit(key, limit, windowMs) instead for atomic race-safe rate limiting.
+ * Kept for backward compatibility with existing code.
+ */
+export async function rateLimitLogin(ip: string): Promise<boolean> {
+  return checkRateLimit(`ip:${ip}`, 5, 15 * 60 * 1000);
+}
+
+/**
+ * Global API rate limiter (optional, disabled by default).
+ * Use when NOT behind nginx reverse proxy with its own rate limiting.
+ *
+ * When RATE_LIMIT_ENABLED=true AND this middleware is applied:
+ * - All /api/v1/* requests are rate limited to 60 req/min per IP
+ * - Prevents API abuse when deployed without reverse proxy
+ *
+ * Set GLOBAL_API_RATE_LIMIT=false or remove this middleware from server/index.ts
+ * if using nginx or other reverse proxy for rate limiting.
+ */
+export const apiRateLimit = async (c: Context, next: Next) => {
+  // Check if global API rate limit is enabled
+  const globalApiLimitEnabled = process.env.GLOBAL_API_RATE_LIMIT === 'true' || Bun.env.GLOBAL_API_RATE_LIMIT === 'true';
+
+  if (!globalApiLimitEnabled) {
+    return next(); // Skip rate limiting when behind nginx or disabled
+  }
+
+  const ip = getConnInfo(c).remote?.address || 'unknown-ip';
+  const allowed = await checkRateLimit(`api:${ip}`, 60, 60 * 1000); // 60 req/min per IP
+
+  if (!allowed) {
+    return c.json({ success: false, message: 'Too many requests. Please try again later.' }, 429);
+  }
+
+  return next();
+};

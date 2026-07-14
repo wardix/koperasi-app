@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import db from './db'
-import { authMiddleware } from './middleware'
+import { authMiddleware, apiRateLimit } from './middleware'
 
 import authRoutes from './routes/auth'
 import membersRoutes from './routes/members'
@@ -103,6 +103,10 @@ export const _test = {
 };
 
 app.use('/api/v1/*', authMiddleware)
+
+// Optional global API rate limiting (disabled by default, enable via GLOBAL_API_RATE_LIMIT=true)
+// When behind nginx reverse proxy with rate limiting, this can be disabled
+app.use('/api/v1/*', apiRateLimit)
 
 app.route('/api/v1', authRoutes)
 app.route('/api/v1/auth', authRoutes)
