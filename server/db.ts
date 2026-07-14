@@ -34,7 +34,12 @@ class Statement {
       createdat: 'createdAt',
       memberid: 'memberId',
       loanid: 'loanId',
-      paidamount: 'paidAmount'
+      paidamount: 'paidAmount',
+      interestrate: 'interestRate',
+      monthlypayment: 'monthlyPayment',
+      interestamount: 'interestAmount',
+      totalamount: 'totalAmount',
+      approvedat: 'approvedAt'
     };
     const mapped: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
