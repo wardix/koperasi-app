@@ -20,6 +20,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {useApiAction} from '../hooks/useApiAction';
 import {formatRp} from '../utils/format';
+import {exportToExcel, exportToPDF} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {Text, Heading} from '@astryxdesign/core/Text';
@@ -40,6 +41,7 @@ import {
   PlusIcon,
   EyeIcon,
   TrashIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddLoanDialogContent} from '../components/AddLoanDialog';
@@ -253,6 +255,51 @@ export default function LoansTemplate() {
               icon={<Icon icon={FunnelIcon} size="sm" />}
               variant="ghost"
             />
+            {hasPermission('export:reports') && (
+              <>
+                <IconButton
+                  label="Unduh"
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                  variant="ghost"
+                  onClick={() => {
+                    if (localLoans.length === 0) {
+                      toast.show({ type: 'error', message: 'Data kosong' });
+                      return;
+                    }
+                    const columns = [
+                      { header: 'Nama Peminjam', key: 'name' },
+                      { header: 'Keperluan', key: 'purpose' },
+                      { header: 'Status', key: 'status' },
+                      { header: 'Tenor (Bulan)', key: 'tenor' },
+                      { header: 'Jumlah Pinjaman', key: 'amount', render: (item: any) => formatRp(item.amount) },
+                      { header: 'Total Tagihan', key: 'totalAmount', render: (item: any) => formatRp(item.totalAmount || item.amount) },
+                      { header: 'Telah Dibayar', key: 'paidAmount', render: (item: any) => formatRp(item.paidAmount || 0) },
+                      { header: 'Sisa Pinjaman', key: 'remainingAmount', render: (item: any) => formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0))) }
+                    ];
+                    exportToExcel(localLoans, columns, `Data_Pinjaman_${new Date().toISOString().slice(0,10)}`);
+                  }}
+                />
+                <IconButton
+                  label="Cetak PDF"
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                  variant="ghost"
+                  onClick={() => {
+                    if (localLoans.length === 0) {
+                      toast.show({ type: 'error', message: 'Data kosong' });
+                      return;
+                    }
+                    const columns = [
+                      { header: 'Nama Peminjam', key: 'name' },
+                      { header: 'Status', key: 'status' },
+                      { header: 'Tenor', key: 'tenor', render: (item: any) => `${item.tenor} Bln` },
+                      { header: 'Pinjaman', key: 'amount', render: (item: any) => formatRp(item.amount) },
+                      { header: 'Sisa', key: 'remainingAmount', render: (item: any) => formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0))) }
+                    ];
+                    exportToPDF(localLoans, columns, `Laporan_Pinjaman_${new Date().toISOString().slice(0,10)}`, 'DAFTAR PINJAMAN KOPERASI');
+                  }}
+                />
+              </>
+            )}
             {hasPermission('create:loans') && (
               <Button
                 label="Tambah Pengajuan"

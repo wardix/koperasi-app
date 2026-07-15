@@ -7,8 +7,10 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Center } from '@astryxdesign/core/Center';
 import { useApiQuery } from '../hooks/useApiQuery';
+import { useAuth } from '../hooks/useAuth';
 import { DataStateView } from '../components/DataStateView';
 import { formatRp } from '../utils/format';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface SHUData {
@@ -36,6 +38,7 @@ const COLORS = ['#0171E3', '#EB6E00', '#0B991F', '#6B1EFD', '#E30171'];
 export default function SHU() {
   const currentYear = new Date().getFullYear().toString();
   const [year, setYear] = useState(currentYear);
+  const { hasPermission } = useAuth();
   
   const { data, isLoading, error, refetch } = useApiQuery<SHUData>(`/api/shu?year=${year}`);
 
@@ -167,7 +170,28 @@ export default function SHU() {
               <VStack gap={4}>
                 <HStack justify="space-between" vAlign="center">
                   <Heading level={4}>Alokasi per Anggota</Heading>
-                  <Button label="Ekspor PDF" variant="secondary" />
+                  {hasPermission('export:reports') && (
+                    <HStack gap={2}>
+                      <Button label="Ekspor Excel" variant="ghost" onClick={() => {
+                        if (!data || data.alokasiAnggota.length === 0) return;
+                        const columns = [
+                          { header: 'Nama Anggota', key: 'name' },
+                          { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) },
+                          { header: 'Alokasi SHU', key: 'shu', render: (item: any) => formatRp(item.shu) }
+                        ];
+                        exportToExcel(data.alokasiAnggota, columns, `Alokasi_SHU_${year}`);
+                      }} />
+                      <Button label="Ekspor PDF" variant="secondary" onClick={() => {
+                        if (!data || data.alokasiAnggota.length === 0) return;
+                        const columns = [
+                          { header: 'Nama Anggota', key: 'name' },
+                          { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) },
+                          { header: 'Alokasi SHU', key: 'shu', render: (item: any) => formatRp(item.shu) }
+                        ];
+                        exportToPDF(data.alokasiAnggota, columns, `Laporan_SHU_${year}`, `ALOKASI SISA HASIL USAHA (SHU) TAHUN ${year}`);
+                      }} />
+                    </HStack>
+                  )}
                 </HStack>
                 <div style={{ border: '1px solid var(--color-border, #e5e7eb)', borderRadius: 8, overflow: 'hidden' }}>
                   <Table
