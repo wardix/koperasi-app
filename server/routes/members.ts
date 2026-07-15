@@ -15,10 +15,13 @@ const members = new Hono()
 members.get('/', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
-  
-  const rows = await db.query("SELECT * FROM members ORDER BY id DESC LIMIT ? OFFSET ?").all<MemberRow>(limit, offset)
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM members").get<{ count: number }>()
-  
+  const includeArchived = c.req.query('includeArchived') === 'true'
+
+  const whereClause = includeArchived ? '' : 'WHERE deletedAt IS NULL'
+
+  const rows = await db.query(`SELECT * FROM members ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`).all<MemberRow>(limit, offset)
+  const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number }>()
+
   return c.json({
     success: true,
     data: {

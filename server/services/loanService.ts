@@ -301,11 +301,24 @@ export async function recordLoanPayment(
 }
 
 export async function deleteLoan(database: Db, loanId: string): Promise<void> {
-  const loan = await database.query("SELECT id FROM loans WHERE id = ?").get(loanId);
+  const loan = await database
+    .query("SELECT id, status FROM loans WHERE id = ? AND deletedAt IS NULL")
+    .get<{ id: string; status: string }>(loanId);
+
   if (!loan) {
     throw new ServiceError("Loan not found", 404);
   }
 
-  const stmt = database.prepare("DELETE FROM loans WHERE id = ?");
-  await stmt.run(loanId);
+  // Protect ledger integrity: active/approved loans cannot be archived
+  if (loan.status === "Disetujui") {
+    throw new ServiceError(
+      "Pinjaman yang sudah disetujui tidak dapat dihapus. Ubah status pinjaman terlebih dahulu.",
+      422
+    );
+  }
+
+  // Soft-delete: stamp deletedAt, keep all FK-referenced payment rows intact
+  await database
+    .query("UPDATE loans SET deletedAt = ? WHERE id = ?")
+    .run(new Date().toISOString(), loanId);
 }

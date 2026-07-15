@@ -119,17 +119,26 @@ export async function updateMember(
 
 export async function deleteMember(database: Db, id: string): Promise<Pick<MemberRow, "name" | "role"> | null> {
   const before = await database
-    .query("SELECT name, role FROM members WHERE id = ?")
+    .query("SELECT name, role FROM members WHERE id = ? AND deletedAt IS NULL")
     .get<Pick<MemberRow, "name" | "role">>(id);
 
-  try {
-    await database.query("DELETE FROM members WHERE id = ?").run(id);
-  } catch (err: unknown) {
-    if (isForeignKeyError(err)) {
-      throw new ServiceError("Anggota memiliki pinjaman, hapus pinjaman terlebih dahulu.");
-    }
-    throw new ServiceError("Gagal menghapus anggota", 500);
+  if (!before) {
+    throw new ServiceError("Member not found", 404);
   }
+
+  // Block deletion if the member still has active loans
+  const activeLoans = await database
+    .query("SELECT COUNT(*) as count FROM loans WHERE memberId = ? AND status IN ('Menunggu', 'Disetujui') AND deletedAt IS NULL")
+    .get<{ count: number }>(id);
+
+  if ((activeLoans?.count ?? 0) > 0) {
+    throw new ServiceError("Anggota masih memiliki pinjaman aktif, selesaikan pinjaman terlebih dahulu.");
+  }
+
+  // Soft-delete: stamp deletedAt instead of issuing DELETE
+  await database
+    .query("UPDATE members SET deletedAt = ? WHERE id = ?")
+    .run(new Date().toISOString(), id);
 
   return before;
 }
