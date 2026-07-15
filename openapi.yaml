@@ -1,23 +1,237 @@
 openapi: 3.0.3
 info:
   title: Koperasi API
-  description: API untuk sistem Koperasi Maju Bersama
+  description: |
+    API untuk sistem Koperasi Maju Bersama.
+
+    **Konvensi response:** kebanyakan endpoint mengembalikan envelope `{ success, data?, message? }`.
+    Error domain mengembalikan `{ success: false, message }` (kadang `errors` untuk validasi Zod).
+
+    Spesifikasi ini dipelihara manual dan diverifikasi CI terhadap `server/openapi/routeManifest.ts`.
   version: 1.0.0
 servers:
   - url: http://localhost:3000/api/v1
     description: Development server
+tags:
+  - name: auth
+    description: Autentikasi dan sesi
+  - name: members
+    description: Manajemen anggota dan simpanan per anggota
+  - name: loans
+    description: Pinjaman dan pembayaran cicilan
+  - name: savings
+    description: Ledger simpanan (global)
+  - name: shu
+    description: Sisa Hasil Usaha
+  - name: npl
+    description: Non-performing loans
+  - name: cashflow
+    description: Arus kas
+  - name: reports
+    description: Laporan ringkasan
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    ApiSuccessEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+    ApiDataEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              description: Payload utama endpoint
+    ApiMessageEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            message:
+              type: string
+            id:
+              type: string
+              description: ID entitas yang baru dibuat (jika ada)
+    ApiErrorEnvelope:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        errors:
+          type: object
+          description: Detail validasi Zod (opsional)
+    PaginatedList:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+    MemberInput:
+      type: object
+      required: [name, role, status, joinDate]
+      properties:
+        name: { type: string }
+        role:
+          type: string
+          enum: [Anggota, Ketua, Bendahara, Sekretaris]
+        status:
+          type: string
+          enum: [Aktif, Pasif]
+        joinDate: { type: string }
+        simpananPokok: { type: number, minimum: 0, default: 0 }
+        simpananWajib: { type: number, minimum: 0, default: 0 }
+        simpananSukarela: { type: number, minimum: 0, default: 0 }
+    SavingsMutationInput:
+      type: object
+      required: [additionalSavings]
+      properties:
+        additionalSavings:
+          type: number
+          description: Positif = setor, negatif = tarik
+        savingsType:
+          type: string
+          enum: [pokok, wajib, sukarela]
+          default: sukarela
+    LoanInput:
+      type: object
+      required: [memberId, name, amount, tenor, purpose]
+      properties:
+        memberId: { type: string }
+        name: { type: string }
+        amount: { type: number, exclusiveMinimum: 0 }
+        tenor: { type: number, exclusiveMinimum: 0 }
+        purpose: { type: string }
+        status:
+          type: string
+          enum: [Menunggu, Disetujui, Ditolak, Lunas]
+          default: Menunggu
+    LoanStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [Menunggu, Disetujui, Ditolak, Lunas]
+    PaymentInput:
+      type: object
+      required: [amount, method]
+      properties:
+        amount: { type: number, exclusiveMinimum: 0 }
+        method: { type: string }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        token:
+          type: string
+          description: Kode TOTP (jika 2FA aktif)
+  responses:
+    BadRequest:
+      description: Validasi gagal
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    Unauthorized:
+      description: Tidak terautentikasi
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    Forbidden:
+      description: Tidak memiliki izin
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    NotFound:
+      description: Resource tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    DataResponse:
+      description: Response sukses dengan data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiDataEnvelope'
+    MessageResponse:
+      description: Response sukses dengan pesan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiMessageEnvelope'
 security:
   - bearerAuth: []
 paths:
-  /auth/login:
+  /login:
     post:
-      summary: Login pengguna
+      tags: [auth]
+      summary: Login email/password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Login berhasil atau memerlukan TOTP
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - allOf:
+                      - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                      - type: object
+                        properties:
+                          token: { type: string }
+                          role: { type: string }
+                          user: { type: object }
+                  - allOf:
+                      - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                      - type: object
+                        properties:
+                          requiresTotp: { type: boolean }
+                          data:
+                            type: object
+                            properties:
+                              userId: { type: string }
+                              email: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Rate limit login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+  /google:
+    post:
+      tags: [auth]
+      summary: Login Google SSO
       security: []
       requestBody:
         required: true
@@ -25,240 +239,469 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [credential]
               properties:
-                email:
-                  type: string
-                password:
-                  type: string
+                credential: { type: string }
       responses:
         '200':
-          description: Berhasil login
+          description: Login berhasil
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  token: { type: string }
-                  role: { type: string }
-                  user: { type: object }
-  /auth/refresh:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      token: { type: string }
+                      role: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /refresh:
     post:
-      summary: Refresh token
+      tags: [auth]
+      summary: Refresh access token (cookie refresh token)
       security: []
       responses:
         '200':
-          description: Token baru berhasil di-generate
-  /auth/verify:
-    get:
-      summary: Verifikasi token saat ini
+          description: Token baru
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      token: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /logout:
+    post:
+      tags: [auth]
+      summary: Logout dan blacklist token
+      security: []
       responses:
         '200':
-          description: Token valid
+          $ref: '#/components/responses/MessageResponse'
+  /auth/verify:
+    get:
+      tags: [auth]
+      summary: Verifikasi JWT saat ini
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /members:
     get:
-      summary: Ambil daftar anggota (dengan paginasi)
+      tags: [members]
+      summary: Daftar anggota (paginated)
       parameters:
         - in: query
           name: page
-          schema:
-            type: integer
-            default: 1
+          schema: { type: integer, default: 1 }
         - in: query
           name: limit
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
       responses:
         '200':
           description: List anggota
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedList'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
+      tags: [members]
       summary: Tambah anggota baru
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/MemberInput'
       responses:
         '201':
-          description: Anggota berhasil dibuat
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /members/{id}:
     put:
+      tags: [members]
       summary: Update data anggota
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/MemberInput'
       responses:
         '200':
-          description: Berhasil di-update
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
+      tags: [members]
       summary: Hapus anggota
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
-          description: Berhasil dihapus
+          description: Anggota berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /members/{id}/savings:
     put:
+      tags: [members]
       summary: Mutasi simpanan anggota
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                additionalSavings: { type: number }
-                savingsType: { type: string }
+              $ref: '#/components/schemas/SavingsMutationInput'
       responses:
         '200':
           description: Mutasi berhasil
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          newTotal: { type: number }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /members/{id}/transactions:
     get:
-      summary: Riwayat mutasi simpanan
+      tags: [members]
+      summary: Riwayat mutasi simpanan anggota
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
-          description: Daftar riwayat
+          $ref: '#/components/responses/DataResponse'
   /loans:
     get:
-      summary: Ambil daftar pinjaman
+      tags: [loans]
+      summary: Daftar pinjaman (paginated)
       parameters:
         - in: query
           name: page
-          schema:
-            type: integer
-            default: 1
+          schema: { type: integer, default: 1 }
         - in: query
           name: limit
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
       responses:
         '200':
           description: List pinjaman
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedList'
     post:
+      tags: [loans]
       summary: Ajukan pinjaman baru
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/LoanInput'
       responses:
         '201':
-          description: Pinjaman diajukan
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /loans/{id}/status:
     put:
-      summary: Update status pinjaman
+      tags: [loans]
+      summary: Update status pinjaman (approve/reject)
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum: [Menunggu, Disetujui, Ditolak, Lunas]
+              $ref: '#/components/schemas/LoanStatusInput'
       responses:
         '200':
-          description: Status diupdate
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /loans/{id}:
+    delete:
+      tags: [loans]
+      summary: Hapus pinjaman
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /loans/payments:
+    get:
+      tags: [loans]
+      summary: Daftar pencairan dan angsuran (paginated)
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Ledger pembayaran pinjaman
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedList'
   /loans/{id}/payments:
     get:
-      summary: Riwayat pembayaran pinjaman
+      tags: [loans]
+      summary: Riwayat pembayaran satu pinjaman
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
-          description: List pembayaran
+          $ref: '#/components/responses/DataResponse'
     post:
-      summary: Bayar cicilan pinjaman
+      tags: [loans]
+      summary: Catat pembayaran cicilan
       parameters:
         - in: path
           name: id
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                amount: { type: number }
-                method: { type: string }
+              $ref: '#/components/schemas/PaymentInput'
+      responses:
+        '201':
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /savings/transactions:
+    get:
+      tags: [savings]
+      summary: Ledger mutasi simpanan (semua anggota, paginated)
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
       responses:
         '200':
-          description: Pembayaran berhasil dicatat
+          description: Transaksi simpanan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedList'
   /shu:
     get:
-      summary: Dapatkan data SHU untuk tahun tertentu
+      tags: [shu]
+      summary: Data SHU untuk tahun tertentu
       parameters:
         - in: query
           name: year
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
-          description: Data SHU
-  /stats:
+          $ref: '#/components/responses/DataResponse'
+  /shu/config:
     get:
-      summary: Dapatkan statistik dasbor (total simpanan, pinjaman, NPL, dll.)
+      tags: [shu]
+      summary: Konfigurasi distribusi SHU
       responses:
         '200':
-          description: Data Dasbor
-  /settings:
-    get:
-      summary: Dapatkan pengaturan sistem
-      responses:
-        '200':
-          description: Pengaturan sistem
-    put:
-      summary: Update pengaturan sistem
+          $ref: '#/components/responses/DataResponse'
+  /shu/close:
+    post:
+      tags: [shu]
+      summary: Tutup tahun buku SHU
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [year]
+              properties:
+                year: { type: string }
+                biayaOperasional: { type: number }
       responses:
         '200':
-          description: Berhasil di-update
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Tahun sudah ditutup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+  /shu/reopen:
+    post:
+      tags: [shu]
+      summary: Buka kembali tahun buku SHU (superadmin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [year]
+              properties:
+                year: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /npl:
+    get:
+      tags: [npl]
+      summary: Daftar pinjaman bermasalah (NPL) dengan ringkasan
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: NPL list + summary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          data: { type: array, items: {} }
+                          summary: { type: object }
+                          total: { type: integer }
+                          page: { type: integer }
+                          limit: { type: integer }
+  /cashflow:
+    get:
+      tags: [cashflow]
+      summary: Arus kas (ledger + ringkasan)
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Cashflow ledger + summary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiDataEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          data: { type: array, items: {} }
+                          summary: { type: object }
+                          total: { type: integer }
+                          page: { type: integer }
+                          limit: { type: integer }
+  /reports/summary:
+    get:
+      tags: [reports]
+      summary: Ringkasan laporan anggota dan pinjaman
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+  /reports/monthly-interest:
+    get:
+      tags: [reports]
+      summary: Pendapatan bunga bulanan
+      parameters:
+        - in: query
+          name: year
+          schema: { type: integer }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
