@@ -2,6 +2,9 @@ export type Permission =
   | 'read:stats'
   | 'read:members' | 'create:members' | 'update:members' | 'delete:members' | 'update:savings'
   | 'read:loans' | 'create:loans' | 'approve:loans' | 'delete:loans' | 'create:payments'
+  | 'read:cashflow'
+  | 'read:npl'
+  | 'read:reports' | 'export:reports'
   | 'read:shu'
   | 'read:settings' | 'update:settings'
   | 'manage:users';
@@ -12,23 +15,29 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'read:members',
     'read:loans',
     'read:shu',
-    'read:settings'
+    'read:settings',
   ],
   admin: [
     'read:stats',
     'read:members', 'create:members', 'update:members', 'update:savings',
     'read:loans', 'create:loans', 'approve:loans', 'create:payments',
+    'read:cashflow',
+    'read:npl',
+    'read:reports', 'export:reports',
     'read:shu',
-    'read:settings'
+    'read:settings',
   ],
   superadmin: [
     'read:stats',
     'read:members', 'create:members', 'update:members', 'delete:members', 'update:savings',
     'read:loans', 'create:loans', 'approve:loans', 'delete:loans', 'create:payments',
+    'read:cashflow',
+    'read:npl',
+    'read:reports', 'export:reports',
     'read:shu',
     'read:settings', 'update:settings',
-    'manage:users'
-  ]
+    'manage:users',
+  ],
 };
 
 export function hasPermission(role: string, permission: Permission): boolean {

@@ -7,7 +7,7 @@ import { calculateLoanInterest } from '../services/loanService'
 
 const npl = new Hono()
 
-npl.get('/', requirePermission('read:loans'), async (c) => {
+npl.get('/', requirePermission('read:npl'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 

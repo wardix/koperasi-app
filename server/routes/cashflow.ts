@@ -6,7 +6,7 @@ import { parsePagination } from '../services/pagination'
 
 const cashflow = new Hono()
 
-cashflow.get('/', requirePermission('read:stats'), async (c) => {
+cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 

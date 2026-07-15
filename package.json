@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint src server shared",
     "preview": "vite preview",
-    "test": "JWT_SECRET=test-secret-key-123 bun test server src scripts",
+    "test": "JWT_SECRET=test-secret-key-123 bun test server src shared scripts",
     "openapi:check": "bun run scripts/openapi-check.ts",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
     "db:migrate": "bun -e \"import('./server/db.ts').then(() => process.exit(0))\"",
