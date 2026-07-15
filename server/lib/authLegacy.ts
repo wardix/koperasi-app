@@ -38,12 +38,6 @@ export function registerLegacyAuthAliases(app: Hono): void {
       case "POST":
         app.post(alias.legacy, handler);
         break;
-      case "PUT":
-        app.put(alias.legacy, handler);
-        break;
-      case "DELETE":
-        app.delete(alias.legacy, handler);
-        break;
     }
   }
 }
