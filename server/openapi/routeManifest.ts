@@ -12,11 +12,11 @@ export type RouteEntry = {
 };
 
 export const OPENAPI_ROUTE_MANIFEST: RouteEntry[] = [
-  // Auth
-  { method: "POST", path: "/login", tag: "auth" },
-  { method: "POST", path: "/google", tag: "auth" },
-  { method: "POST", path: "/refresh", tag: "auth" },
-  { method: "POST", path: "/logout", tag: "auth" },
+  // Auth (canonical prefix /api/v1/auth)
+  { method: "POST", path: "/auth/login", tag: "auth" },
+  { method: "POST", path: "/auth/google", tag: "auth" },
+  { method: "POST", path: "/auth/refresh", tag: "auth" },
+  { method: "POST", path: "/auth/logout", tag: "auth" },
   { method: "GET", path: "/auth/verify", tag: "auth" },
 
   // Members

@@ -12,7 +12,7 @@ async function run() {
   const admins = await db.query("SELECT * FROM admins").all();
   console.log(admins);
 
-  const req = new Request("http://localhost/api/v1/login", {
+  const req = new Request("http://localhost/api/v1/auth/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"

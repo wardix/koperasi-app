@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api.post<{ token: string; role: string }>('/api/login', { email, password })
+    const data = await api.post<{ token: string; role: string }>('/api/auth/login', { email, password })
     localStorage.setItem('token', data.token)
     localStorage.setItem('role', data.role)
     setRole(data.role)
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/api/logout')
+      await api.post('/api/auth/logout')
     } catch {
       // ignore
     }

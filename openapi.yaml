@@ -185,7 +185,7 @@ components:
 security:
   - bearerAuth: []
 paths:
-  /login:
+  /auth/login:
     post:
       tags: [auth]
       summary: Login email/password
@@ -228,7 +228,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorEnvelope'
-  /google:
+  /auth/google:
     post:
       tags: [auth]
       summary: Login Google SSO
@@ -256,7 +256,7 @@ paths:
                       role: { type: string }
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /refresh:
+  /auth/refresh:
     post:
       tags: [auth]
       summary: Refresh access token (cookie refresh token)
@@ -274,7 +274,7 @@ paths:
                       token: { type: string }
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /logout:
+  /auth/logout:
     post:
       tags: [auth]
       summary: Logout dan blacklist token

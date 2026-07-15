@@ -17,6 +17,7 @@ import nplRoutes from './routes/npl'
 import reportsRoutes from './routes/reports'
 import auditRoutes from './routes/audit'
 import docsRoutes from './routes/docs'
+import { registerLegacyAuthAliases } from './lib/authLegacy'
 
 import { HTTPException } from 'hono/http-exception'
 
@@ -109,8 +110,8 @@ app.use('/api/v1/*', authMiddleware)
 // When behind nginx reverse proxy with rate limiting, this can be disabled
 app.use('/api/v1/*', apiRateLimit)
 
-app.route('/api/v1', authRoutes)
 app.route('/api/v1/auth', authRoutes)
+registerLegacyAuthAliases(app)
 app.route('/api/v1/members', membersRoutes)
 app.route('/api/v1/loans', loansRoutes)
 app.route('/api/v1/settings', settingsRoutes)

@@ -28,7 +28,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
     // Login to get tokens (unique IP avoids cross-test rate limit pollution)
     await db.run("DELETE FROM rate_limits");
     const loginRes = await server.fetch(
-      new Request("http://localhost/api/v1/login", {
+      new Request("http://localhost/api/v1/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +78,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
     test("each access token has unique jti", async () => {
       // Login again to get a new token
       const loginRes = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -107,7 +107,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
     test("logout blacklists token by jti, not full JWT string", async () => {
       // Logout the admin
       const logoutRes = await server.fetch(
-        new Request("http://localhost/api/v1/logout", {
+        new Request("http://localhost/api/v1/auth/logout", {
           method: "POST",
           headers: { Authorization: `Bearer ${adminToken}` }
         })
@@ -133,7 +133,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
     test("blacklisted jti prevents access (401)", async () => {
       // Logout first to blacklist the token
       await server.fetch(
-        new Request("http://localhost/api/v1/logout", {
+        new Request("http://localhost/api/v1/auth/logout", {
           method: "POST",
           headers: { Authorization: `Bearer ${adminToken}` }
         })
@@ -151,7 +151,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
     test("valid (non-blacklisted) jti allows access", async () => {
       // Login to get a fresh token
       const loginRes = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -184,7 +184,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
       await db.run("DELETE FROM token_blacklist");
       await db.run("DELETE FROM rate_limits");
       const loginRes = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -341,7 +341,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
       const oldRefreshToken = await mintRefreshToken(oldJti);
 
       const rotateRes = await server.fetch(
-        new NativeRequest("http://localhost/api/v1/refresh", {
+        new NativeRequest("http://localhost/api/v1/auth/refresh", {
           method: "POST",
           headers: {
             Cookie: `refreshToken=${oldRefreshToken}`,
@@ -366,7 +366,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
 
       // First refresh rotates (succeeds) and blacklists old token
       const first = await server.fetch(
-        new NativeRequest("http://localhost/api/v1/refresh", {
+        new NativeRequest("http://localhost/api/v1/auth/refresh", {
           method: "POST",
           headers: {
             Cookie: `refreshToken=${oldRefreshToken}`,
@@ -378,7 +378,7 @@ describe("Auth Token Improvements (Issue #203)", () => {
 
       // Reuse the old refresh token — should fail with 401
       const reuseRes = await server.fetch(
-        new NativeRequest("http://localhost/api/v1/refresh", {
+        new NativeRequest("http://localhost/api/v1/auth/refresh", {
           method: "POST",
           headers: {
             Cookie: `refreshToken=${oldRefreshToken}`,
