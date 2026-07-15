@@ -73,7 +73,8 @@ server {
     # nodelay  : proses burst segera, jangan delay
     # Efektif  : 5 request bisa masuk sekaligus, lalu 1 req/menit berikutnya
     # -------------------------------------------------------------------------
-    location = /api/v1/login {
+    # Canonical auth prefix: /api/v1/auth/* (legacy /api/v1/login still forwarded by app)
+    location = /api/v1/auth/login {
         limit_req zone=login_limit burst=5 nodelay;
         limit_req_status 429;
         limit_req_log_level warn;
@@ -90,7 +91,7 @@ server {
     # -------------------------------------------------------------------------
     # Google SSO endpoint — rate limit sama seperti login
     # -------------------------------------------------------------------------
-    location ~ ^/api/v1/(auth/google|google)$ {
+    location ~ ^/api/v1/auth/google$ {
         limit_req zone=login_limit burst=5 nodelay;
         limit_req_status 429;
         limit_req_log_level warn;

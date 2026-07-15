@@ -35,7 +35,7 @@ describe("API Rate Limiting (Issue #204)", () => {
       // Make 5 requests (should all succeed)
       for (let i = 0; i < 5; i++) {
         const res = await server.fetch(
-          new Request("http://localhost/api/v1/login", {
+          new Request("http://localhost/api/v1/auth/login", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -49,7 +49,7 @@ describe("API Rate Limiting (Issue #204)", () => {
 
       // 6th request should be rate limited
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -68,7 +68,7 @@ describe("API Rate Limiting (Issue #204)", () => {
       // Make 5 requests from IP1 (should succeed)
       for (let i = 0; i < 5; i++) {
         await server.fetch(
-          new Request("http://localhost/api/v1/login", {
+          new Request("http://localhost/api/v1/auth/login", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -81,7 +81,7 @@ describe("API Rate Limiting (Issue #204)", () => {
 
       // IP2 should still be able to make requests (not rate limited)
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -103,7 +103,7 @@ describe("API Rate Limiting (Issue #204)", () => {
         // Make 10 requests (should all succeed even though limit is 5)
         for (let i = 0; i < 10; i++) {
           const res = await server.fetch(
-            new Request("http://localhost/api/v1/login", {
+            new Request("http://localhost/api/v1/auth/login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -133,7 +133,7 @@ describe("API Rate Limiting (Issue #204)", () => {
         // Make 10 requests (should all succeed even though limit is 5)
         for (let i = 0; i < 10; i++) {
           const res = await server.fetch(
-            new Request("http://localhost/api/v1/login", {
+            new Request("http://localhost/api/v1/auth/login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -210,7 +210,7 @@ describe("API Rate Limiting (Issue #204)", () => {
 
       // Login should still work (separate counter) - 6th request to login should be rate limited
       const loginRes = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -226,7 +226,7 @@ describe("API Rate Limiting (Issue #204)", () => {
       // Now exhaust login quota (5 requests total including the one above)
       for (let i = 0; i < 4; i++) {
         await server.fetch(
-          new Request("http://localhost/api/v1/login", {
+          new Request("http://localhost/api/v1/auth/login", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -239,7 +239,7 @@ describe("API Rate Limiting (Issue #204)", () => {
 
       // Now both should be rate limited
       const loginRes2 = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -275,7 +275,7 @@ describe("API Rate Limiting (Issue #204)", () => {
       // Make 30 requests to refresh endpoint (should all succeed)
       for (let i = 0; i < 30; i++) {
         const res = await server.fetch(
-          new Request("http://localhost/api/v1/refresh", {
+          new Request("http://localhost/api/v1/auth/refresh", {
             method: "POST",
             headers: {
               Cookie: `refreshToken=test-token-${i}`,
@@ -289,7 +289,7 @@ describe("API Rate Limiting (Issue #204)", () => {
 
       // 31st request should be rate limited
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/refresh", {
+        new Request("http://localhost/api/v1/auth/refresh", {
           method: "POST",
           headers: {
             Cookie: `refreshToken=test-token-31`,
@@ -306,7 +306,7 @@ describe("API Rate Limiting (Issue #204)", () => {
       // Make 5 requests to login (uses up login quota)
       for (let i = 0; i < 5; i++) {
         await server.fetch(
-          new Request("http://localhost/api/v1/login", {
+          new Request("http://localhost/api/v1/auth/login", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -319,7 +319,7 @@ describe("API Rate Limiting (Issue #204)", () => {
 
       // Refresh should still work (different limit window)
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/refresh", {
+        new Request("http://localhost/api/v1/auth/refresh", {
           method: "POST",
           headers: {
             Cookie: `refreshToken=test-token`,

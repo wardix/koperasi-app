@@ -129,7 +129,7 @@ describe("TOTP 2FA Feature", () => {
 
     test("login without 2FA: returns JWT directly (no token needed)", async () => {
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -179,7 +179,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Now login without token should return requiresTotp=true
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -229,7 +229,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Now login WITH token should return JWT
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -277,7 +277,7 @@ describe("TOTP 2FA Feature", () => {
 
       // Now login with WRONG token should return 401
       const res = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+        new Request("http://localhost/api/v1/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
