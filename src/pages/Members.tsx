@@ -47,6 +47,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {useApiAction} from '../hooks/useApiAction';
 import {formatRp} from '../utils/format';
+import {exportToExcel, exportToPDF} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 
@@ -311,11 +312,52 @@ export default function MembersTemplate() {
               icon={<Icon icon={FunnelIcon} size="sm" />}
               variant="ghost"
             />
-            <IconButton
-              label="Unduh"
-              icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-              variant="ghost"
-            />
+            {hasPermission('export:reports') && (
+              <>
+                <IconButton
+                  label="Unduh"
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                  variant="ghost"
+                  onClick={() => {
+                    if (members.length === 0) {
+                      toast.show({ type: 'error', message: 'Data kosong' });
+                      return;
+                    }
+                    const columns = [
+                      { header: 'Nama', key: 'name' },
+                      { header: 'Jabatan', key: 'role' },
+                      { header: 'Status', key: 'status' },
+                      { header: 'Tanggal Gabung', key: 'joinDate' },
+                      { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
+                      { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
+                      { header: 'Simpanan Sukarela', key: 'simpananSukarela', render: (item: any) => formatRp(item.simpananSukarela) },
+                      { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
+                    ];
+                    exportToExcel(members, columns, `Data_Anggota_${new Date().toISOString().slice(0,10)}`);
+                  }}
+                />
+                <IconButton
+                  label="Cetak PDF"
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                  variant="ghost"
+                  onClick={() => {
+                    if (members.length === 0) {
+                      toast.show({ type: 'error', message: 'Data kosong' });
+                      return;
+                    }
+                    const columns = [
+                      { header: 'Nama', key: 'name' },
+                      { header: 'Status', key: 'status' },
+                      { header: 'Tanggal Gabung', key: 'joinDate' },
+                      { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
+                      { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
+                      { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
+                    ];
+                    exportToPDF(members, columns, `Laporan_Anggota_${new Date().toISOString().slice(0,10)}`, 'DAFTAR ANGGOTA KOPERASI');
+                  }}
+                />
+              </>
+            )}
             {hasPermission('create:members') && (
               <Button
                 label="Tambah Anggota"
