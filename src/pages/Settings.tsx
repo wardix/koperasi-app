@@ -431,10 +431,10 @@ export default function SettingsTemplate() {
                                 textAlign: 'center',
                                 marginBottom: '16px'
                               }}>
-                                <div style={{ fontSize: '14px', color: '#718096', marginBottom: '8px' }}>
+                                <div style={{ fontSize: '14px', color: 'var(--color-text-secondary, #718096)', marginBottom: '8px' }}>
                                   QR Code untuk scan dengan autentikator
                                 </div>
-                                <div style={{ fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all', color: '#4a5568' }}>
+                                <div style={{ fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all', color: 'var(--color-text-secondary, #4a5568)' }}>
                                   {totpUri}
                                 </div>
                               </div>
@@ -444,12 +444,12 @@ export default function SettingsTemplate() {
                             {recoveryCodes && recoveryCodes.length > 0 && (
                               <div style={{
                                 backgroundColor: 'fffbeb',
-                                border: '1px solid #f59e0b',
+                                border: '1px solid var(--color-warning, #f59e0b)',
                                 borderRadius: '8px',
                                 padding: '16px',
                                 marginBottom: '16px'
                               }}>
-                                <Text type="body" fontWeight="600" style={{ color: '#92400e', marginBottom: '8px' }}>
+                                <Text type="body" fontWeight="600" style={{ color: 'var(--color-text-primary, #92400e)', marginBottom: '8px' }}>
                                   Kode Pemulihan (simpan dengan aman!)
                                 </Text>
                                 <pre style={{

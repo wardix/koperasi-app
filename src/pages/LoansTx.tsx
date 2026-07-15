@@ -88,7 +88,7 @@ export default function LoansTxTemplate() {
       renderCell: (item: LoanPaymentRow) => {
         const isDisbursement = item.type === 'pencairan';
         return (
-          <Text type="body" style={{ fontWeight: 500, color: isDisbursement ? '#ef4444' : '#10b981' }}>
+          <Text type="body" style={{ fontWeight: 500, color: isDisbursement ? 'var(--color-error, #ef4444)' : 'var(--color-success, #10b981)' }}>
             {isDisbursement ? '-' : '+'}{formatRp(item.amount)}
           </Text>
         );

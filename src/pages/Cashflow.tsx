@@ -98,7 +98,7 @@ export default function CashflowTemplate() {
       header: 'Nominal',
       width: proportional(1.5),
       renderCell: (item: CashflowRow) => (
-        <Text type="body" style={{ fontWeight: 500, color: item.flowType === 'inflow' ? '#10b981' : '#ef4444' }}>
+        <Text type="body" style={{ fontWeight: 500, color: item.flowType === 'inflow' ? 'var(--color-success, #10b981)' : 'var(--color-error, #ef4444)' }}>
           {item.flowType === 'inflow' ? '+' : '-'} {formatRp(item.amount)}
         </Text>
       ),
@@ -135,19 +135,19 @@ export default function CashflowTemplate() {
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>
                     <Text type="supporting" color="secondary">Total Arus Masuk</Text>
-                    <Heading level={2} style={{ color: '#10b981' }}>{formatRp(summary.totalInflow)}</Heading>
+                    <Heading level={2} style={{ color: 'var(--color-success, #10b981)' }}>{formatRp(summary.totalInflow)}</Heading>
                   </VStack>
                 </Card>
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>
                     <Text type="supporting" color="secondary">Total Arus Keluar</Text>
-                    <Heading level={2} style={{ color: '#ef4444' }}>{formatRp(summary.totalOutflow)}</Heading>
+                    <Heading level={2} style={{ color: 'var(--color-error, #ef4444)' }}>{formatRp(summary.totalOutflow)}</Heading>
                   </VStack>
                 </Card>
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>
                     <Text type="supporting" color="secondary">Saldo Kas Bersih</Text>
-                    <Heading level={2} style={{ color: summary.netCash >= 0 ? '#10b981' : '#ef4444' }}>
+                    <Heading level={2} style={{ color: summary.netCash >= 0 ? 'var(--color-success, #10b981)' : 'var(--color-error, #ef4444)' }}>
                       {formatRp(summary.netCash)}
                     </Heading>
                   </VStack>
