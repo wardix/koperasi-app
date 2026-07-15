@@ -17,6 +17,8 @@ import nplRoutes from './routes/npl'
 import reportsRoutes from './routes/reports'
 import auditRoutes from './routes/audit'
 import docsRoutes from './routes/docs'
+import memberAuthRoutes from './routes/memberAuth'
+import memberSelfServiceRoutes from './routes/memberSelfService'
 import { registerLegacyAuthAliases } from './lib/authLegacy'
 
 import { HTTPException } from 'hono/http-exception'
@@ -111,6 +113,8 @@ app.use('/api/v1/*', authMiddleware)
 app.use('/api/v1/*', apiRateLimit)
 
 app.route('/api/v1/auth', authRoutes)
+app.route('/api/v1/member-auth', memberAuthRoutes)
+app.route('/api/v1/portal', memberSelfServiceRoutes)
 registerLegacyAuthAliases(app)
 app.route('/api/v1/members', membersRoutes)
 app.route('/api/v1/loans', loansRoutes)
