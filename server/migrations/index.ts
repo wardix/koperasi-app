@@ -10,6 +10,7 @@ import { createAddAuditLogsMigration } from "./0012_add_audit_logs";
 import { createAddTotp2FaMigration } from "./0013_add_totp_2fa";
 import { createAddJTiBlacklistMigration } from "./0014_add_jti_blacklist";
 import { createSoftDeleteMigration } from "./0015_soft_delete";
+import { createMigration as createAddMemberLoginMigration } from "./0016_add_member_login";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -38,6 +39,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddTotp2FaMigration(db),
     createAddJTiBlacklistMigration(db),
     createSoftDeleteMigration(db),
+    createAddMemberLoginMigration(db),
   ];
 }
 

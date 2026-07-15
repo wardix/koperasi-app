@@ -6,6 +6,9 @@ export const PUBLIC_AUTH_PATHS = [
   `${AUTH_API_PREFIX}/logout`,
   `${AUTH_API_PREFIX}/refresh`,
   `${AUTH_API_PREFIX}/google`,
+  `/api/v1/member-auth/login`,
+  `/api/v1/member-auth/logout`,
+  `/api/v1/member-auth/refresh`,
 ] as const;
 
 /** Legacy paths without /auth segment — forwarded with Deprecation header. */
