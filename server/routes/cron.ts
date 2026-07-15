@@ -8,7 +8,14 @@ const cronRoutes = new Hono();
 // A simple authentication middleware for cron endpoints
 cronRoutes.use('/*', async (c, next) => {
   const authHeader = c.req.header('Authorization');
-  const cronSecret = process.env.CRON_SECRET || Bun.env.CRON_SECRET || 'default-cron-secret';
+  let cronSecret = process.env.CRON_SECRET || Bun.env.CRON_SECRET;
+  
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      return c.json({ success: false, message: 'Cron secret is not configured' }, 500);
+    }
+    cronSecret = 'default-cron-secret';
+  }
   
   if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
     return c.json({ success: false, message: 'Unauthorized cron access' }, 401);
@@ -28,12 +35,12 @@ cronRoutes.post('/due-dates', async (c) => {
     const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
 
     // Fetch all unpaid schedules
-    // Note: status in loan_schedules is either 'Belum Dibayar', 'Sebagian', or 'Lunas'
+    // Note: status in loan_schedules is either 'Pending', 'Paid', or 'Late'
     const schedules = await db.query(
       `SELECT ls.id, ls.loanId, ls.installmentNo, ls.dueDate, ls.principalAmount, ls.interestAmount, l.memberId 
        FROM loan_schedules ls
        JOIN loans l ON ls.loanId = l.id
-       WHERE ls.status != 'Lunas' AND l.deletedAt IS NULL`
+       WHERE ls.status != 'Paid' AND l.deletedAt IS NULL`
     ).all() as any[];
 
     let processedCount = 0;
