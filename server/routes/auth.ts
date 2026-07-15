@@ -1,21 +1,18 @@
 import { Hono } from 'hono'
-import { getConnInfo } from 'hono/bun'
 import { sign, verify, decode } from 'hono/jwt'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import db from '../db'
+import type { AdminRow, SettingRow } from '../db/entities'
 import { loginSchema } from '../schemas'
 import { secretKey, checkRateLimit, rateLimitLogin } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
 import { generateSecret, verifyToken, generateRecoveryCodes, totpUrl } from '../lib/totp'
+import { getClientIp } from '../lib/audit'
 
 const auth = new Hono()
 
 auth.post('/login', async (c) => {
-  let ip = 'unknown-ip';
-  try {
-    const info = getConnInfo(c);
-    ip = info?.remote?.address || 'unknown-ip';
-  } catch (e) {}
+  const ip = getClientIp(c)
 
   // Rate limit login: max 5 requests per 15 minutes per IP (atomic, race-safe)
   // Key uses 'login:' prefix to isolate from SSO counter (prevents DoS vector)
@@ -34,11 +31,14 @@ auth.post('/login', async (c) => {
 
     const { email, password } = parsed.data
 
-    const admin = await db.query("SELECT * FROM admins WHERE email = ?").get(email) as any
+    const admin = await db.query("SELECT * FROM admins WHERE email = ?").get<AdminRow>(email)
     if (!admin) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
 
+    if (!admin.password) {
+      return c.json({ success: false, message: 'Invalid credentials' }, 401)
+    }
     const isMatch = await Bun.password.verify(password, admin.password)
     if (!isMatch) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
@@ -56,6 +56,9 @@ auth.post('/login', async (c) => {
       }
 
       // Verify TOTP token
+      if (!admin.totp_secret) {
+        return c.json({ success: false, message: 'Invalid two-factor authentication code' }, 401);
+      }
       const valid = verifyToken(admin.totp_secret, token);
       if (!valid) {
         return c.json({ success: false, message: 'Invalid two-factor authentication code' }, 401);
@@ -101,11 +104,7 @@ auth.post('/login', async (c) => {
 auth.post('/google', async (c) => {
   // Rate limit SSO endpoint: max 5 requests per 15 minutes per IP (atomic, race-safe)
   // Key uses 'sso:' prefix to isolate from login counter (prevents DoS vector)
-  let ssoIp = 'unknown-ip';
-  try {
-    const info = getConnInfo(c);
-    ssoIp = info?.remote?.address || 'unknown-ip';
-  } catch (e) {}
+  const ssoIp = getClientIp(c)
 
   if (!(await checkRateLimit(`sso:${ssoIp}`, 5, 15 * 60 * 1000))) {
     return c.json({ success: false, message: 'Too many SSO attempts. Please try again later.' }, 429);
@@ -129,13 +128,13 @@ auth.post('/google', async (c) => {
     // Look up admin by google_id or email
     let admin = await db.query(
       "SELECT * FROM admins WHERE google_id = ? OR email = ?"
-    ).get(googleUser.sub, googleUser.email) as any;
+    ).get<AdminRow>(googleUser.sub, googleUser.email);
 
     if (!admin) {
       // Check if SSO auto-register is allowed
       const ssoAutoRegister = await db.query(
         "SELECT value FROM settings WHERE key = 'ssoAutoRegister'"
-      ).get() as any;
+      ).get<SettingRow>();
 
       if (ssoAutoRegister?.value === 'true') {
         // Auto-register new admin with viewer role
@@ -209,11 +208,7 @@ auth.post('/google', async (c) => {
 auth.post('/refresh', async (c) => {
   // Rate limit refresh endpoint: max 30 requests per hour per IP (atomic, race-safe)
   // Key uses 'refresh:' prefix to isolate from login/SSO counters
-  let refreshIp = 'unknown-ip';
-  try {
-    const info = getConnInfo(c);
-    refreshIp = info?.remote?.address || 'unknown-ip';
-  } catch (e) {}
+  const refreshIp = getClientIp(c)
 
   if (!(await checkRateLimit(`refresh:${refreshIp}`, 30, 60 * 60 * 1000))) {
     return c.json({ success: false, message: 'Too many refresh attempts. Please try again later.' }, 429);
@@ -235,9 +230,8 @@ auth.post('/refresh', async (c) => {
 
     // Check if this refresh token was already rotated/revoked (reuse detection)
     const existing = await db.query(
-      "SELECT 1 FROM refresh_token_blacklist WHERE jti_token = ?",
-      [refreshJti]
-    ).get();
+      "SELECT 1 FROM refresh_token_blacklist WHERE jti_token = ?"
+    ).get(refreshJti);
 
     if (existing) {
       // Token reuse detected — revoke all user tokens for security
@@ -249,17 +243,19 @@ auth.post('/refresh', async (c) => {
       return c.json({ success: false, message: 'Sesi tidak valid. Silakan login kembali.' }, 401);
     }
 
-    const admin = await db.query("SELECT * FROM admins WHERE id = ?").get(adminId) as any
+    const admin = await db.query("SELECT * FROM admins WHERE id = ?").get<AdminRow>(adminId)
     if (!admin) {
       return c.json({ success: false, message: 'User no longer exists or has been deactivated' }, 401)
     }
 
-    // Blacklist old refresh token immediately (rotation)
-    const oldRefreshExpires = decodedRefresh.payload?.exp ? (decodedRefresh.payload.exp as number) * 1000 : Date.now() + 60 * 60 * 24 * 7 * 1000;
-    await db.run(
-      "INSERT INTO refresh_token_blacklist (jti_token, admin_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (jti_token) DO UPDATE SET revoked_at = CURRENT_TIMESTAMP",
-      [refreshJti, adminId, oldRefreshExpires]
-    );
+    // Blacklist old refresh token immediately (rotation) when jti is present
+    if (refreshJti) {
+      const oldRefreshExpires = decodedRefresh.payload?.exp ? (decodedRefresh.payload.exp as number) * 1000 : Date.now() + 60 * 60 * 24 * 7 * 1000;
+      await db.run(
+        "INSERT INTO refresh_token_blacklist (jti_token, admin_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (jti_token) DO UPDATE SET revoked_at = CURRENT_TIMESTAMP",
+        [refreshJti, adminId, oldRefreshExpires]
+      );
+    }
 
     // Generate new access and refresh tokens with fresh jti claims
     const newAccessJti = crypto.randomUUID();
@@ -349,7 +345,7 @@ auth.get('/totp/status', async (c) => {
   try {
     const admin = await db.query(
       "SELECT two_factor_enabled FROM admins WHERE id = ?"
-    ).get(payload.sub) as any;
+    ).get<AdminRow>(payload.sub);
 
     return c.json({
       success: true,
@@ -416,7 +412,7 @@ auth.post('/totp/verify', async (c) => {
     // Get stored secret for this user
     const admin = await db.query(
       "SELECT totp_secret FROM admins WHERE id = ?"
-    ).get(payload.sub) as any;
+    ).get<AdminRow>(payload.sub);
 
     if (!admin?.totp_secret) {
       return c.json({ success: false, message: 'No TOTP setup found. Please start the enrollment process first.' }, 400);
@@ -459,7 +455,7 @@ auth.post('/totp/disable', async (c) => {
     // Get admin record with recovery codes and secret
     const admin = await db.query(
       "SELECT totp_secret, recovery_codes FROM admins WHERE id = ?"
-    ).get(payload.sub) as any;
+    ).get<AdminRow>(payload.sub);
 
     if (!admin?.totp_secret || !admin.recovery_codes) {
       return c.json({ success: false, message: 'Two-factor authentication is not enabled' }, 400);
@@ -510,7 +506,7 @@ auth.post('/totp/recovery-codes', async (c) => {
     // Verify current TOTP token for security
     const admin = await db.query(
       "SELECT totp_secret, two_factor_enabled FROM admins WHERE id = ?"
-    ).get(payload.sub) as any;
+    ).get<AdminRow>(payload.sub);
 
     if (!admin?.totp_secret || !admin.two_factor_enabled) {
       return c.json({ success: false, message: 'Two-factor authentication is not enabled' }, 400);

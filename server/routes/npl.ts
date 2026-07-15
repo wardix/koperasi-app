@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { LoanRow, GroupCount } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { calculateLoanInterest } from '../services/loanService'
@@ -10,7 +11,7 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
-  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
   const bungaRate = parseFloat(bungaSetting?.value || '0');
 
   // Get all active loans with their DPD (Days Past Due) based on schedules
@@ -24,7 +25,7 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
     GROUP BY l.id
     ORDER BY COALESCE((SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE)::text, l.createdAt) DESC NULLS LAST
     LIMIT ? OFFSET ?
-  `).all(limit, offset) as any[]
+  `).all<LoanRow>(limit, offset)
 
   const mappedLoans = rows.map(loan => {
     // Calculate DPD based on oldest overdue schedule
@@ -59,8 +60,8 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
 
   // NPL calculation based on actual DPD (not just manual status)
   const [activeLoansRes, badLoansByStatusRes, badLoansByDPDRes] = await Promise.all([
-    db.query("SELECT SUM(amount) as s FROM loans WHERE status IN ('Disetujui', 'Macet')").get() as Promise<{ s: number | null }>,
-    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get() as Promise<{ s: number | null }>,
+    db.query("SELECT SUM(amount) as s FROM loans WHERE status IN ('Disetujui', 'Macet')").get<{ s: number | null }>(),
+    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get<{ s: number | null }>(),
     // Loans with DPD >= 90 are considered NPL regardless of manual status
     db.query(`
       SELECT SUM(l.amount) as s
@@ -68,7 +69,7 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
       JOIN loan_schedules ls ON l.id = ls.loanId
       WHERE ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
       GROUP BY l.id
-    `).all() as Promise<{ s: number | null }[]>
+    `).all<{ s: number | null }>()
   ])
 
   // Calculate total NPL by DPD (loans with any installment overdue > 90 days)
@@ -82,7 +83,7 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
       AND ls.status != 'Paid'
       AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
     )
-  `).all() as any[];
+  `).all<Pick<LoanRow, 'id' | 'amount'>>();
 
   const totalNPLByDPD = nplLoansByDPD.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
 
@@ -110,13 +111,13 @@ npl.get('/', requirePermission('read:loans'), async (c) => {
       WHERE l.status IN ('Disetujui', 'Macet')
     ) sub
     GROUP BY 1
-  `).all() as any[];
+  `).all<GroupCount>();
 
   return c.json({
     success: true,
     data: {
       data: mappedLoans,
-      total: totalRes.count,
+      total: totalRes?.count ?? 0,
       page,
       limit,
       summary: {

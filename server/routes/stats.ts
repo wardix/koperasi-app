@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { MemberRow, GroupCount, MonthTotal } from '../db/entities'
+import type { DashboardData } from '../../shared/types'
 import { requirePermission } from '../middleware'
 
 const stats = new Hono()
 
-let cachedStats: any = null;
+let cachedStats: DashboardData | null = null;
 let cacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -30,15 +32,15 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
     paymentRows,
     recentRows
   ] = await Promise.all([
-    Promise.resolve(await db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get() as any),
-    Promise.resolve(await db.query("SELECT SUM(totalSavings) as s FROM members").get() as any),
-    Promise.resolve(await db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get() as any),
-    Promise.resolve(await db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get() as any),
-    Promise.resolve(await db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all() as any[]),
-    Promise.resolve(await db.query("SELECT purpose, COUNT(*) as count FROM loans GROUP BY purpose").all() as any[]),
-    Promise.resolve(await db.query("SELECT TO_CHAR(createdAt::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM transactions WHERE type LIKE 'setor_%' GROUP BY month").all() as { month: string, total: number }[]),
-    Promise.resolve(await db.query("SELECT TO_CHAR(paymentDate::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM loan_payments GROUP BY month").all() as { month: string, total: number }[]),
-    Promise.resolve(await db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY id DESC LIMIT 5").all() as any[])
+    db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get<{ c: number }>(),
+    db.query("SELECT SUM(totalSavings) as s FROM members").get<{ s: number | null }>(),
+    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get<{ s: number | null }>(),
+    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get<{ s: number | null }>(),
+    db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all<GroupCount>(),
+    db.query("SELECT purpose, COUNT(*) as count FROM loans GROUP BY purpose").all<GroupCount>(),
+    db.query("SELECT TO_CHAR(createdAt::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM transactions WHERE type LIKE 'setor_%' GROUP BY month").all<MonthTotal>(),
+    db.query("SELECT TO_CHAR(paymentDate::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM loan_payments GROUP BY month").all<MonthTotal>(),
+    db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY id DESC LIMIT 5").all<Pick<MemberRow, 'id' | 'name' | 'totalSavings' | 'joinDate'>>()
   ]);
 
   const activeMembers = activeMembersRes?.c || 0;
@@ -50,14 +52,14 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
   const nplValue = totalActiveLoans > 0 ? ((totalMacet / totalActiveLoans) * 100).toFixed(1) + '%' : '0.0%';
 
   const roleData = roleRows.map((r, i) => ({
-    label: r.role,
-    value: r.count,
+    label: r.role ?? 'Unknown',
+    value: Number(r.count),
     color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
   }))
 
   const purposeData = purposeRows.map((r, i) => ({
-    label: r.purpose,
-    value: r.count,
+    label: r.purpose ?? 'Unknown',
+    value: Number(r.count),
     color: ['var(--color-data-categorical-blue, #0171E3)', 'var(--color-data-categorical-orange, #EB6E00)', 'var(--color-data-categorical-green, #0B991F)', 'var(--color-data-categorical-purple, #6B1EFD)'][i % 4]
   }))
 
@@ -78,8 +80,8 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
     const pm = paymentRows.find(r => r.month === m);
     return {
       label,
-      simpanan: tx ? tx.total : 0,
-      pinjaman: pm ? pm.total : 0
+      simpanan: Number(tx?.total ?? 0),
+      pinjaman: Number(pm?.total ?? 0)
     };
   });
   
