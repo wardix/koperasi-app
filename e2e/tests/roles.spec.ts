@@ -12,7 +12,7 @@ test.describe("Roles & Access Management", () => {
     // 2. Add a new Admin
     const email = `test-admin-${Date.now()}@example.com`;
     const name = `E2E Pengurus-${Date.now()}`;
-    await rolesPage.addAdmin(name, email, "password123", "Admin (Operasional, tanpa hapus/settings)");
+    await rolesPage.addAdmin(name, email, "SecurePass123", "Admin (Operasional, tanpa hapus/settings)");
 
     // 3. Verify it is visible in the list
     const row = rolesPage.getRow(email);
