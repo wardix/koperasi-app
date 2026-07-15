@@ -20,7 +20,9 @@ export type AuditAction =
   | 'update_settings'
   | 'close_shu'
   | 'reopen_shu'
-  | 'create_payment';
+  | 'create_payment'
+  | 'archive_loan'
+  | 'archive_member';
 
 export interface AuditRecord {
   actor: string;        // admin email who performed the action
