@@ -110,6 +110,8 @@ bun run start
 
 Pastikan Postgres sudah jalan dan `DATABASE_URL` mengarah ke instance yang benar.
 
+Dokumentasi API (dev): [http://localhost:3000/doc](http://localhost:3000/doc) (Swagger UI; spec di `/openapi.yaml`). CI menjalankan `bun run openapi:check` agar spec tetap selaras dengan route manifest.
+
 ## Testing
 
 ```bash
@@ -138,4 +140,5 @@ Atau image Docker (`Dockerfile` + `docker-compose.yml`). Jangan pakai fallback `
 | `.env.example` | Semua env vars (Postgres, JWT, CORS, Google SSO) |
 | `docker-compose.yml` | Service `app` + `db` (postgres:16-alpine) |
 | `server/db.ts` | Koneksi Bun SQL, transaksi, skema, migrasi |
-| `openapi.yaml` | Spek API (jaga agar selaras route) |
+| `openapi.yaml` | Spek API (manual; diverifikasi CI via `bun run openapi:check`) |
+| `server/openapi/routeManifest.ts` | Daftar route wajib tercakup di spec |
