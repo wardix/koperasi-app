@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { sign, verify, decode } from 'hono/jwt';
+import { sign, verify } from 'hono/jwt';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import db from '../db';
 import type { MemberRow } from '../db/entities';
@@ -27,7 +27,7 @@ memberAuth.post('/login', async (c) => {
     const { email, password } = parsed.data;
 
     // A member can log in using their email or their ID (NIP) mapped to the email field in the login form
-    const member = await db.query("SELECT * FROM members WHERE email = ? OR id = ?").get<MemberRow>(email, email);
+    const member = await db.query("SELECT * FROM members WHERE (email = ? OR id = ?) AND deletedAt IS NULL").get<MemberRow>(email, email);
     
     if (!member || !member.password) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401);
@@ -88,10 +88,14 @@ memberAuth.post('/refresh', async (c) => {
   }
 
   try {
-    const decodedRefresh = await verify(refreshToken, secretKey);
+    const decodedRefresh = await verify(refreshToken, secretKey, 'HS256');
     const memberId = decodedRefresh.sub as string;
 
-    const member = await db.query("SELECT * FROM members WHERE id = ?").get<MemberRow>(memberId);
+    if (decodedRefresh.role !== 'member') {
+      return c.json({ success: false, message: 'Invalid refresh token role' }, 401);
+    }
+
+    const member = await db.query("SELECT * FROM members WHERE id = ? AND deletedAt IS NULL").get<MemberRow>(memberId);
     if (!member || member.status !== 'Aktif') {
       return c.json({ success: false, message: 'User no longer valid' }, 401);
     }
