@@ -40,6 +40,9 @@ jobs:
     - name: Lint
       run: bun run lint
 
+    - name: Typecheck
+      run: bun run typecheck
+
     - name: Test
       # Use package script so only server/src unit tests run (excludes Playwright e2e/)
       run: bun run test

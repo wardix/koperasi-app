@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { ReportMembersStats, ReportLoansStats, InterestPaymentRow } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { calculateLoanInterest } from '../services/loanService'
 
@@ -16,7 +17,7 @@ reports.get('/summary', requirePermission('read:stats'), async (c) => {
       SUM(simpananSukarela) as "totalSukarela",
       SUM(totalSavings) as "totalSavings"
     FROM members
-  `).get() as any
+  `).get<ReportMembersStats>()
 
   const loanStats = await db.query(`
     SELECT 
@@ -26,11 +27,11 @@ reports.get('/summary', requirePermission('read:stats'), async (c) => {
       SUM(CASE WHEN status = 'Macet' THEN amount ELSE 0 END) as "badLoansAmount",
       SUM(CASE WHEN status = 'Lunas' THEN amount ELSE 0 END) as "paidLoansAmount"
     FROM loans
-  `).get() as any
+  `).get<ReportLoansStats>()
 
   const loanPaymentsStats = await db.query(`
     SELECT SUM(amount) as "totalPaymentsReceived" FROM loan_payments
-  `).get() as any
+  `).get<{ totalPaymentsReceived: number | null }>()
 
   return c.json({
     success: true,
@@ -60,7 +61,7 @@ reports.get('/summary', requirePermission('read:stats'), async (c) => {
 reports.get('/monthly-interest', requirePermission('read:stats'), async (c) => {
   try {
     const year = c.req.query('year') || new Date().getFullYear().toString();
-    const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+    const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
     const bungaRate = parseFloat(bungaSetting?.value || '18');
 
     const payments = await db.query(`
@@ -68,7 +69,7 @@ reports.get('/monthly-interest', requirePermission('read:stats'), async (c) => {
       FROM loan_payments lp
       JOIN loans l ON lp.loanId = l.id
       WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
-    `).all(year) as any[];
+    `).all<InterestPaymentRow>(year);
 
     // Initialize all 12 months
     const monthlyInterestMap: Record<string, number> = {};
@@ -78,12 +79,12 @@ reports.get('/monthly-interest', requirePermission('read:stats'), async (c) => {
     }
 
     for (const p of payments) {
-      const pAmt = p.paymentAmount ?? p.paymentamount ?? 0;
-      const princAmt = p.principalAmount ?? p.principalamount ?? 0;
-      const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor, bungaRate);
+      const pAmt = Number(p.paymentAmount ?? 0);
+      const princAmt = Number(p.principalAmount ?? 0);
+      const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor ?? 0, bungaRate);
       const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
       
-      const paymentDate = p.paymentDate || p.paymentdate;
+      const paymentDate = p.paymentDate;
       if (paymentDate) {
         const monthKey = paymentDate.substring(0, 7); // YYYY-MM
         if (monthlyInterestMap[monthKey] !== undefined) {

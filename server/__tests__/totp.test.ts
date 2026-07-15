@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeAll, afterAll } from "bun:test";
+import { expect, test, describe, beforeAll, afterAll, beforeEach } from "bun:test";
 import server from "../index";
 import db from "../db";
 import { sign } from "hono/jwt";
@@ -123,13 +123,17 @@ describe("TOTP 2FA Feature", () => {
   // ===========================================================================
 
   describe("Login Flow", () => {
+    beforeEach(async () => {
+      await db.run("DELETE FROM rate_limits");
+    });
+
     test("login without 2FA: returns JWT directly (no token needed)", async () => {
       const res = await server.fetch(
         new Request("http://localhost/api/v1/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-forwarded-for": "127.0.0.1"
+            "x-forwarded-for": `totp-login-${crypto.randomUUID()}`
           },
           body: JSON.stringify({
             email: adminEmail,
@@ -179,7 +183,7 @@ describe("TOTP 2FA Feature", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-forwarded-for": "127.0.0.1"
+            "x-forwarded-for": `totp-ip-1-${Date.now()}`
           },
           body: JSON.stringify({
             email: secondAdminEmail,
@@ -229,7 +233,7 @@ describe("TOTP 2FA Feature", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-forwarded-for": "127.0.0.1"
+            "x-forwarded-for": `totp-ip-2-${Date.now()}`
           },
           body: JSON.stringify({
             email: adminEmail,
@@ -277,7 +281,7 @@ describe("TOTP 2FA Feature", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-forwarded-for": "127.0.0.1"
+            "x-forwarded-for": `totp-ip-3-${Date.now()}`
           },
           body: JSON.stringify({
             email: adminEmail,

@@ -8,6 +8,7 @@ type AppDb = {
     get: (...args: unknown[]) => Promise<unknown>;
   };
   prepare: (q: string) => { run: (...args: unknown[]) => Promise<void> };
+  run: (q: string, args?: unknown[]) => Promise<void>;
 };
 
 /**

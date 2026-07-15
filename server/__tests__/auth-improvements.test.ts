@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, beforeAll, afterAll } from "bun:test";
 import server from "../index";
 import db from "../db";
 import { sign, verify, decode } from "hono/jwt";
@@ -25,13 +25,14 @@ describe("Auth Token Improvements (Issue #203)", () => {
       "INSERT INTO admins (id, email, password, role) VALUES (?, ?, ?, ?)"
     ).run(adminId, adminEmail, hashedPassword, "superadmin");
 
-    // Login to get tokens
+    // Login to get tokens (unique IP avoids cross-test rate limit pollution)
+    await db.run("DELETE FROM rate_limits");
     const loginRes = await server.fetch(
       new Request("http://localhost/api/v1/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-forwarded-for": "127.0.0.1"
+          "x-forwarded-for": `auth-setup-${timestamp}`
         },
         body: JSON.stringify({ email: adminEmail, password: "StrongP@ss123!" })
       })
@@ -39,12 +40,9 @@ describe("Auth Token Improvements (Issue #203)", () => {
     expect(loginRes.status).toBe(200);
     const loginBody = await loginRes.json() as any;
     adminToken = loginBody.data.token;
-    refreshToken = (await server.fetch(
-      new Request("http://localhost/api/v1/refresh", {
-        method: "POST",
-        headers: { Cookie: `refreshToken=${loginBody.data.refreshToken}` }
-      })
-    )).headers.get('set-cookie')?.split(';')[0]?.replace('refreshToken=', '') || '';
+    const setCookie = loginRes.headers.get('set-cookie') || '';
+    const match = setCookie.match(/refreshToken=([^;]+)/);
+    refreshToken = match?.[1] || '';
   });
 
   afterAll(async () => {
@@ -121,16 +119,14 @@ describe("Auth Token Improvements (Issue #203)", () => {
       const jti = decoded.payload.jti;
 
       const blacklisted = await db.query(
-        "SELECT 1 FROM token_blacklist WHERE jti_token = ?",
-        [jti]
-      ).get();
+        "SELECT 1 FROM token_blacklist WHERE jti_token = ?"
+      ).get(jti);
       expect(blacklisted).not.toBeNull();
 
       // Verify the full JWT string is NOT stored (only jti)
       const byFullString = await db.query(
-        "SELECT 1 FROM token_blacklist WHERE jti_token = ?",
-        [adminToken]
-      ).get();
+        "SELECT 1 FROM token_blacklist WHERE jti_token = ?"
+      ).get(adminToken);
       expect(byFullString).toBeNull();
     });
 
@@ -183,6 +179,24 @@ describe("Auth Token Improvements (Issue #203)", () => {
   // ===========================================================================
 
   describe("Password Policy (Min 12 chars + complexity)", () => {
+    beforeAll(async () => {
+      // Logout tests may have blacklisted adminToken — mint a fresh one
+      await db.run("DELETE FROM token_blacklist");
+      await db.run("DELETE FROM rate_limits");
+      const loginRes = await server.fetch(
+        new Request("http://localhost/api/v1/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-forwarded-for": `auth-pw-policy-${Date.now()}`
+          },
+          body: JSON.stringify({ email: adminEmail, password: "StrongP@ss123!" })
+        })
+      );
+      const loginBody = await loginRes.json() as any;
+      adminToken = loginBody.data?.token || adminToken;
+    });
+
     test("password policy rejects weak passwords (< 12 chars)", async () => {
       const res = await server.fetch(
         new Request("http://localhost/api/v1/admins", {
@@ -303,68 +317,73 @@ describe("Auth Token Improvements (Issue #203)", () => {
   // ===========================================================================
 
   describe("Refresh Token Rotation", () => {
+    // happy-dom strips Cookie/Set-Cookie; use NativeRequest + minted JWTs.
+    const NativeRequest = (globalThis as any).NativeRequest || Request;
+
+    async function mintRefreshToken(jti = crypto.randomUUID()) {
+      return sign(
+        {
+          sub: adminId,
+          email: adminEmail,
+          role: "superadmin",
+          exp: Math.floor(Date.now() / 1000) + 60 * 60,
+          jti,
+        },
+        secretKey!
+      );
+    }
+
     test("refresh rotation: old token revoked on new refresh", async () => {
-      // Get initial refresh token
-      const loginRes = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+      await db.run("DELETE FROM rate_limits");
+      await db.run("DELETE FROM refresh_token_blacklist WHERE admin_id = ?", [adminId]);
+
+      const oldJti = crypto.randomUUID();
+      const oldRefreshToken = await mintRefreshToken(oldJti);
+
+      const rotateRes = await server.fetch(
+        new NativeRequest("http://localhost/api/v1/refresh", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "x-forwarded-for": "127.0.0.1"
-          },
-          body: JSON.stringify({ email: adminEmail, password: "StrongP@ss123!" })
+            Cookie: `refreshToken=${oldRefreshToken}`,
+            "x-forwarded-for": `auth-refresh-rot-${Date.now()}`
+          }
         })
       );
-      expect(loginRes.status).toBe(200);
-      const loginBody = await loginRes.json() as any;
+      expect(rotateRes.status).toBe(200);
 
-      // Decode initial refresh token to get jti
-      const oldRefreshToken = (await server.fetch(
-        new Request("http://localhost/api/v1/refresh", {
-          method: "POST",
-          headers: { Cookie: `refreshToken=${loginBody.data.refreshToken}` }
-        })
-      )).headers.get('set-cookie')?.split(';')[0]?.replace('refreshToken=', '') || '';
-
-      const oldDecoded = decode(oldRefreshToken);
-      const oldJti = oldDecoded.payload.jti;
-
-      // Verify old refresh token is blacklisted after rotation
       const blacklisted = await db.query(
-        "SELECT 1 FROM refresh_token_blacklist WHERE jti_token = ?",
-        [oldJti]
-      ).get();
+        "SELECT 1 FROM refresh_token_blacklist WHERE jti_token = ?"
+      ).get(oldJti);
       expect(blacklisted).not.toBeNull();
     });
 
     test("refresh reuse detection: reused token revokes all user tokens", async () => {
-      // Get a fresh login
-      const loginRes = await server.fetch(
-        new Request("http://localhost/api/v1/login", {
+      await db.run("DELETE FROM rate_limits");
+      await db.run("DELETE FROM refresh_token_blacklist WHERE admin_id = ?", [adminId]);
+
+      const oldJti = crypto.randomUUID();
+      const oldRefreshToken = await mintRefreshToken(oldJti);
+
+      // First refresh rotates (succeeds) and blacklists old token
+      const first = await server.fetch(
+        new NativeRequest("http://localhost/api/v1/refresh", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "x-forwarded-for": "127.0.0.1"
-          },
-          body: JSON.stringify({ email: adminEmail, password: "StrongP@ss123!" })
+            Cookie: `refreshToken=${oldRefreshToken}`,
+            "x-forwarded-for": `auth-refresh-reuse-${Date.now()}`
+          }
         })
       );
-      expect(loginRes.status).toBe(200);
-      const loginBody = await loginRes.json() as any;
+      expect(first.status).toBe(200);
 
-      // Extract old refresh token (before rotation)
-      const oldRefreshToken = (await server.fetch(
-        new Request("http://localhost/api/v1/refresh", {
-          method: "POST",
-          headers: { Cookie: `refreshToken=${loginBody.data.refreshToken}` }
-        })
-      )).headers.get('set-cookie')?.split(';')[0]?.replace('refreshToken=', '') || '';
-
-      // Try to reuse the old refresh token — should fail with 401
+      // Reuse the old refresh token — should fail with 401
       const reuseRes = await server.fetch(
-        new Request("http://localhost/api/v1/refresh", {
+        new NativeRequest("http://localhost/api/v1/refresh", {
           method: "POST",
-          headers: { Cookie: `refreshToken=${oldRefreshToken}` }
+          headers: {
+            Cookie: `refreshToken=${oldRefreshToken}`,
+            "x-forwarded-for": `auth-refresh-reuse2-${Date.now()}`
+          }
         })
       );
       expect(reuseRes.status).toBe(401);

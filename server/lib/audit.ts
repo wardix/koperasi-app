@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import type { AppVariables, JwtPayload } from '../types/auth';
 
 /**
  * Audit log helper for recording sensitive admin operations.
@@ -9,6 +10,7 @@ export type AuditAction =
   | 'create_admin'
   | 'update_admin'
   | 'delete_admin'
+  | 'create_loan'
   | 'approve_loan'
   | 'reject_loan'
   | 'create_member'
@@ -24,7 +26,7 @@ export interface AuditRecord {
   actor: string;        // admin email who performed the action
   action: AuditAction;
   entity: string;       // table/entity name (e.g. "loans", "settings")
-  entityId?: string;    // specific record id (NULL for bulk actions)
+  entityId?: string | null;    // specific record id (NULL for bulk actions)
   before?: Record<string, unknown>;  // previous state snapshot
   after?: Record<string, unknown>;   // new state snapshot
   ip?: string;          // client IP from request headers
@@ -66,10 +68,14 @@ export async function audit(db: AuditDb, record: AuditRecord): Promise<void> {
   );
 }
 
+/** Extract JWT payload from Hono context (typed). */
+export function getJwtPayload(c: Context<{ Variables: AppVariables }> | Context): JwtPayload | undefined {
+  return c.get('jwtPayload') as JwtPayload | undefined;
+}
+
 /** Extract actor email from JWT payload stored on the Hono context. */
 export function getActor(c: Context): string {
-  const payload = c.get('jwtPayload') as { email?: string } | undefined;
-  return payload?.email || 'system';
+  return getJwtPayload(c)?.email || 'system';
 }
 
 /** Extract client IP from request headers (handles proxies). */

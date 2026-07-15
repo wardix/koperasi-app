@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { AuditLogRow, AuditActionCount } from '../db/entities'
 import { requirePermission } from '../middleware'
 
 const auditRouter = new Hono()
@@ -55,7 +56,7 @@ auditRouter.get('/', requirePermission('manage:users'), async (c) => {
   // Query audit logs with filters, ordered by most recent first
   const rows = await db.query(
     `SELECT * FROM audit_logs WHERE ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  ).all(...params, limit, offset) as any[]
+  ).all<AuditLogRow>(...params, limit, offset)
 
   // Parse JSONB fields back to objects for API response
   for (const row of rows) {
@@ -85,7 +86,7 @@ auditRouter.get('/', requirePermission('manage:users'), async (c) => {
 auditRouter.get('/stats', requirePermission('manage:users'), async (c) => {
   const rows = await db.query(
     `SELECT action, COUNT(*) as count FROM audit_logs GROUP BY action ORDER BY count DESC`
-  ).all() as any[]
+  ).all<AuditActionCount>()
 
   return c.json({ success: true, data: rows })
 })

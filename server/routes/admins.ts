@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { AdminPublic, MemberRow } from '../db/entities'
 import { adminCreationSchema, adminUpdateSchema } from '../schemas'
 import { requirePermission } from '../middleware'
-import { audit, getActor, getClientIp } from '../lib/audit'
+import { audit, getActor, getClientIp, getJwtPayload } from '../lib/audit'
 
 const admins = new Hono()
 
@@ -27,8 +28,8 @@ interface SavingsReconciliationResult {
 admins.get('/', async (c) => {
   const rows = await db.query(
     "SELECT id, email, role, google_id, name, avatar_url, auth_provider FROM admins ORDER BY email ASC"
-  ).all() as any[]
-  
+  ).all<AdminPublic>()
+
   return c.json({ success: true, data: rows })
 })
 
@@ -93,7 +94,7 @@ admins.put('/:id', async (c) => {
     }
     
     const { role } = parsed.data
-    const currentUserPayload = c.get('jwtPayload')
+    const currentUserPayload = getJwtPayload(c)
     
     // Prevent self-role modification to avoid locking oneself out of superadmin
     if (currentUserPayload && currentUserPayload.sub === id) {
@@ -104,7 +105,7 @@ admins.put('/:id', async (c) => {
     await stmt.run(role, id)
 
     // Audit: log admin role update
-    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get(id) as any
+    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get<Pick<AdminPublic, "email" | "role">>(id)
     await audit(db, {
       actor: getActor(c),
       action: 'update_admin',
@@ -125,7 +126,7 @@ admins.put('/:id', async (c) => {
 admins.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const currentUserPayload = c.get('jwtPayload')
+    const currentUserPayload = getJwtPayload(c)
 
     // Prevent self-deletion
     if (currentUserPayload && currentUserPayload.sub === id) {
@@ -133,7 +134,7 @@ admins.delete('/:id', async (c) => {
     }
 
     // Capture before state for audit (fetch email/role before delete)
-    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get(id) as any
+    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get<Pick<AdminPublic, "email" | "role">>(id)
 
     const stmt = await db.prepare("DELETE FROM admins WHERE id = ?")
     await stmt.run(id)
@@ -171,7 +172,15 @@ admins.get('/reconcile-savings', async (c) => {
         (simpananPokok + simpananWajib + simpananSukarela) as calculatedTotal
       FROM members
       WHERE totalSavings != simpananPokok + simpananWajib + simpananSukarela
-    `).all() as any[]
+    `).all<{
+      id: string
+      memberName: string
+      simpananPokok: number
+      simpananWajib: number
+      simpananSukarela: number
+      dbTotalSavings: number
+      calculatedTotal: number
+    }>()
 
     // Calculate the difference for each drifted member
     const reconciliationResults: SavingsReconciliationResult[] = driftedMembers.map(m => ({
@@ -196,7 +205,14 @@ admins.get('/reconcile-savings', async (c) => {
         totalSavings
       FROM members
       WHERE simpananPokok < 0 OR simpananWajib < 0 OR simpananSukarela < 0 OR totalSavings < 0
-    `).all() as any[]
+    `).all<{
+      id: string
+      memberName: string
+      simpananPokok: number
+      simpananWajib: number
+      simpananSukarela: number
+      totalSavings: number
+    }>()
 
     return c.json({
       success: true,
@@ -228,7 +244,7 @@ admins.post('/reconcile-savings', async (c) => {
     const member = await db.query(`
       SELECT id, name, simpananPokok, simpananWajib, simpananSukarela, totalSavings
       FROM members WHERE id = ?
-    `).get(memberId) as any
+    `).get<Pick<MemberRow, 'id' | 'name' | 'simpananPokok' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>>(memberId)
 
     if (!member) {
       return c.json({ success: false, message: 'Member not found' }, 404)

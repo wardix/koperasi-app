@@ -643,17 +643,17 @@ describe("API Endpoints", () => {
   test("token blacklist cleanup deletes expired tokens", async () => {
     const now = Date.now();
     
-    // Add one expired and one non-expired token
-    await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", ["expired-token-xyz", now - 1000]); // expired
-    await db.run("INSERT INTO token_blacklist (token, expires_at) VALUES (?, ?) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at", ["valid-token-abc", now + 60000]); // not expired
+    // Add one expired and one non-expired jti (column renamed in 0014)
+    await db.run("INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at", ["expired-token-xyz", now - 1000]); // expired
+    await db.run("INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at", ["valid-token-abc", now + 60000]); // not expired
     
     await _test.cleanupTokenBlacklist();
     
-    expect(await db.query("SELECT * FROM token_blacklist WHERE token = ?").get("expired-token-xyz")).toBeNull();
-    expect(await db.query("SELECT * FROM token_blacklist WHERE token = ?").get("valid-token-abc")).not.toBeNull();
+    expect(await db.query("SELECT * FROM token_blacklist WHERE jti_token = ?").get("expired-token-xyz")).toBeNull();
+    expect(await db.query("SELECT * FROM token_blacklist WHERE jti_token = ?").get("valid-token-abc")).not.toBeNull();
     
     // Clean up
-    await db.run("DELETE FROM token_blacklist WHERE token = ?", ["valid-token-abc"]);
+    await db.run("DELETE FROM token_blacklist WHERE jti_token = ?", ["valid-token-abc"]);
   });
 
   test("GET /api/v1/members caps pagination limit at 100", async () => {
@@ -679,9 +679,9 @@ describe("API Endpoints", () => {
         "viewer"
       );
 
-      // 2. Generate a refresh token for this admin with old role "viewer"
+      // 2. Generate a refresh token for this admin with old role "viewer" (include jti for rotation)
       const refreshToken = await sign(
-        { sub: adminId, email: "refresh-test@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 },
+        { sub: adminId, email: "refresh-test@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60, jti: crypto.randomUUID() },
         secretKey
       );
 
@@ -902,7 +902,7 @@ describe("API Endpoints", () => {
       },
       body: JSON.stringify({
         email: newAdminEmail,
-        password: "password123",
+        password: "SecurePass1word",
         role: "admin",
         name: "Test Admin Baru"
       })

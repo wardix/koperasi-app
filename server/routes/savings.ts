@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { TransactionRow } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { SAVINGS_TRANSACTION_TYPES } from '../schemas'
@@ -7,8 +8,8 @@ import { SAVINGS_TRANSACTION_TYPES } from '../schemas'
 const savings = new Hono()
 
 // Validate that transaction type is in the allowed enum
-function isValidTransactionType(type: string): boolean {
-  return SAVINGS_TRANSACTION_TYPES.includes(type as any)
+function isValidTransactionType(type: string): type is (typeof SAVINGS_TRANSACTION_TYPES)[number] {
+  return (SAVINGS_TRANSACTION_TYPES as readonly string[]).includes(type)
 }
 
 savings.get('/transactions', requirePermission('read:members'), async (c) => {
@@ -21,7 +22,7 @@ savings.get('/transactions', requirePermission('read:members'), async (c) => {
     LEFT JOIN members m ON t.memberId = m.id
     ORDER BY t.createdAt DESC 
     LIMIT ? OFFSET ?
-  `).all(limit, offset) as any[]
+  `).all<TransactionRow>(limit, offset)
 
   const totalRes = await db.query("SELECT COUNT(*) as count FROM transactions").get() as { count: number }
 
@@ -29,7 +30,7 @@ savings.get('/transactions', requirePermission('read:members'), async (c) => {
     success: true,
     data: {
       data: rows,
-      total: totalRes.count,
+      total: totalRes?.count ?? 0,
       page,
       limit
     }
