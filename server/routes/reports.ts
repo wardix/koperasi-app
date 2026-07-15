@@ -109,4 +109,89 @@ reports.get('/monthly-interest', requirePermission('read:reports'), async (c) =>
   }
 })
 
+reports.get('/ar', requirePermission('read:reports'), async (c) => {
+  const rows = await db.query(`
+    SELECT 
+      m.name as "memberName", 
+      l.id as "loanId", 
+      l.amount as "principal", 
+      COALESCE(l.totalAmount, l.amount) as "totalAmount", 
+      COALESCE(SUM(p.amount), 0) as "paidAmount",
+      (COALESCE(l.totalAmount, l.amount) - COALESCE(SUM(p.amount), 0)) as "remainingAmount", 
+      l.status
+    FROM loans l
+    JOIN members m ON l.memberId = m.id
+    LEFT JOIN loan_payments p ON l.id = p.loanId
+    WHERE l.status IN ('Disetujui', 'Macet') AND l.deletedAt IS NULL
+    GROUP BY l.id, m.name
+    ORDER BY "remainingAmount" DESC
+  `).all();
+  return c.json({ success: true, data: rows });
+})
+
+reports.get('/savings-member', requirePermission('read:reports'), async (c) => {
+  const rows = await db.query(`
+    SELECT name as "memberName", simpananPokok, simpananWajib, simpananSukarela, totalSavings
+    FROM members
+    WHERE deletedAt IS NULL
+    ORDER BY name ASC
+  `).all();
+  return c.json({ success: true, data: rows });
+})
+
+reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) => {
+  const startDate = c.req.query('startDate');
+  const endDate = c.req.query('endDate');
+  let dateFilterTx = '';
+  let dateFilterLp = '';
+  let dateFilterL = '';
+  const params: string[] = [];
+
+  if (startDate && endDate) {
+    dateFilterTx = `AND createdAt >= ? AND createdAt <= ?`;
+    dateFilterLp = `AND paymentDate >= ? AND paymentDate <= ?`;
+    dateFilterL = `AND createdAt >= ? AND createdAt <= ?`;
+    params.push(startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate);
+  } else if (startDate) {
+    dateFilterTx = `AND createdAt >= ?`;
+    dateFilterLp = `AND paymentDate >= ?`;
+    dateFilterL = `AND createdAt >= ?`;
+    params.push(startDate, startDate, startDate, startDate);
+  } else if (endDate) {
+    dateFilterTx = `AND createdAt <= ?`;
+    dateFilterLp = `AND paymentDate <= ?`;
+    dateFilterL = `AND createdAt <= ?`;
+    params.push(endDate, endDate, endDate, endDate);
+  }
+
+  const query = `
+    SELECT 'inflow' as category, type as subcategory, SUM(amount) as total
+    FROM transactions 
+    WHERE type LIKE 'setor_%' ${dateFilterTx}
+    GROUP BY type
+    
+    UNION ALL
+    
+    SELECT 'inflow' as category, 'angsuran_pinjaman' as subcategory, COALESCE(SUM(amount), 0) as total
+    FROM loan_payments 
+    WHERE 1=1 ${dateFilterLp}
+    
+    UNION ALL
+    
+    SELECT 'outflow' as category, type as subcategory, SUM(amount) as total
+    FROM transactions 
+    WHERE type LIKE 'tarik_%' ${dateFilterTx}
+    GROUP BY type
+    
+    UNION ALL
+    
+    SELECT 'outflow' as category, 'pencairan_pinjaman' as subcategory, COALESCE(SUM(amount), 0) as total
+    FROM loans 
+    WHERE status IN ('Disetujui', 'Lunas', 'Macet') AND deletedAt IS NULL ${dateFilterL}
+  `;
+
+  const rows = await db.query(query).all(...params);
+  return c.json({ success: true, data: rows });
+})
+
 export default reports
