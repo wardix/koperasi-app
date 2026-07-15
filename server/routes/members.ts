@@ -38,19 +38,18 @@ members.delete('/:id', requirePermission('delete:members'), async (c) => {
     const id = requireRouteParam(c, 'id')
     const before = await deleteMember(db, id)
 
-    if (before) {
-      await audit(db, {
-        actor: getActor(c),
-        action: 'delete_member',
-        entity: 'members',
-        entityId: id,
-        before: { name: before.name, role: before.role },
-        ip: getClientIp(c),
-      })
-    }
+    await audit(db, {
+      actor: getActor(c),
+      action: 'archive_member',
+      entity: 'members',
+      entityId: id,
+      before: { name: before.name, role: before.role },
+      after: { deletedAt: new Date().toISOString() },
+      ip: getClientIp(c),
+    })
 
     clearStatsCache()
-    return c.json({ success: true })
+    return c.json({ success: true, message: 'Member archived successfully' })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response

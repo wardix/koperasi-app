@@ -117,7 +117,7 @@ export async function updateMember(
   return { before: { name: oldMember.name, role: oldMember.role } };
 }
 
-export async function deleteMember(database: Db, id: string): Promise<Pick<MemberRow, "name" | "role"> | null> {
+export async function deleteMember(database: Db, id: string): Promise<Pick<MemberRow, "name" | "role">> {
   const before = await database
     .query("SELECT name, role FROM members WHERE id = ? AND deletedAt IS NULL")
     .get<Pick<MemberRow, "name" | "role">>(id);
@@ -132,7 +132,7 @@ export async function deleteMember(database: Db, id: string): Promise<Pick<Membe
     .get<{ count: number }>(id);
 
   if ((activeLoans?.count ?? 0) > 0) {
-    throw new ServiceError("Anggota masih memiliki pinjaman aktif, selesaikan pinjaman terlebih dahulu.");
+    throw new ServiceError("Anggota masih memiliki pinjaman aktif, selesaikan pinjaman terlebih dahulu.", 409);
   }
 
   // Soft-delete: stamp deletedAt instead of issuing DELETE
