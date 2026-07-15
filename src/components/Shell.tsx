@@ -22,10 +22,11 @@ import {
 } from '@heroicons/react/24/outline';
 import {HomeIcon} from '@heroicons/react/24/solid';
 import {CubeIcon} from '@heroicons/react/24/outline';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import React, { Suspense } from 'react';
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import React, { Suspense, type ReactNode } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import type { Permission } from '../../shared/permissions';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -43,6 +44,14 @@ const NPL = React.lazy(() => import('../pages/NPL'));
 const Reports = React.lazy(() => import('../pages/Reports'));
 const AuditLog = React.lazy(() => import('../pages/AuditLog'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
+
+function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
+  const { hasPermission } = useAuth();
+  if (!hasPermission(permission)) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
 
 export default function Shell() {
   const navigate = useNavigate();
@@ -102,12 +111,14 @@ export default function Shell() {
               isSelected={path === '/members'}
               onClick={() => navigate('/members')}
             />
-            <SideNavItem 
-              label="Laporan" 
-              icon={ChartBarIcon} 
-              isSelected={path === '/reports'}
-              onClick={() => navigate('/reports')}
-            />
+            {hasPermission('read:reports') && (
+              <SideNavItem
+                label="Laporan"
+                icon={ChartBarIcon}
+                isSelected={path === '/reports'}
+                onClick={() => navigate('/reports')}
+              />
+            )}
           </SideNavSection>
           <SideNavSection title="Transaksi">
             <SideNavItem 
@@ -130,12 +141,14 @@ export default function Shell() {
               isSelected={path === '/shu'}
               onClick={() => navigate('/shu')}
             />
-            <SideNavItem 
-              label="Arus Kas" 
-              icon={BanknotesIcon} 
-              isSelected={path === '/cashflow'}
-              onClick={() => navigate('/cashflow')}
-            />
+            {hasPermission('read:cashflow') && (
+              <SideNavItem
+                label="Arus Kas"
+                icon={BanknotesIcon}
+                isSelected={path === '/cashflow'}
+                onClick={() => navigate('/cashflow')}
+              />
+            )}
           </SideNavSection>
           <SideNavSection title="Kredit & Persetujuan">
             <SideNavItem 
@@ -144,12 +157,14 @@ export default function Shell() {
               isSelected={path === '/loans'}
               onClick={() => navigate('/loans')}
             />
-            <SideNavItem 
-              label="Kredit Macet (NPL)" 
-              icon={ExclamationTriangleIcon} 
-              isSelected={path === '/npl'}
-              onClick={() => navigate('/npl')}
-            />
+            {hasPermission('read:npl') && (
+              <SideNavItem
+                label="Kredit Macet (NPL)"
+                icon={ExclamationTriangleIcon}
+                isSelected={path === '/npl'}
+                onClick={() => navigate('/npl')}
+              />
+            )}
           </SideNavSection>
           <SideNavSection title="Pengaturan">
             <SideNavItem
@@ -188,11 +203,11 @@ export default function Shell() {
           <Route path="/shu" element={<SHU />} />
           
           {/* Coming Soon Routes */}
-          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports" element={<ProtectedRoute permission="read:reports"><Reports /></ProtectedRoute>} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/loans-tx" element={<LoansTx />} />
-          <Route path="/cashflow" element={<Cashflow />} />
-          <Route path="/npl" element={<NPL />} />
+          <Route path="/cashflow" element={<ProtectedRoute permission="read:cashflow"><Cashflow /></ProtectedRoute>} />
+          <Route path="/npl" element={<ProtectedRoute permission="read:npl"><NPL /></ProtectedRoute>} />
           <Route path="/roles" element={<Roles />} />
           <Route path="/audit-log" element={<AuditLog />} />
         </Routes>

@@ -41,4 +41,24 @@ describe("Shell Component", () => {
     await waitFor(() => expect(screen.queryByText("Hak Akses")).toBeNull());
     expect(screen.getAllByText("Dasbor").length).toBeGreaterThan(0);
   });
+
+  test("hides financial analytics nav for viewer role", async () => {
+    localStorage.setItem("token", "test-token");
+    localStorage.setItem("role", "viewer");
+    spyOn(apiModule.api, "get").mockResolvedValue({});
+    renderShell();
+    await waitFor(() => expect(screen.queryByText("Laporan")).toBeNull());
+    expect(screen.queryByText("Arus Kas")).toBeNull();
+    expect(screen.queryByText("Kredit Macet (NPL)")).toBeNull();
+  });
+
+  test("shows financial analytics nav for admin role", async () => {
+    localStorage.setItem("token", "test-token");
+    localStorage.setItem("role", "admin");
+    spyOn(apiModule.api, "get").mockResolvedValue({});
+    renderShell();
+    await waitFor(() => expect(screen.getByText("Laporan")).toBeTruthy());
+    expect(screen.getByText("Arus Kas")).toBeTruthy();
+    expect(screen.getByText("Kredit Macet (NPL)")).toBeTruthy();
+  });
 });
