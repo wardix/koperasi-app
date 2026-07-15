@@ -76,6 +76,14 @@ Jangan menelan error migrasi — proses harus gagal jika `up()` throw.
 
 Untuk fitur baru, utamakan pola yang sama dengan tabel existing agar mapper dan route tetap konsisten. Refactor penuh ke `snake_case` + typed ORM adalah perbaikan terpisah (lihat issue arsitektur DB).
 
+## Internasionalisasi (i18n) & Bahasa
+
+Aplikasi ini menargetkan pengguna lokal di Indonesia. Harap perhatikan hal berikut saat menambah fitur atau antarmuka baru:
+- **Bahasa UI**: Gunakan Bahasa Indonesia baku yang jelas untuk semua _copy_ komponen (misalnya: "Simpan" bukan "Save", "Batal" bukan "Cancel").
+- **Format Data**: Gunakan format _locale_ `id-ID` untuk tanggal dan mata uang. Gunakan helper `formatRp` dan `formatDate` yang tersedia di `src/utils/format.ts`.
+- **Pesan Error**: Tangkap (*catch*) error teknis dari API (seperti "Failed to fetch", "Internal Server Error") dan petakan ke pesan yang ramah pengguna berbahasa Indonesia (lihat `src/hooks/useApiAction.ts` dan `useApiQuery.ts`). Jangan tampilkan error teknis mentah ke pengguna akhir.
+- **Kerangka i18n**: Belum menggunakan *library* i18n seperti `react-i18next` demi kesederhanaan. Harap _hardcode_ *string* langsung dalam bahasa Indonesia. Jika ada keperluan multi-bahasa kelak, arsitektur ini akan dievaluasi.
+
 ## Persiapan environment
 
 1. Salin contoh env:

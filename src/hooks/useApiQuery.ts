@@ -20,7 +20,13 @@ export function useApiQuery<T>(path: string): UseApiQueryResult<T> {
       const json = await api.get(path);
       setData(json as T);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err) || 'An error occurred');
+      const msg = err instanceof Error ? err.message : String(err) || 'Terjadi kesalahan tidak terduga';
+      if (msg.includes('Failed to fetch') || msg.includes('Network Error')) setError('Gagal terhubung ke server. Periksa koneksi internet Anda.');
+      else if (msg.includes('Unauthorized') || msg.includes('401')) setError('Sesi Anda telah berakhir. Silakan masuk kembali.');
+      else if (msg.includes('Not Found') || msg.includes('404')) setError('Data yang diminta tidak ditemukan.');
+      else if (msg.includes('Internal Server Error') || msg.includes('500')) setError('Terjadi kesalahan internal pada server.');
+      else if (msg.includes('Bad Request') || msg.includes('400')) setError('Permintaan tidak valid. Silakan periksa kembali data yang dimasukkan.');
+      else setError(msg);
     } finally {
       setIsLoading(false);
     }
