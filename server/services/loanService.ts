@@ -180,26 +180,27 @@ export async function recordLoanPayment(
   loanId: string,
   input: RecordPaymentInput
 ): Promise<{ id: string }> {
-  const loan = await database.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
-  if (!loan) {
-    throw new ServiceError("Loan not found", 404);
-  }
-
-  const totalAmount = await resolveLoanTotalAmount(database, loan);
-  const paid = Number(
-    (await database.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get<{ paid: number | null }>(
-      loanId
-    ))?.paid || 0
-  );
-
-  if (paid + input.amount > totalAmount) {
-    throw new ServiceError("Total pembayaran melebihi jumlah pinjaman");
-  }
-
   const id = crypto.randomUUID();
   const paymentDate = new Date().toISOString();
 
   await database.transaction(async () => {
+    // Lock the loan row to serialize concurrent payment attempts
+    const loan = await database.query("SELECT * FROM loans WHERE id = ? FOR UPDATE").get<LoanRow>(loanId);
+    if (!loan) {
+      throw new ServiceError("Loan not found", 404);
+    }
+
+    const totalAmount = await resolveLoanTotalAmount(database, loan);
+    const paid = Number(
+      (await database.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get<{ paid: number | null }>(
+        loanId
+      ))?.paid || 0
+    );
+
+    if (paid + input.amount > totalAmount) {
+      throw new ServiceError("Total pembayaran melebihi jumlah pinjaman");
+    }
+
     const stmt = database.prepare(`
       INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
       VALUES (?, ?, ?, ?, ?)

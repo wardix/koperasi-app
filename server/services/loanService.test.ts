@@ -9,24 +9,22 @@ import {
 import { ServiceError } from "./errors";
 
 describe("loanService", () => {
-  test("calculateLoanInterest returns correct interest and total amount", () => {
-    // 10,000,000 amount, 12 months tenor, 18% annual interest (1.5% monthly)
-    const res = calculateLoanInterest(10000000, "12", 18);
-    expect(res.interestAmount).toBe(1001600); // Annuity calculation
-    expect(res.totalAmount).toBe(11001600);
-  });
+  describe("calculateLoanInterest table tests", () => {
+    const cases = [
+      { principal: 10000000, tenor: 12, rate: 18, expInterest: 1001600, expTotal: 11001600 },
+      { principal: 5000000, tenor: 6, rate: 0, expInterest: 0, expTotal: 5000000 },
+      { principal: 2000000, tenor: 1, rate: 24, expInterest: 40000, expTotal: 2040000 },
+      { principal: 2000000, tenor: "invalid-tenor", rate: 24.0, expInterest: 40000, expTotal: 2040000 },
+      { principal: 1000000, tenor: 3, rate: 12, expInterest: 20069, expTotal: 1020069 },
+    ];
 
-  test("calculateLoanInterest handles zero interest rate", () => {
-    const res = calculateLoanInterest(5000000, "6", 0);
-    expect(res.interestAmount).toBe(0);
-    expect(res.totalAmount).toBe(5000000);
-  });
-
-  test("calculateLoanInterest handles fallback for invalid tenor", () => {
-    const res = calculateLoanInterest(2000000, "invalid-tenor", 24.0);
-    // Should fallback to 1 month tenor: 24% annual = 2% monthly: 2,040,000 total
-    expect(res.interestAmount).toBe(40000);
-    expect(res.totalAmount).toBe(2040000);
+    cases.forEach(({ principal, tenor, rate, expInterest, expTotal }) => {
+      test(`P=${principal}, T=${tenor}, R=${rate}% -> I=${expInterest}, Tot=${expTotal}`, () => {
+        const res = calculateLoanInterest(principal, tenor, rate);
+        expect(res.interestAmount).toBe(expInterest);
+        expect(res.totalAmount).toBe(expTotal);
+      });
+    });
   });
 
   test("createLoan inserts a pending loan row", async () => {
@@ -93,5 +91,50 @@ describe("loanService", () => {
     await expect(
       recordLoanPayment(db, crypto.randomUUID(), { amount: 1000, method: "Cash" })
     ).rejects.toBeInstanceOf(ServiceError);
+  });
+
+  test("recordLoanPayment prevents overpayment under concurrent requests", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Concurrent ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2026", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 1000000, 12, "Test", "Disetujui", new Date().toISOString()]
+    );
+
+    const loan = await db.query("SELECT * FROM loans WHERE id = ?").get(loanId);
+    const totalAmount = await resolveLoanTotalAmount(db, loan as never);
+
+    // Try to pay (totalAmount - 100) twice concurrently.
+    // The first should succeed, the second should fail because remaining balance is 100.
+    const paymentAmount = totalAmount - 100;
+
+    const promises = [
+      recordLoanPayment(db, loanId, { amount: paymentAmount, method: "Transfer" }),
+      recordLoanPayment(db, loanId, { amount: paymentAmount, method: "Transfer" }),
+    ];
+
+    const results = await Promise.allSettled(promises);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+
+    // Exactly one should succeed and one should fail due to overpayment
+    expect(fulfilled.length).toBe(1);
+    expect(rejected.length).toBe(1);
+    if (rejected[0].status === "rejected") {
+      expect(rejected[0].reason.message).toBe("Total pembayaran melebihi jumlah pinjaman");
+    }
+
+    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
 });
