@@ -16,6 +16,7 @@ import cashflowRoutes from './routes/cashflow'
 import nplRoutes from './routes/npl'
 import reportsRoutes from './routes/reports'
 import auditRoutes from './routes/audit'
+import docsRoutes from './routes/docs'
 
 import { HTTPException } from 'hono/http-exception'
 
@@ -121,6 +122,11 @@ app.route('/api/v1/cashflow', cashflowRoutes)
 app.route('/api/v1/npl', nplRoutes)
 app.route('/api/v1/reports', reportsRoutes)
 app.route('/api/v1/audit-logs', auditRoutes)
+
+// OpenAPI spec + Swagger UI (development only)
+if (process.env.NODE_ENV !== 'production') {
+  app.route('/', docsRoutes)
+}
 
 const port = parseInt(process.env.PORT || '3000', 10)
 

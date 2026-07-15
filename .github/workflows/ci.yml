@@ -43,6 +43,9 @@ jobs:
     - name: Typecheck
       run: bun run typecheck
 
+    - name: OpenAPI spec check
+      run: bun run openapi:check
+
     - name: Test
       # Use package script so only server/src unit tests run (excludes Playwright e2e/)
       run: bun run test
