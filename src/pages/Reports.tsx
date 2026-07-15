@@ -33,11 +33,11 @@ export default function ReportsTemplate() {
 
   const { data: reportResponse, isLoading: isSummaryLoading, error: summaryError, refetch: fetchSummary } = useApiQuery<ReportData>('/api/reports/summary');
   const { data: monthlyInterestRes, isLoading: isInterestLoading, error: interestError, refetch: fetchInterest } = useApiQuery<Array<{ monthKey: string, monthName: string, interestIncome: number }>>(`/api/reports/monthly-interest?year=${currentYear}`);
-  const { data: arRes, isLoading: isArLoading, error: arError, refetch: fetchAr } = useApiQuery<any[]>('/api/reports/ar');
-  const { data: savingsMemberRes, isLoading: isSavingsMemberLoading, error: savingsMemberError, refetch: fetchSavingsMember } = useApiQuery<any[]>('/api/reports/savings-member');
+  const { data: arRes, isLoading: isArLoading, error: arError, refetch: fetchAr } = useApiQuery<Array<{ memberName: string, principal: number, totalAmount: number, paidAmount: number, remainingAmount: number, status: string }>>('/api/reports/ar');
+  const { data: savingsMemberRes, isLoading: isSavingsMemberLoading, error: savingsMemberError, refetch: fetchSavingsMember } = useApiQuery<Array<{ memberName: string, simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number }>>('/api/reports/savings-member');
   
   const cashflowPath = `/api/reports/cashflow-statement?startDate=${startDate}&endDate=${endDate}`;
-  const { data: cashflowRes, isLoading: isCashflowLoading, error: cashflowError, refetch: fetchCashflow } = useApiQuery<any[]>(cashflowPath);
+  const { data: cashflowRes, isLoading: isCashflowLoading, error: cashflowError, refetch: fetchCashflow } = useApiQuery<Array<{ category: string, subcategory: string, total: number }>>(cashflowPath);
 
   let isLoading = false;
   let error: string | null = null;
@@ -366,7 +366,7 @@ export default function ReportsTemplate() {
             {/* Preview area card */}
             <StackItem style={{ flex: '1 1 auto' }}>
               <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
-                {(reportResponse || monthlyInterestRes) && (
+                {(reportResponse || monthlyInterestRes || arRes || savingsMemberRes || cashflowRes) && (
                   <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <VStack gap={5}>
                       {/* Document Header */}
@@ -557,6 +557,7 @@ export default function ReportsTemplate() {
                             <thead>
                               <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Anggota</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pokok Pinjaman</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Tagihan</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Telah Dibayar</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Sisa Piutang</th>
@@ -564,9 +565,10 @@ export default function ReportsTemplate() {
                               </tr>
                             </thead>
                             <tbody>
-                              {arRes.map((item) => (
-                                <tr key={item.loanId} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              {arRes.map((item, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
                                   <td style={{ padding: '12px 8px' }}>{item.memberName}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.principal)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.totalAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success, #10B981)' }}>{formatRp(item.paidAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(item.remainingAmount)}</td>
@@ -585,11 +587,11 @@ export default function ReportsTemplate() {
                               ))}
                               {arRes.length === 0 && (
                                 <tr>
-                                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Tidak ada piutang.</td>
+                                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Tidak ada piutang.</td>
                                 </tr>
                               )}
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb', fontWeight: 600 }}>
-                                <td colSpan={3} style={{ padding: '12px 8px' }}>Total Sisa Piutang Koperasi</td>
+                                <td colSpan={4} style={{ padding: '12px 8px' }}>Total Sisa Piutang Koperasi</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                                   {formatRp(arRes.reduce((sum, item) => sum + item.remainingAmount, 0))}
                                 </td>
