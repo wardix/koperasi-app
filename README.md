@@ -139,6 +139,7 @@ Atau image Docker (`Dockerfile` + `docker-compose.yml`). Jangan pakai fallback `
 |------|-----|
 | `.env.example` | Semua env vars (Postgres, JWT, CORS, Google SSO) |
 | `docker-compose.yml` | Service `app` + `db` (postgres:16-alpine) |
+| `docs/backup.md` | Runbook backup/restore database |
 | `server/db.ts` | Koneksi Bun SQL, transaksi, skema, migrasi |
 | `openapi.yaml` | Spek API (manual; diverifikasi CI via `bun run openapi:check`) |
 | `server/openapi/routeManifest.ts` | Daftar route wajib tercakup di spec |
