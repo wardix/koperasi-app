@@ -37,10 +37,16 @@ function AppThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { Routes, Route } from 'react-router-dom';
+const MemberPortal = React.lazy(() => import('./pages/MemberPortal'));
+
 function LazyRoot() {
   return (
     <Suspense fallback={<div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading App...</div>}>
-      <Root />
+      <Routes>
+        <Route path="/portal/*" element={<MemberPortal />} />
+        <Route path="*" element={<Root />} />
+      </Routes>
     </Suspense>
   )
 }

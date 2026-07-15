@@ -33,6 +33,8 @@ export const memberRowSchema = z.object({
   simpananWajib: num.default(0),
   simpananSukarela: num.default(0),
   totalSavings: num,
+  email: strNull,
+  password: strNull,
   deletedAt: strNull,
 });
 export type MemberRow = z.infer<typeof memberRowSchema>;
