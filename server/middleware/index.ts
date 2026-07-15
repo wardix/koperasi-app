@@ -4,6 +4,7 @@ import { Context, Next } from 'hono'
 import db from '../db'
 import { hasPermission, type Permission } from '../../shared/permissions'
 import type { AppVariables, JwtPayload } from '../types/auth'
+import { isPublicAuthPath } from '../lib/authPaths'
 
 export const secretKey: string = process.env.JWT_SECRET || Bun.env.JWT_SECRET || '';
 if (!secretKey) {
@@ -13,13 +14,7 @@ if (!secretKey) {
 type AppContext = Context<{ Variables: AppVariables }>
 
 export const authMiddleware = async (c: Context, next: Next) => {
-  if (
-    c.req.path === '/api/v1/login' ||
-    c.req.path === '/api/v1/logout' ||
-    c.req.path === '/api/v1/refresh' ||
-    c.req.path === '/api/v1/auth/google' ||
-    c.req.path === '/api/v1/google'
-  ) {
+  if (isPublicAuthPath(c.req.path)) {
     return next()
   }
 

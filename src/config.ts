@@ -16,9 +16,15 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   options.credentials = 'include';
   let res = await fetch(apiUrl(path), { ...options, headers });
   
-  if (res.status === 401 && path !== '/api/login' && path !== '/api/refresh' && path !== '/api/v1/login' && path !== '/api/v1/refresh') {
-    // Try to refresh token
-    const refreshRes = await fetch(apiUrl('/api/v1/refresh'), {
+  const isAuthRefreshPath =
+    path === '/api/auth/refresh' ||
+    path === '/api/v1/auth/refresh';
+  const isAuthLoginPath =
+    path === '/api/auth/login' ||
+    path === '/api/v1/auth/login';
+
+  if (res.status === 401 && !isAuthRefreshPath && !isAuthLoginPath) {
+    const refreshRes = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
       credentials: 'include'
     });

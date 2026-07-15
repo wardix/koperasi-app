@@ -139,7 +139,7 @@ describe("API Endpoints", () => {
     // Generate many requests to hit rate limit
     let status = 200;
     for (let i = 0; i < 7; i++) {
-      const req = new Request("http://localhost/api/v1/login", {
+      const req = new Request("http://localhost/api/v1/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -689,7 +689,7 @@ describe("API Endpoints", () => {
       await db.prepare("UPDATE admins SET role = ? WHERE id = ?").run("admin", adminId);
 
       // 4. Request token refresh
-      const req = new RequestConstructor("http://localhost/api/v1/refresh", {
+      const req = new RequestConstructor("http://localhost/api/v1/auth/refresh", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -711,7 +711,7 @@ describe("API Endpoints", () => {
       await db.prepare("DELETE FROM admins WHERE id = ?").run(adminId);
 
       // 6. Request token refresh again (should fail with 401 since user no longer exists)
-      const reqFailed = new RequestConstructor("http://localhost/api/v1/refresh", {
+      const reqFailed = new RequestConstructor("http://localhost/api/v1/auth/refresh", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -816,7 +816,7 @@ describe("API Endpoints", () => {
 
   test("global error handler handles invalid JSON payload", async () => {
     await db.run("DELETE FROM rate_limits");
-    const req = new Request("http://localhost/api/v1/login", {
+    const req = new Request("http://localhost/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{malformed-json"
