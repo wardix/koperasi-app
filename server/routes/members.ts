@@ -1,9 +1,12 @@
 import { Hono } from 'hono'
 import db from '../db'
-import type { MemberRow, MemberSavingsCols, TransactionRow } from '../db/entities'
+import type { MemberRow, TransactionRow } from '../db/entities'
 import { memberSchema, savingsSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
+import { createMember, deleteMember, updateMember } from '../services/memberService'
+import { updateMemberSavings } from '../services/savingsService'
+import { mapServiceError } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
 
@@ -30,13 +33,9 @@ members.get('/', requirePermission('read:members'), async (c) => {
 members.delete('/:id', requirePermission('delete:members'), async (c) => {
   const id = c.req.param('id')
 
-  // Capture before state for audit (fetch name/role before delete)
-  const before = await db.query("SELECT name, role FROM members WHERE id = ?").get<Pick<MemberRow, 'name' | 'role'>>(id)
-
   try {
-    await db.query("DELETE FROM members WHERE id = ?").run(id)
+    const before = await deleteMember(db, id)
 
-    // Audit: log member deletion
     if (before) {
       await audit(db, {
         actor: getActor(c),
@@ -50,227 +49,104 @@ members.delete('/:id', requirePermission('delete:members'), async (c) => {
 
     clearStatsCache()
     return c.json({ success: true })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err)
-    if (message.includes("FOREIGN KEY constraint failed") || message.includes("foreign key")) {
-      return c.json({ success: false, message: 'Anggota memiliki pinjaman, hapus pinjaman terlebih dahulu.' }, 400)
-    }
-    return c.json({ success: false, message: 'Gagal menghapus anggota' }, 500)
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
   }
 })
 
 members.post('/', requirePermission('create:members'), async (c) => {
-  try {
-    const body = await c.req.json()
-    const parsed = memberSchema.safeParse(body)
-    
-    if (!parsed.success) {
-      return c.json({ success: false, errors: parsed.error.format() }, 400)
-    }
+  const body = await c.req.json()
+  const parsed = memberSchema.safeParse(body)
 
-    const { name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela } = parsed.data
-    const totalSavings = simpananPokok + simpananWajib + simpananSukarela
-    const id = crypto.randomUUID()
-    const createdBy = getActor(c)
-
-    const insert = await db.prepare(`
-      INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    await db.transaction(async () => {
-      await insert.run(id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
-
-      if (simpananPokok > 0) {
-        await db.query(`
-          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          id,
-          'setor_pokok',
-          simpananPokok,
-          0,
-          simpananPokok,
-          new Date().toISOString(),
-          createdBy
-        )
-      }
-      if (simpananWajib > 0) {
-        await db.query(`
-          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          id,
-          'setor_wajib',
-          simpananWajib,
-          simpananPokok,
-          simpananPokok + simpananWajib,
-          new Date().toISOString(),
-          createdBy
-        )
-      }
-      if (simpananSukarela > 0) {
-        const balBefore = simpananPokok + simpananWajib
-        await db.query(`
-          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          id,
-          'setor_sukarela',
-          simpananSukarela,
-          balBefore,
-          balBefore + simpananSukarela,
-          new Date().toISOString(),
-          createdBy
-        )
-      }
-    })()
-
-    // Audit: log member creation
-    await audit(db, {
-      actor: getActor(c),
-      action: 'create_member',
-      entity: 'members',
-      entityId: id,
-      after: { name, role, status, joinDate },
-      ip: getClientIp(c),
-    })
-
-    clearStatsCache()
-
-    return c.json({ success: true, message: 'Member created successfully', id }, 201)
-  } catch (error) {
-    throw error
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
   }
+
+  const { id } = await createMember(db, parsed.data, getActor(c))
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'create_member',
+    entity: 'members',
+    entityId: id,
+    after: {
+      name: parsed.data.name,
+      role: parsed.data.role,
+      status: parsed.data.status,
+      joinDate: parsed.data.joinDate,
+    },
+    ip: getClientIp(c),
+  })
+
+  clearStatsCache()
+  return c.json({ success: true, message: 'Member created successfully', id }, 201)
 })
 
 members.put('/:id', requirePermission('update:members'), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const parsed = memberSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
   try {
-    const id = c.req.param('id')
-    const body = await c.req.json()
-    const parsed = memberSchema.safeParse(body)
-    
-    if (!parsed.success) {
-      return c.json({ success: false, errors: parsed.error.format() }, 400)
-    }
+    const { before } = await updateMember(db, id, parsed.data)
 
-    const { name, role, status, joinDate } = parsed.data
-
-    const oldMember = await db.query("SELECT id, name, role, status, joinDate FROM members WHERE id = ?")
-      .get<Pick<MemberRow, 'id' | 'name' | 'role' | 'status' | 'joinDate'>>(id)
-    if (!oldMember) return c.json({success: false, message: 'Member not found'}, 404)
-
-    const update = await db.prepare(`
-      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?
-      WHERE id = ?
-    `)
-    await update.run(name, role, status, joinDate, id)
-
-    // Audit: log member update
     await audit(db, {
       actor: getActor(c),
       action: 'update_member',
       entity: 'members',
       entityId: id,
-      before: oldMember ? { name: oldMember.name, role: oldMember.role } : undefined,
-      after: { name, role },
+      before,
+      after: { name: parsed.data.name, role: parsed.data.role },
       ip: getClientIp(c),
     })
 
     clearStatsCache()
-
     return c.json({ success: true, message: 'Member updated successfully' })
-  } catch (error) {
-    throw error
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
   }
 })
 
 members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const parsed = savingsSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
   try {
-    const id = c.req.param('id')
-    const body = await c.req.json()
-    const parsed = savingsSchema.safeParse(body)
+    const result = await updateMemberSavings(db, id, parsed.data, getActor(c))
 
-    if (!parsed.success) {
-      return c.json({ success: false, errors: parsed.error.format() }, 400)
-    }
-
-    const { additionalSavings, savingsType } = parsed.data
-
-    const member = await db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?")
-      .get<MemberSavingsCols>(id)
-    if (!member) return c.json({success: false, message: 'Not found'}, 404)
-
-    const additionalSavingsNum = Number(additionalSavings)
-    let newPokok = Number(member.simpananPokok ?? 0)
-    let newWajib = Number(member.simpananWajib ?? 0)
-    let newSukarela = Number(member.simpananSukarela ?? 0)
-
-    if (savingsType === 'pokok') newPokok += additionalSavingsNum
-    else if (savingsType === 'wajib') newWajib += additionalSavingsNum
-    else newSukarela += additionalSavingsNum
-
-    // Withdrawal guard: check if withdrawal exceeds available voluntary savings (sukarela)
-    // Simpanan pokok dan wajib bersifat terikat, hanya simpanan sukarela yang bisa ditarik
-    if (additionalSavingsNum < 0) {
-      const withdrawalAmount = Math.abs(additionalSavingsNum)
-
-      // For withdraw operations, check against available sukarela balance
-      // This ensures we don't overdraw from the voluntary savings pool
-      if (newSukarela < 0) {
-        return c.json({ success: false, message: "Penarikan melebihi saldo sukarela tersedia" }, 400)
-      }
-
-      // Additional guard: totalSavings must remain non-negative after withdrawal
-      const newTotal = newPokok + newWajib + newSukarela
-      if (newTotal < 0) {
-        return c.json({ success: false, message: "Penarikan melebihi total simpanan tersedia" }, 400)
-      }
-    }
-
-    // Check for negative balances after all operations
-    if (newPokok < 0 || newWajib < 0 || newSukarela < 0) {
-      return c.json({ success: false, message: "Saldo tidak mencukupi" }, 400)
-    }
-
-    const newTotal = newPokok + newWajib + newSukarela
-
-    await db.transaction(async () => {
-      await db.query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?").run(newPokok, newWajib, newSukarela, newTotal, id)
-      await db.query(`
-        INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        crypto.randomUUID(),
-        id,
-        additionalSavingsNum >= 0 ? `setor_${savingsType}` : `tarik_${savingsType}`,
-        Math.abs(additionalSavingsNum),
-        Number(member.totalSavings ?? 0),
-        newTotal,
-        new Date().toISOString(),
-        getActor(c)
-      )
-    })()
-
-    // Audit: log savings update
     await audit(db, {
       actor: getActor(c),
       action: 'update_savings',
       entity: 'members',
       entityId: id,
-      before: { simpananPokok: member.simpananPokok, simpananWajib: member.simpananWajib, simpananSukarela: member.simpananSukarela },
-      after: { simpananPokok: newPokok, simpananWajib: newWajib, simpananSukarela: newSukarela, additionalSavings: additionalSavingsNum, savingsType },
+      before: {
+        simpananPokok: result.before.simpananPokok,
+        simpananWajib: result.before.simpananWajib,
+        simpananSukarela: result.before.simpananSukarela,
+      },
+      after: result.after,
       ip: getClientIp(c),
     })
 
     clearStatsCache()
-
-    return c.json({ success: true, data: { newTotal } })
-  } catch (error) {
-    throw error
+    return c.json({ success: true, data: { newTotal: result.newTotal } })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
   }
 })
 
