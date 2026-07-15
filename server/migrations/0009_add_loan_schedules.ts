@@ -70,11 +70,11 @@ export function createLoanSchedulesMigration(db: {
          WHERE l.status = 'Disetujui' AND l.scheduleGenerated IS FALSE`
       ).all();
 
-      for (const loan of approvedLoans as any[]) {
+      for (const loan of approvedLoans as Array<{ id: string; amount?: number; tenor?: string | number; interestRate?: string | number }>) {
         if (!loan.amount || !loan.tenor) continue;
 
-        const tenorMonths = parseInt(loan.tenor);
-        const annualRatePercent = parseFloat(loan.interestRate || '18');
+        const tenorMonths = parseInt(String(loan.tenor));
+        const annualRatePercent = parseFloat(String(loan.interestRate ?? '18'));
 
         // Calculate using annuity formula (same as #195 snapshot logic)
         const i = annualRatePercent / 1200; // Monthly rate

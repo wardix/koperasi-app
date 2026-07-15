@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { CashflowRow } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 
@@ -71,7 +72,7 @@ cashflow.get('/', requirePermission('read:stats'), async (c) => {
     LIMIT ? OFFSET ?
   `
 
-  const rows = await db.query(queryStr).all(limit, offset) as any[]
+  const rows = await db.query(queryStr).all<CashflowRow>(limit, offset)
 
   const countQuery = `
     SELECT COUNT(*) as count FROM (
@@ -88,7 +89,7 @@ cashflow.get('/', requirePermission('read:stats'), async (c) => {
     success: true,
     data: {
       data: rows,
-      total: totalRes.count,
+      total: totalRes?.count ?? 0,
       page,
       limit,
       summary: {

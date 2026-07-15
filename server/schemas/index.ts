@@ -1,11 +1,14 @@
 import { z } from 'zod'
 import xss from 'xss'
 
+/** Wrap xss so Zod transform only receives the string value. */
+const sanitize = (value: string) => xss(value)
+
 export const memberSchema = z.object({
-  name: z.string().min(1, "Name is required").transform(xss),
+  name: z.string().min(1, "Name is required").transform(sanitize),
   role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
   status: z.enum(["Aktif", "Pasif"]),
-  joinDate: z.string().min(1, "Join date is required").transform(xss),
+  joinDate: z.string().min(1, "Join date is required").transform(sanitize),
   simpananPokok: z.number().nonnegative().default(0),
   simpananWajib: z.number().nonnegative().default(0),
   simpananSukarela: z.number().nonnegative().default(0),
@@ -36,11 +39,11 @@ export const savingsSchema = z.object({
 export const transactionTypeSchema = z.enum(SAVINGS_TRANSACTION_TYPES);
 
 export const loanSchema = z.object({
-  memberId: z.string().min(1, "Member ID is required").transform(xss),
-  name: z.string().min(1, "Name is required").transform(xss),
+  memberId: z.string().min(1, "Member ID is required").transform(sanitize),
+  name: z.string().min(1, "Name is required").transform(sanitize),
   amount: z.number().positive(),
   tenor: z.number().positive(),
-  purpose: z.string().min(1, "Purpose is required").transform(xss),
+  purpose: z.string().min(1, "Purpose is required").transform(sanitize),
   status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]).default("Menunggu")
 })
 
@@ -50,7 +53,7 @@ export const loanStatusSchema = z.object({
 
 export const paymentSchema = z.object({
   amount: z.number().positive(),
-  method: z.string().min(1).transform(xss)
+  method: z.string().min(1).transform(sanitize)
 })
 
 // Common passwords blocklist (top 100 most common)
@@ -88,7 +91,7 @@ export const ALLOWED_SETTINGS_KEYS = [
 
 export const settingsSchema = z.record(
   z.string().refine(key => ALLOWED_SETTINGS_KEYS.includes(key), { message: "Invalid setting key" }),
-  z.union([z.string().transform(xss), z.boolean(), z.number()])
+  z.union([z.string().transform(sanitize), z.boolean(), z.number()])
 )
 
 export const adminCreationSchema = z.object({
@@ -103,7 +106,7 @@ export const adminCreationSchema = z.object({
     .or(z.literal("")) // Allow empty for Google SSO auto-register
   ,
   role: z.enum(["viewer", "admin", "superadmin"]),
-  name: z.string().min(1, "Nama wajib diisi").transform(xss).optional(),
+  name: z.string().min(1, "Nama wajib diisi").transform(sanitize).optional(),
 })
 
 export const adminUpdateSchema = z.object({

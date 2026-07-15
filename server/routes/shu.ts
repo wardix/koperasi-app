@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { calculateSHU, getShuConfig } from '../services/shuService'
 import { requirePermission } from '../middleware'
 import db from '../db'
+import type { ShuCloseRow } from '../db/entities'
 import { audit, getActor, getClientIp } from '../lib/audit'
 
 const shu = new Hono()
@@ -47,7 +48,7 @@ shu.post('/close', requirePermission('approve:loans'), async (c) => {
 
   // Calculate SHU for the year
   const result = await calculateSHU(year);
-  const userEmail = (c.get('jwtPayload') as { email?: string })?.email || 'admin';
+  const userEmail = getActor(c);
 
   // Persist everything inside a transaction
   await db.transaction(async () => {
@@ -102,7 +103,7 @@ shu.post('/reopen', requirePermission('delete:members'), async (c) => {
   }
 
   // Capture before state for audit (fetch current closing data)
-  const beforeClose = await db.query("SELECT year, pendapatan, shuNetto FROM shu_closes WHERE year = ?").get(year) as any
+  const beforeClose = await db.query("SELECT year, pendapatan, shuNetto FROM shu_closes WHERE year = ?").get<Pick<ShuCloseRow, "year" | "pendapatan" | "shuNetto">>(year)
 
   // Delete allocations and closing log inside a transaction
   await db.transaction(async () => {

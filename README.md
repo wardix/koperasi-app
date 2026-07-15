@@ -69,7 +69,8 @@ Jangan menelan error migrasi — proses harus gagal jika `up()` throw.
 | Lapisan | Konvensi | Catatan |
 |--------|----------|---------|
 | SQL di kode / `CREATE TABLE` | **camelCase** (mis. `memberId`, `totalSavings`) | Historis; Postgres menyimpan identifier unquoted sebagai **lowercase** (`memberid`, `totalsavings`). |
-| Baris hasil query di app | **camelCase** | `Statement.mapRow` memetakan key lowercase Postgres → camelCase app. |
+| Baris hasil query di app | **camelCase** | `mapRow` (`server/db/mapRow.ts`) memetakan key lowercase Postgres → camelCase app via `COLUMN_KEY_MAP`. |
+| Typing | Generics + Zod row schemas | `db.query(...).get<T>()` / `.allAs(schema)` — lihat `server/db/entities.ts`. |
 | Query baru | Tetap camelCase di SQL string yang ada, **atau** quote identifier (`"memberId"`) jika menambah kolom case-sensitive. | Jangan campur snake_case di tabel lama tanpa migrasi + update mapper. |
 | Parameter SQL | `?` di helper `db` | Dikonversi ke `$1`, `$2`, … untuk Postgres. |
 

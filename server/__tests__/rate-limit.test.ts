@@ -1,11 +1,18 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, beforeAll, afterAll, beforeEach } from "bun:test";
+import { sign } from "hono/jwt";
 import server from "../index";
 import db from "../db";
+import { secretKey } from "../middleware";
 
 describe("API Rate Limiting (Issue #204)", () => {
   beforeAll(async () => {
     // Ensure migrations are applied
     await import("../db");
+  });
+
+  beforeEach(async () => {
+    // Isolate buckets so suite order / shared IPs do not leak between cases
+    await db.run("DELETE FROM rate_limits");
   });
 
   afterAll(async () => {
@@ -272,6 +279,7 @@ describe("API Rate Limiting (Issue #204)", () => {
             method: "POST",
             headers: {
               Cookie: `refreshToken=test-token-${i}`,
+              "x-forwarded-for": ip,
             },
           })
         );
@@ -285,6 +293,7 @@ describe("API Rate Limiting (Issue #204)", () => {
           method: "POST",
           headers: {
             Cookie: `refreshToken=test-token-31`,
+            "x-forwarded-for": ip,
           },
         })
       );
@@ -314,6 +323,7 @@ describe("API Rate Limiting (Issue #204)", () => {
           method: "POST",
           headers: {
             Cookie: `refreshToken=test-token`,
+            "x-forwarded-for": ip,
           },
         })
       );
@@ -354,13 +364,21 @@ describe("API Rate Limiting (Issue #204)", () => {
     test("GLOBAL_API_RATE_LIMIT=true enables global rate limiting", async () => {
       const originalEnv = process.env.GLOBAL_API_RATE_LIMIT;
       process.env.GLOBAL_API_RATE_LIMIT = "true";
+      const ip = "test-ip-global-api";
+      const token = await sign(
+        { sub: "1", email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 3600, jti: crypto.randomUUID() },
+        secretKey
+      );
 
       try {
         // Make 61 requests to a non-auth endpoint (should be limited at 60/min)
         for (let i = 0; i < 60; i++) {
           await server.fetch(
             new Request("http://localhost/api/v1/stats", {
-              headers: { Authorization: `Bearer test-token-${i}` },
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "x-forwarded-for": ip,
+              },
             })
           );
         }
@@ -368,7 +386,10 @@ describe("API Rate Limiting (Issue #204)", () => {
         // 61st request should be rate limited by global limiter
         const res = await server.fetch(
           new Request("http://localhost/api/v1/stats", {
-            headers: { Authorization: "Bearer test-token-61" },
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "x-forwarded-for": ip,
+            },
           })
         );
         expect(res.status).toBe(429); // Should be rate limited by global limiter

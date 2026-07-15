@@ -1,4 +1,5 @@
 import db from '../db'
+import type { ShuCloseRow, ShuAllocationRow, InterestPaymentRow, MemberRow, SettingRow } from '../db/entities'
 import { calculateLoanInterest } from './loanService'
 
 /**
@@ -6,7 +7,7 @@ import { calculateLoanInterest } from './loanService'
  * Returns default values if settings not found.
  */
 export async function getShuConfig() {
-  const settings = await db.query("SELECT key, value FROM settings").all() as { key: string, value: string }[];
+  const settings = await db.query("SELECT key, value FROM settings").all<SettingRow>();
   const configMap = Object.fromEntries(settings.map(s => [s.key, s.value]));
 
   return {
@@ -29,7 +30,7 @@ export async function getShuConfig() {
  */
 export async function calculateSHU(year: string) {
   // 1. Check if this year is already closed (locked)
-  const isClosed = await db.query("SELECT * FROM shu_closes WHERE year = ?").get(year) as any;
+  const isClosed = await db.query("SELECT * FROM shu_closes WHERE year = ?").get<ShuCloseRow>(year);
   if (isClosed) {
     // Return historical data from locked period
     const allocations = await db.query(`
@@ -38,17 +39,17 @@ export async function calculateSHU(year: string) {
       JOIN members m ON sma.memberId = m.id
       WHERE sma.year = ?
       ORDER BY sma.totalSHU DESC
-    `).all(year) as any[];
+    `).all<ShuAllocationRow>(year);
 
     return {
       year,
       isClosed: true,
-      closedAt: isClosed.closedat || isClosed.closedAt,
-      closedBy: isClosed.closedby || isClosed.closedBy,
+      closedAt: isClosed.closedAt,
+      closedBy: isClosed.closedBy,
       pendapatan: Number(isClosed.pendapatan),
-      biayaOperasional: Number(isClosed.biayaoperasional || isClosed.biayaOperasional),
-      shuNetto: Number(isClosed.shunetto || isClosed.shuNetto),
-      distribusi: typeof isClosed.distribusi === 'string' ? JSON.parse(isClosed.distribusi) : isClosed.distribusi,
+      biayaOperasional: Number(isClosed.biayaOperasional),
+      shuNetto: Number(isClosed.shuNetto),
+      distribusi: typeof isClosed.distribusi === 'string' ? JSON.parse(isClosed.distribusi as string) : isClosed.distribusi,
       alokasiAnggota: allocations.map(a => ({
         id: a.memberId,
         name: a.name,
@@ -61,7 +62,7 @@ export async function calculateSHU(year: string) {
   }
 
   // 2. If not closed, calculate dynamically
-  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
   const bungaRate = parseFloat(bungaSetting?.value || '1.5');
   const config = await getShuConfig();
 
@@ -71,18 +72,18 @@ export async function calculateSHU(year: string) {
     FROM loan_payments lp
     JOIN loans l ON lp.loanId = l.id
     WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
-  `).all(year) as any[];
+  `).all<InterestPaymentRow>(year);
 
   let totalPendapatanBunga = 0;
   const memberInterestPaid: Record<string, number> = {};
 
   for (const p of payments) {
-    const pAmt = Number(p.paymentAmount || p.paymentamount || 0);
-    const princAmt = Number(p.principalAmount || p.principalamount || 0);
-    const mId = p.memberId || p.memberid;
+    const pAmt = Number(p.paymentAmount || 0);
+    const princAmt = Number(p.principalAmount || 0);
+    const mId = p.memberId || '';
 
     // Calculate interest portion for this payment
-    const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor, bungaRate);
+    const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor ?? 0, bungaRate);
     const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
 
     totalPendapatanBunga += interestPaid;
@@ -90,7 +91,7 @@ export async function calculateSHU(year: string) {
   }
 
   // Get annual operating cost input if exists, otherwise use default 20%
-  const biayaOpsSetting = await db.query("SELECT value FROM settings WHERE key = ?").get(`biaya_operasional_${year}`) as { value: string } | undefined;
+  const biayaOpsSetting = await db.query("SELECT value FROM settings WHERE key = ?").get<{ value: string }>(`biaya_operasional_${year}`);
   const biayaOperasional = biayaOpsSetting ? Math.round(parseFloat(biayaOpsSetting.value)) : Math.round(totalPendapatanBunga * 0.2);
   const shuNetto = Math.max(0, totalPendapatanBunga - biayaOperasional);
 
@@ -108,12 +109,12 @@ export async function calculateSHU(year: string) {
   const totalJasaPinjamanPool = Math.round(distribusi.anggota * (config.jasaPinjamanPct / 100));
 
   // Get all members and calculate their shares
-  const members = await db.query("SELECT id, name, totalSavings FROM members").all() as any[];
-  const totalSimpananSeluruhAnggota = members.reduce((sum, m) => sum + Number(m.totalSavings || m.totalsavings || 0), 0);
+  const members = await db.query("SELECT id, name, totalSavings FROM members").all<Pick<MemberRow, "id" | "name" | "totalSavings">>();
+  const totalSimpananSeluruhAnggota = members.reduce((sum, m) => sum + Number(m.totalSavings || 0), 0);
   const totalBungaDibayarSeluruhAnggota = Object.values(memberInterestPaid).reduce((sum, val) => sum + val, 0);
 
   const alokasiAnggota = members.map(m => {
-    const savings = Number(m.totalSavings || m.totalsavings || 0);
+    const savings = Number(m.totalSavings || 0);
     const interestPaid = memberInterestPaid[m.id] || 0;
 
     // Calculate proportion for each component

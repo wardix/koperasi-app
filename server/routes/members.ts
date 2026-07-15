@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { MemberRow, MemberSavingsCols, TransactionRow } from '../db/entities'
 import { memberSchema, savingsSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
@@ -12,14 +13,14 @@ members.get('/', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
   
-  const rows = await db.query("SELECT * FROM members ORDER BY id DESC LIMIT ? OFFSET ?").all(limit, offset)
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM members").get() as { count: number }
+  const rows = await db.query("SELECT * FROM members ORDER BY id DESC LIMIT ? OFFSET ?").all<MemberRow>(limit, offset)
+  const totalRes = await db.query("SELECT COUNT(*) as count FROM members").get<{ count: number }>()
   
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: totalRes.count,
+      total: totalRes?.count ?? 0,
       page,
       limit
     }
@@ -30,7 +31,7 @@ members.delete('/:id', requirePermission('delete:members'), async (c) => {
   const id = c.req.param('id')
 
   // Capture before state for audit (fetch name/role before delete)
-  const before = await db.query("SELECT name, role FROM members WHERE id = ?").get(id) as any
+  const before = await db.query("SELECT name, role FROM members WHERE id = ?").get<Pick<MemberRow, 'name' | 'role'>>(id)
 
   try {
     await db.query("DELETE FROM members WHERE id = ?").run(id)
@@ -49,8 +50,9 @@ members.delete('/:id', requirePermission('delete:members'), async (c) => {
 
     clearStatsCache()
     return c.json({ success: true })
-  } catch (err: any) {
-    if (err.message && err.message.includes("FOREIGN KEY constraint failed")) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.includes("FOREIGN KEY constraint failed") || message.includes("foreign key")) {
       return c.json({ success: false, message: 'Anggota memiliki pinjaman, hapus pinjaman terlebih dahulu.' }, 400)
     }
     return c.json({ success: false, message: 'Gagal menghapus anggota' }, 500)
@@ -69,6 +71,7 @@ members.post('/', requirePermission('create:members'), async (c) => {
     const { name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela } = parsed.data
     const totalSavings = simpananPokok + simpananWajib + simpananSukarela
     const id = crypto.randomUUID()
+    const createdBy = getActor(c)
 
     const insert = await db.prepare(`
       INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
@@ -90,7 +93,7 @@ members.post('/', requirePermission('create:members'), async (c) => {
           0,
           simpananPokok,
           new Date().toISOString(),
-          (c.get('jwtPayload') as any)?.email || 'admin'
+          createdBy
         )
       }
       if (simpananWajib > 0) {
@@ -105,7 +108,7 @@ members.post('/', requirePermission('create:members'), async (c) => {
           simpananPokok,
           simpananPokok + simpananWajib,
           new Date().toISOString(),
-          (c.get('jwtPayload') as any)?.email || 'admin'
+          createdBy
         )
       }
       if (simpananSukarela > 0) {
@@ -121,7 +124,7 @@ members.post('/', requirePermission('create:members'), async (c) => {
           balBefore,
           balBefore + simpananSukarela,
           new Date().toISOString(),
-          (c.get('jwtPayload') as any)?.email || 'admin'
+          createdBy
         )
       }
     })()
@@ -156,7 +159,8 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
 
     const { name, role, status, joinDate } = parsed.data
 
-    const oldMember = await db.query("SELECT id, name, role, status, joinDate FROM members WHERE id = ?").get(id) as any
+    const oldMember = await db.query("SELECT id, name, role, status, joinDate FROM members WHERE id = ?")
+      .get<Pick<MemberRow, 'id' | 'name' | 'role' | 'status' | 'joinDate'>>(id)
     if (!oldMember) return c.json({success: false, message: 'Member not found'}, 404)
 
     const update = await db.prepare(`
@@ -196,13 +200,14 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
 
     const { additionalSavings, savingsType } = parsed.data
 
-    const member = await db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?").get(id) as {simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number}
+    const member = await db.query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?")
+      .get<MemberSavingsCols>(id)
     if (!member) return c.json({success: false, message: 'Not found'}, 404)
 
     const additionalSavingsNum = Number(additionalSavings)
-    let newPokok = member.simpananPokok ?? member.simpananpokok ?? 0
-    let newWajib = member.simpananWajib ?? member.simpananwajib ?? 0
-    let newSukarela = member.simpananSukarela ?? member.simpanansukarela ?? 0
+    let newPokok = Number(member.simpananPokok ?? 0)
+    let newWajib = Number(member.simpananWajib ?? 0)
+    let newSukarela = Number(member.simpananSukarela ?? 0)
 
     if (savingsType === 'pokok') newPokok += additionalSavingsNum
     else if (savingsType === 'wajib') newWajib += additionalSavingsNum
@@ -243,10 +248,10 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
         id,
         additionalSavingsNum >= 0 ? `setor_${savingsType}` : `tarik_${savingsType}`,
         Math.abs(additionalSavingsNum),
-        member.totalSavings ?? member.totalsavings ?? 0,
+        Number(member.totalSavings ?? 0),
         newTotal,
         new Date().toISOString(),
-        (c.get('jwtPayload') as any)?.email || 'admin'
+        getActor(c)
       )
     })()
 
@@ -271,7 +276,8 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
 
 members.get('/:id/transactions', requirePermission('read:members'), async (c) => {
   const id = c.req.param('id')
-  const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC").all(id)
+  const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC")
+    .all<TransactionRow>(id)
   return c.json({ success: true, data: rows })
 })
 

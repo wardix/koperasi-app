@@ -1,4 +1,5 @@
 import db from '../db';
+import type { LoanRow } from '../db/entities';
 
 /**
  * Check and update loan aging based on DPD (Days Past Due).
@@ -25,7 +26,7 @@ export async function checkAndApplyAging(): Promise<{
     JOIN loan_schedules ls ON l.id = ls.loanId AND ls.status = 'Pending'
     WHERE ls.dueDate < CURRENT_DATE
     AND l.status IN ('Disetujui', 'Macet')
-  `).all() as any[];
+  `).all<Pick<LoanRow, 'id' | 'status'>>();
 
   let updatedToMacet = 0;
   let updatedToLate = 0;
@@ -36,7 +37,7 @@ export async function checkAndApplyAging(): Promise<{
       SELECT MIN(ls.dueDate) as oldestDueDate
       FROM loan_schedules ls
       WHERE ls.loanId = ? AND ls.status = 'Pending' AND ls.dueDate < CURRENT_DATE
-    `).get(loan.id) as { oldestDueDate: string } | undefined;
+    `).get<{ oldestDueDate: string }>(loan.id);
 
     if (!oldestOverdue?.oldestDueDate) continue;
 

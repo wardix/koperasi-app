@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import db from '../db'
+import type { LoanRow, LoanPaymentRow, LoanScheduleRow } from '../db/entities'
 import { loanSchema, loanStatusSchema, paymentSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
@@ -15,10 +16,10 @@ const loans = new Hono()
  * historical loans (NPL, SHU calculations rely on snapshot values).
  */
 async function snapshotLoanTerms(loanId: string) {
-  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
   const bungaRatePercent = parseFloat(bungaSetting?.value || '0');
 
-  const loan = await db.query("SELECT amount, tenor FROM loans WHERE id = ?").get(loanId) as { amount: number, tenor: string } | null;
+  const loan = await db.query("SELECT amount, tenor FROM loans WHERE id = ?").get<{ amount: number; tenor: string | number }>(loanId);
   if (!loan) return;
 
   // calculateLoanInterest expects annual percent (e.g., 18 for 18%)
@@ -26,7 +27,7 @@ async function snapshotLoanTerms(loanId: string) {
 
   await db.run(`UPDATE loans SET
     interestRate = ?, monthlyPayment = ?, interestAmount = ?, totalAmount = ?, approvedAt = CURRENT_TIMESTAMP
-    WHERE id = ?`, [bungaRatePercent, Math.round(totalAmount / parseInt(loan.tenor)), interestAmount, totalAmount, loanId]);
+    WHERE id = ?`, [bungaRatePercent, Math.round(totalAmount / parseInt(String(loan.tenor))), interestAmount, totalAmount, loanId]);
 }
 
 loans.get('/', requirePermission('read:loans'), async (c) => {
@@ -40,10 +41,10 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
     GROUP BY l.id
     ORDER BY l.id DESC
     LIMIT ? OFFSET ?
-  `).all(limit, offset) as any[]
+  `).all<LoanRow & { paidAmount?: number }>(limit, offset)
 
   // Load current settings once for pending loans (avoid await inside map)
-  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
   const bungaRate = parseFloat(bungaSetting?.value || '0');
 
   const mappedLoans = rows.map(loan => {
@@ -72,7 +73,7 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
     success: true,
     data: {
       data: mappedLoans,
-      total: totalRes.count,
+      total: totalRes?.count ?? 0,
       page,
       limit
     }
@@ -139,7 +140,7 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
         await stmt.run(status, id)
 
         // Capture snapshot values using shared calculation logic
-        const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+        const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
         const bungaRatePercent = parseFloat(bungaSetting?.value || '0');
 
         const loan = await db.query("SELECT id, amount, tenor, scheduleGenerated FROM loans WHERE id = ?").get(id) as { id: string, amount: number, tenor: string, scheduleGenerated: boolean } | null;
@@ -193,8 +194,8 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
     console.log("Database update executed successfully")
 
     // Audit: log loan status change (approve/reject)
-    const before = await db.query("SELECT status, memberId FROM loans WHERE id = ?").get(id) as any
-    const action = status === 'Disetujui' || status === 'Diterima' ? 'approve_loan' : 'reject_loan'
+    const before = await db.query("SELECT status, memberId FROM loans WHERE id = ?").get<Pick<LoanRow, "status" | "memberId">>(id)
+    const action = status === 'Disetujui' ? 'approve_loan' : 'reject_loan'
     await audit(db, {
       actor: getActor(c),
       action,
@@ -244,20 +245,20 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
     ) combined
     ORDER BY "paymentDate" DESC
     LIMIT ? OFFSET ?
-  `).all(limit, offset) as any[]
+  `).all<LoanPaymentRow>(limit, offset)
 
   const totalRes = await db.query(`
     SELECT (
       (SELECT COUNT(*) FROM loans WHERE status IN ('Disetujui', 'Lunas', 'Macet')) +
       (SELECT COUNT(*) FROM loan_payments)
     ) as count
-  `).get() as { count: number }
+  `).get<{ count: number }>()
 
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: totalRes.count,
+      total: totalRes?.count ?? 0,
       page,
       limit
     }
@@ -282,7 +283,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
 
     const { amount, method } = parsed.data
 
-    const loan = await db.query("SELECT * FROM loans WHERE id = ?").get(loanId) as any;
+    const loan = await db.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
     if (!loan) return c.json({ success: false, message: 'Loan not found' }, 404);
 
     // Use snapshot values for approved loans (historical consistency)
@@ -290,12 +291,12 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
     if (loan.approvedAt && loan.totalAmount !== null) {
       totalAmount = Number(loan.totalAmount);
     } else {
-      const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | undefined;
+      const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
       const bungaRate = parseFloat(bungaSetting?.value || '0');
       ({ totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate));
     }
 
-    const paid = Number((await db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get(loanId) as any).paid || 0);
+    const paid = Number((await db.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get<{ paid: number | null }>(loanId))?.paid || 0);
 
     if (paid + amount > totalAmount) {
       return c.json({ success: false, message: 'Total pembayaran melebihi jumlah pinjaman' }, 400);
@@ -321,7 +322,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
         SELECT * FROM loan_schedules
         WHERE loanId = ? AND status = 'Pending'
         ORDER BY installmentNo ASC
-      `).all(loanId) as any[];
+      `).all<LoanScheduleRow>(loanId);
 
       if (pendingSchedules.length > 0) {
         const today = new Date();
@@ -334,7 +335,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
           // Check for late fee if applicable
           let lateFee = 0;
           if (daysLate > 0) {
-            const dendaSetting = await db.query("SELECT value FROM settings WHERE key = 'denda'").get() as { value: string } | undefined;
+            const dendaSetting = await db.query("SELECT value FROM settings WHERE key = 'denda'").get<{ value: string }>();
             const dendaPercent = parseFloat(dendaSetting?.value || '0');
             lateFee = Math.round(schedule.principalAmount * (dendaPercent / 100));
           }
@@ -355,8 +356,8 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
             // If fully paid and there are more installments due, check aging for this loan
             if (isFullyPaid) {
               // Check if all installments are paid
-              const remainingPending = await db.query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Pending'`).get(loanId) as any;
-              if (Number(remainingPending.count || 0) === 0) {
+              const remainingPending = await db.query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Pending'`).get<{ count: number }>(loanId);
+              if (Number(remainingPending?.count || 0) === 0) {
                 // All installments paid, mark loan as Lunas
                 await db.run(`UPDATE loans SET status = 'Lunas', paidInstallments = totalInstallments WHERE id = ?`, [loanId]);
               }
@@ -365,7 +366,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
         }
 
         // Update loan paid installment count
-        const paidInstallmentCount = await db.query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Paid'`).get(loanId) as any;
+        const paidInstallmentCount = await db.query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Paid'`).get<{ count: number }>(loanId);
         if (paidInstallmentCount && Number(paidInstallmentCount.count || 0) > 0) {
           await db.run(`UPDATE loans SET paidInstallments = ? WHERE id = ?`, [Number(paidInstallmentCount.count), loanId]);
         }
@@ -375,7 +376,7 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
           SELECT * FROM loan_schedules
           WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE
           ORDER BY dueDate ASC LIMIT 1
-        `).all(loanId) as any[];
+        `).all<LoanScheduleRow>(loanId);
 
         if (overdueSchedules.length > 0) {
           const oldestOverdue = overdueSchedules[0];
