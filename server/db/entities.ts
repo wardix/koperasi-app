@@ -33,6 +33,7 @@ export const memberRowSchema = z.object({
   simpananWajib: num.default(0),
   simpananSukarela: num.default(0),
   totalSavings: num,
+  deletedAt: strNull,
 });
 export type MemberRow = z.infer<typeof memberRowSchema>;
 
@@ -84,6 +85,7 @@ export const loanRowSchema = z.object({
   paidInstallments: numNull,
   paidAmount: numNull,
   oldestOverdueDate: strNull,
+  deletedAt: strNull,
 });
 export type LoanRow = z.infer<typeof loanRowSchema>;
 

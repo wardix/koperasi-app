@@ -21,11 +21,15 @@ const loans = new Hono()
 loans.get('/', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
+  const includeArchived = c.req.query('includeArchived') === 'true'
+
+  const whereClause = includeArchived ? '' : 'WHERE l.deletedAt IS NULL'
 
   const rows = await db.query(`
     SELECT l.*, COALESCE(SUM(p.amount), 0) as paidAmount
     FROM loans l
     LEFT JOIN loan_payments p ON l.id = p.loanId
+    ${whereClause}
     GROUP BY l.id
     ORDER BY l.id DESC
     LIMIT ? OFFSET ?
@@ -33,7 +37,7 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
 
   const bungaRate = await getBungaRatePercent(db)
   const mappedLoans = rows.map((loan) => enrichLoanForList(loan, bungaRate))
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM loans").get() as { count: number }
+  const totalRes = await db.query(`SELECT COUNT(*) as count FROM loans l ${whereClause}`).get() as { count: number }
 
   return c.json({
     success: true,
@@ -213,8 +217,18 @@ loans.delete('/:id', requirePermission('delete:loans'), async (c) => {
   try {
     const id = requireRouteParam(c, 'id')
     await deleteLoan(db, id)
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'archive_loan',
+      entity: 'loans',
+      entityId: id,
+      after: { deletedAt: new Date().toISOString() },
+      ip: getClientIp(c),
+    })
+
     clearStatsCache()
-    return c.json({ success: true, message: 'Loan deleted successfully' })
+    return c.json({ success: true, message: 'Loan archived successfully' })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response

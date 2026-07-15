@@ -9,6 +9,7 @@ import { createSavingsConstraintsMigration } from "./0011_add_savings_constraint
 import { createAddAuditLogsMigration } from "./0012_add_audit_logs";
 import { createAddTotp2FaMigration } from "./0013_add_totp_2fa";
 import { createAddJTiBlacklistMigration } from "./0014_add_jti_blacklist";
+import { createSoftDeleteMigration } from "./0015_soft_delete";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -36,6 +37,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddAuditLogsMigration(db),
     createAddTotp2FaMigration(db),
     createAddJTiBlacklistMigration(db),
+    createSoftDeleteMigration(db),
   ];
 }
 

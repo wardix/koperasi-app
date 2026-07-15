@@ -15,10 +15,13 @@ const members = new Hono()
 members.get('/', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
-  
-  const rows = await db.query("SELECT * FROM members ORDER BY id DESC LIMIT ? OFFSET ?").all<MemberRow>(limit, offset)
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM members").get<{ count: number }>()
-  
+  const includeArchived = c.req.query('includeArchived') === 'true'
+
+  const whereClause = includeArchived ? '' : 'WHERE deletedAt IS NULL'
+
+  const rows = await db.query(`SELECT * FROM members ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`).all<MemberRow>(limit, offset)
+  const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number }>()
+
   return c.json({
     success: true,
     data: {
@@ -35,19 +38,18 @@ members.delete('/:id', requirePermission('delete:members'), async (c) => {
     const id = requireRouteParam(c, 'id')
     const before = await deleteMember(db, id)
 
-    if (before) {
-      await audit(db, {
-        actor: getActor(c),
-        action: 'delete_member',
-        entity: 'members',
-        entityId: id,
-        before: { name: before.name, role: before.role },
-        ip: getClientIp(c),
-      })
-    }
+    await audit(db, {
+      actor: getActor(c),
+      action: 'archive_member',
+      entity: 'members',
+      entityId: id,
+      before: { name: before.name, role: before.role },
+      after: { deletedAt: new Date().toISOString() },
+      ip: getClientIp(c),
+    })
 
     clearStatsCache()
-    return c.json({ success: true })
+    return c.json({ success: true, message: 'Member archived successfully' })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response
