@@ -6,7 +6,7 @@ import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { createMember, deleteMember, updateMember } from '../services/memberService'
 import { updateMemberSavings } from '../services/savingsService'
-import { mapServiceError } from '../lib/serviceResponse'
+import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
 
@@ -31,9 +31,8 @@ members.get('/', requirePermission('read:members'), async (c) => {
 })
 
 members.delete('/:id', requirePermission('delete:members'), async (c) => {
-  const id = c.req.param('id')
-
   try {
+    const id = requireRouteParam(c, 'id')
     const before = await deleteMember(db, id)
 
     if (before) {
@@ -64,28 +63,33 @@ members.post('/', requirePermission('create:members'), async (c) => {
     return c.json({ success: false, errors: parsed.error.format() }, 400)
   }
 
-  const { id } = await createMember(db, parsed.data, getActor(c))
+  try {
+    const { id } = await createMember(db, parsed.data, getActor(c))
 
-  await audit(db, {
-    actor: getActor(c),
-    action: 'create_member',
-    entity: 'members',
-    entityId: id,
-    after: {
-      name: parsed.data.name,
-      role: parsed.data.role,
-      status: parsed.data.status,
-      joinDate: parsed.data.joinDate,
-    },
-    ip: getClientIp(c),
-  })
+    await audit(db, {
+      actor: getActor(c),
+      action: 'create_member',
+      entity: 'members',
+      entityId: id,
+      after: {
+        name: parsed.data.name,
+        role: parsed.data.role,
+        status: parsed.data.status,
+        joinDate: parsed.data.joinDate,
+      },
+      ip: getClientIp(c),
+    })
 
-  clearStatsCache()
-  return c.json({ success: true, message: 'Member created successfully', id }, 201)
+    clearStatsCache()
+    return c.json({ success: true, message: 'Member created successfully', id }, 201)
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
 })
 
 members.put('/:id', requirePermission('update:members'), async (c) => {
-  const id = c.req.param('id')
   const body = await c.req.json()
   const parsed = memberSchema.safeParse(body)
 
@@ -94,6 +98,7 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
   }
 
   try {
+    const id = requireRouteParam(c, 'id')
     const { before } = await updateMember(db, id, parsed.data)
 
     await audit(db, {
@@ -116,7 +121,6 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
 })
 
 members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
-  const id = c.req.param('id')
   const body = await c.req.json()
   const parsed = savingsSchema.safeParse(body)
 
@@ -125,6 +129,7 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
   }
 
   try {
+    const id = requireRouteParam(c, 'id')
     const result = await updateMemberSavings(db, id, parsed.data, getActor(c))
 
     await audit(db, {
@@ -151,10 +156,16 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
 })
 
 members.get('/:id/transactions', requirePermission('read:members'), async (c) => {
-  const id = c.req.param('id')
-  const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC")
-    .all<TransactionRow>(id)
-  return c.json({ success: true, data: rows })
+  try {
+    const id = requireRouteParam(c, 'id')
+    const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC")
+      .all<TransactionRow>(id)
+    return c.json({ success: true, data: rows })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
 })
 
 export default members
