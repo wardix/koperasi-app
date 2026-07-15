@@ -309,14 +309,6 @@ export async function deleteLoan(database: Db, loanId: string): Promise<void> {
     throw new ServiceError("Loan not found", 404);
   }
 
-  // Protect ledger integrity: active/approved loans cannot be archived
-  if (loan.status === "Disetujui") {
-    throw new ServiceError(
-      "Pinjaman yang sudah disetujui tidak dapat dihapus. Ubah status pinjaman terlebih dahulu.",
-      422
-    );
-  }
-
   // Soft-delete: stamp deletedAt, keep all FK-referenced payment rows intact
   await database
     .query("UPDATE loans SET deletedAt = ? WHERE id = ?")

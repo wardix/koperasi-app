@@ -48,7 +48,7 @@ describe("memberService", () => {
     ).rejects.toBeInstanceOf(ServiceError);
   });
 
-  test("deleteMember throws foreign key error as ServiceError", async () => {
+  test("deleteMember throws ServiceError if member has active loans", async () => {
     const memberId = crypto.randomUUID();
     const loanId = crypto.randomUUID();
 
@@ -64,8 +64,8 @@ describe("memberService", () => {
     );
 
     await expect(deleteMember(db, memberId)).rejects.toMatchObject({
-      message: "Anggota memiliki pinjaman, hapus pinjaman terlebih dahulu.",
-      status: 400,
+      message: "Anggota masih memiliki pinjaman aktif, selesaikan pinjaman terlebih dahulu.",
+      status: 409,
     });
 
     await db.run("DELETE FROM loans WHERE id = ?", [loanId]);

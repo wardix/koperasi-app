@@ -24,7 +24,7 @@ export function createSoftDeleteMigration(db: {
       const hasColumn = async (table: string, col: string): Promise<boolean> => {
         const row = await db.query(
           `SELECT 1 AS ok FROM information_schema.columns
-           WHERE table_schema = 'public' AND table_name = ? AND column_name = ?`
+           WHERE table_schema = 'public' AND table_name = ? AND lower(column_name) = lower(?)`
         ).get(table, col);
         return !!row;
       };
