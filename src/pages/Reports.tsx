@@ -14,6 +14,7 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Grid} from '@astryxdesign/core/Grid';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {useAuth} from '../hooks/useAuth';
 import {formatRp} from '../utils/format';
 import {DataStateView} from '../components/DataStateView';
 
@@ -22,6 +23,8 @@ import type {ReportData} from '../shared/types';
 type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'interest_income';
 
 export default function ReportsTemplate() {
+  const { hasPermission } = useAuth();
+  const canExportReports = hasPermission('export:reports');
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
   const currentYear = new Date().getFullYear().toString();
 
@@ -103,6 +106,7 @@ export default function ReportsTemplate() {
               <Heading level={1}>Laporan Koperasi</Heading>
             </StackItem>
             <StackItem>
+              {canExportReports && (
               <HStack gap={2}>
                 <button
                   onClick={handleExportCSV}
@@ -139,6 +143,7 @@ export default function ReportsTemplate() {
                   🖨️ Cetak Laporan
                 </button>
               </HStack>
+              )}
             </StackItem>
           </HStack>
         </LayoutHeader>

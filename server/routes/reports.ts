@@ -6,7 +6,7 @@ import { calculateLoanInterest } from '../services/loanService'
 
 const reports = new Hono()
 
-reports.get('/summary', requirePermission('read:stats'), async (c) => {
+reports.get('/summary', requirePermission('read:reports'), async (c) => {
   const memberStats = await db.query(`
     SELECT 
       COUNT(*) as "totalMembers",
@@ -58,7 +58,7 @@ reports.get('/summary', requirePermission('read:stats'), async (c) => {
   })
 })
 
-reports.get('/monthly-interest', requirePermission('read:stats'), async (c) => {
+reports.get('/monthly-interest', requirePermission('read:reports'), async (c) => {
   try {
     const year = c.req.query('year') || new Date().getFullYear().toString();
     const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
