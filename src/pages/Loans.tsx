@@ -79,7 +79,6 @@ export default function LoansTemplate() {
   }, [loansResponse]);
 
   const handleUpdateStatus = useCallback((id: string, status: string) => {
-    console.log("handleUpdateStatus called for id:", id, "status:", status);
     apiAction.execute(
       () => api.put(`/api/loans/${id}/status`, { status }),
       {
