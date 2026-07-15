@@ -83,7 +83,7 @@ export default function SHU() {
                 value={year}
                 aria-label="Pilih tahun" 
                 onChange={(e) => setYear(e.target.value)}
-                style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #ccc' }}
+                style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid var(--color-border, #ccc)' }}
               >
                 <option value={(Number(currentYear) - 2).toString()}>{Number(currentYear) - 2}</option>
                 <option value={(Number(currentYear) - 1).toString()}>{Number(currentYear) - 1}</option>
@@ -97,15 +97,15 @@ export default function SHU() {
             <VStack gap={8}>
               {/* Ringkasan */}
               <HStack gap={4}>
-                <VStack gap={1} style={{ flex: 1, padding: 20, backgroundColor: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                <VStack gap={1} style={{ flex: 1, padding: 20, backgroundColor: 'var(--color-background-subtle, #f9fafb)', borderRadius: 8, border: '1px solid var(--color-border, #e5e7eb)' }}>
                   <Text type="supporting" color="secondary">Total Pendapatan (Bunga dsb.)</Text>
                   <Heading level={3} color="success">{formatRp(data.pendapatan)}</Heading>
                 </VStack>
-                <VStack gap={1} style={{ flex: 1, padding: 20, backgroundColor: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                <VStack gap={1} style={{ flex: 1, padding: 20, backgroundColor: 'var(--color-background-subtle, #f9fafb)', borderRadius: 8, border: '1px solid var(--color-border, #e5e7eb)' }}>
                   <Text type="supporting" color="secondary">Biaya Operasional</Text>
                   <Heading level={3} color="error">{formatRp(data.biayaOperasional)}</Heading>
                 </VStack>
-                <VStack gap={1} style={{ flex: 1, padding: 20, backgroundColor: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
+                <VStack gap={1} style={{ flex: 1, padding: 20, backgroundColor: 'var(--color-background-subtle-primary, #eff6ff)', borderRadius: 8, border: '1px solid var(--color-border-primary, #bfdbfe)' }}>
                   <Text type="supporting" color="primary">SHU Netto</Text>
                   <Heading level={3} color="primary">{formatRp(data.shuNetto)}</Heading>
                 </VStack>
@@ -139,20 +139,20 @@ export default function SHU() {
                 
                 <VStack gap={4} style={{ flex: 1 }}>
                   <Heading level={4}>Rincian Distribusi</Heading>
-                  <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-                    <div style={{ padding: 12, borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ backgroundColor: 'var(--color-background-surface, #fff)', border: '1px solid var(--color-border, #e5e7eb)', borderRadius: 8, overflow: 'hidden' }}>
+                    <div style={{ padding: 12, borderBottom: '1px solid var(--color-border, #e5e7eb)', display: 'flex', justifyContent: 'space-between' }}>
                       <Text>Alokasi Anggota (40%)</Text>
                       <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.anggota)}</Text>
                     </div>
-                    <div style={{ padding: 12, borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ padding: 12, borderBottom: '1px solid var(--color-border, #e5e7eb)', display: 'flex', justifyContent: 'space-between' }}>
                       <Text>Dana Cadangan (25%)</Text>
                       <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.cadangan)}</Text>
                     </div>
-                    <div style={{ padding: 12, borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ padding: 12, borderBottom: '1px solid var(--color-border, #e5e7eb)', display: 'flex', justifyContent: 'space-between' }}>
                       <Text>Jasa Pengurus (20%)</Text>
                       <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.pengurus)}</Text>
                     </div>
-                    <div style={{ padding: 12, borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ padding: 12, borderBottom: '1px solid var(--color-border, #e5e7eb)', display: 'flex', justifyContent: 'space-between' }}>
                       <Text>Dana Sosial (10%)</Text>
                       <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.sosial)}</Text>
                     </div>
@@ -169,7 +169,7 @@ export default function SHU() {
                   <Heading level={4}>Alokasi per Anggota</Heading>
                   <Button label="Ekspor PDF" variant="secondary" />
                 </HStack>
-                <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--color-border, #e5e7eb)', borderRadius: 8, overflow: 'hidden' }}>
                   <Table
                     data={data.alokasiAnggota}
                     columns={columns}

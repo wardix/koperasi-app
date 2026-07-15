@@ -112,7 +112,7 @@ export default function ReportsTemplate() {
                   onClick={handleExportCSV}
                   style={{
                     padding: '8px 16px',
-                    backgroundColor: '#10B981',
+                    backgroundColor: 'var(--color-success, #10B981)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
@@ -129,7 +129,7 @@ export default function ReportsTemplate() {
                   onClick={handlePrint}
                   style={{
                     padding: '8px 16px',
-                    backgroundColor: '#0171E3',
+                    backgroundColor: 'var(--color-primary, #0171E3)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
@@ -191,7 +191,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'cooperative_summary' ? '#0171E3' : 'transparent',
+                        backgroundColor: selectedReport === 'cooperative_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
                         color: selectedReport === 'cooperative_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -207,7 +207,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'savings_summary' ? '#0171E3' : 'transparent',
+                        backgroundColor: selectedReport === 'savings_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
                         color: selectedReport === 'savings_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -223,7 +223,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'loans_summary' ? '#0171E3' : 'transparent',
+                        backgroundColor: selectedReport === 'loans_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
                         color: selectedReport === 'loans_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -239,7 +239,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'interest_income' ? '#0171E3' : 'transparent',
+                        backgroundColor: selectedReport === 'interest_income' ? 'var(--color-primary, #0171E3)' : 'transparent',
                         color: selectedReport === 'interest_income' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -304,15 +304,15 @@ export default function ReportsTemplate() {
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Dana Simpanan Anggota</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#10b981' }}>{formatRp(reportResponse.members.totalSavings)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members.totalSavings)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Pinjaman Tersalurkan (Kredit Aktif)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#0171E3' }}>{formatRp(reportResponse.loans.totalLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans.totalLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #374151' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Penerimaan Angsuran Pinjaman</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#10b981' }}>{formatRp(reportResponse.loans.totalPaymentsReceived)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans.totalPaymentsReceived)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -346,7 +346,7 @@ export default function ReportsTemplate() {
                               </tr>
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Seluruh Simpanan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{formatRp(reportResponse.members.totalSavings)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members.totalSavings)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -368,15 +368,15 @@ export default function ReportsTemplate() {
                             <tbody>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Lancar Aktif (Disetujui)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#0171E3' }}>{formatRp(reportResponse.loans.activeLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans.activeLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Lunas (Telah Diselesaikan)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#10b981' }}>{formatRp(reportResponse.loans.paidLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans.paidLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Bermasalah (Macet / NPL)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#ef4444' }}>{formatRp(reportResponse.loans.badLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-error, #ef4444)' }}>{formatRp(reportResponse.loans.badLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Kumulatif Penyaluran Pinjaman</td>
@@ -403,7 +403,7 @@ export default function ReportsTemplate() {
                                 <XAxis dataKey="monthName" />
                                 <YAxis tickFormatter={(tick) => `Rp ${(tick / 1000).toLocaleString('id-ID')}k`} />
                                 <RechartsTooltip formatter={(value: any) => formatRp(value)} />
-                                <Bar dataKey="interestIncome" fill="#10B981" radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
+                                <Bar dataKey="interestIncome" fill="var(--color-success, #10B981)" radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
@@ -419,14 +419,14 @@ export default function ReportsTemplate() {
                               {monthlyInterestRes.map((item) => (
                                 <tr key={item.monthKey} style={{ borderBottom: '1px solid #e5e7eb' }}>
                                   <td style={{ padding: '12px 8px' }}>{item.monthName}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: '#10B981' }}>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10B981)' }}>
                                     {formatRp(item.interestIncome)}
                                   </td>
                                 </tr>
                               ))}
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb', fontWeight: 600 }}>
                                 <td style={{ padding: '12px 8px' }}>Total Pendapatan Bunga Tahunan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', color: '#10B981' }}>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success, #10B981)' }}>
                                   {formatRp(monthlyInterestRes.reduce((sum, item) => sum + item.interestIncome, 0))}
                                 </td>
                               </tr>
