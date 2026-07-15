@@ -1,6 +1,6 @@
-import { expect, test, describe, beforeAll, afterAll } from "bun:test";
-import { app } from "../index";
-import db from "../db";
+import { expect, test, describe, beforeAll } from "bun:test";
+import server from "../index";
+import { secretKey } from "../middleware";
 import { sign } from "hono/jwt";
 
 describe("Reports API", () => {
@@ -9,24 +9,47 @@ describe("Reports API", () => {
   beforeAll(async () => {
     token = await sign(
       {
-        id: "admin-id",
-        email: "admin@test.com",
-        role: "Super Admin",
-        exp: Math.floor(Date.now() / 1000) + 60 * 5,
-        permissions: ["read:reports"],
+        email: "admin@example.com",
+        role: "admin",
+        exp: Math.floor(Date.now() / 1000) + 3600,
       },
-      process.env.JWT_SECRET || "test-secret-key"
+      secretKey
     );
   });
 
-  test("GET /api/reports/cashflow-statement works with date filters", async () => {
+  test("GET /api/v1/reports/cashflow-statement works with date filters", async () => {
     // Tests that parameter bindings for the UNION query are aligned correctly
-    // Without the fix, Postgres would throw: "bind message supplies X parameters, but prepared statement requires Y"
-    const req = new Request("http://localhost/api/reports/cashflow-statement?startDate=2026-01-01&endDate=2026-12-31", {
+    const req = new Request("http://localhost/api/v1/reports/cashflow-statement?startDate=2026-01-01&endDate=2026-12-31", {
       headers: { Authorization: `Bearer ${token}` }
     });
     
-    const res = await app.fetch(req);
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    
+    const json = await res.json() as any;
+    expect(json.success).toBe(true);
+    expect(Array.isArray(json.data)).toBe(true);
+  });
+
+  test("GET /api/v1/reports/cashflow-statement works with startDate filter only", async () => {
+    const req = new Request("http://localhost/api/v1/reports/cashflow-statement?startDate=2026-01-01", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    
+    const json = await res.json() as any;
+    expect(json.success).toBe(true);
+    expect(Array.isArray(json.data)).toBe(true);
+  });
+
+  test("GET /api/v1/reports/cashflow-statement works with endDate filter only", async () => {
+    const req = new Request("http://localhost/api/v1/reports/cashflow-statement?endDate=2026-12-31", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    const res = await server.fetch(req);
     expect(res.status).toBe(200);
     
     const json = await res.json() as any;
@@ -34,12 +57,12 @@ describe("Reports API", () => {
     expect(Array.isArray(json.data)).toBe(true);
   });
   
-  test("GET /api/reports/cashflow-statement works without date filters", async () => {
-    const req = new Request("http://localhost/api/reports/cashflow-statement", {
+  test("GET /api/v1/reports/cashflow-statement works without date filters", async () => {
+    const req = new Request("http://localhost/api/v1/reports/cashflow-statement", {
       headers: { Authorization: `Bearer ${token}` }
     });
     
-    const res = await app.fetch(req);
+    const res = await server.fetch(req);
     expect(res.status).toBe(200);
     
     const json = await res.json() as any;
