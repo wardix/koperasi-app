@@ -49,7 +49,12 @@ export const loanSchema = z.object({
   amount: z.number().positive(),
   tenor: z.number().positive(),
   purpose: z.string().min(1, "Purpose is required").transform(sanitize),
-  status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]).default("Menunggu")
+  status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]).default("Menunggu"),
+  /** Optional backdated loan date (YYYY-MM-DD). Defaults to now when omitted. */
+  loanDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional(),
 })
 
 export const loanStatusSchema = z.object({
@@ -58,7 +63,12 @@ export const loanStatusSchema = z.object({
 
 export const paymentSchema = z.object({
   amount: z.number().positive(),
-  method: z.string().min(1).transform(sanitize)
+  method: z.string().min(1).transform(sanitize),
+  /** Optional backdated payment date (YYYY-MM-DD). Defaults to now when omitted. */
+  paymentDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional(),
 })
 
 // Common passwords blocklist (top 100 most common)

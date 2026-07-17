@@ -127,6 +127,10 @@ components:
           type: string
           enum: [Menunggu, Disetujui, Ditolak, Lunas]
           default: Menunggu
+        loanDate:
+          type: string
+          format: date
+          description: Tanggal pinjaman opsional (YYYY-MM-DD) untuk data historis; default hari ini
     LoanStatusInput:
       type: object
       required: [status]
@@ -140,6 +144,10 @@ components:
       properties:
         amount: { type: number, exclusiveMinimum: 0 }
         method: { type: string }
+        paymentDate:
+          type: string
+          format: date
+          description: Tanggal angsuran opsional (YYYY-MM-DD) untuk data historis; default hari ini
     LoginInput:
       type: object
       required: [email, password]

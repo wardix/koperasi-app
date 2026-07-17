@@ -57,6 +57,73 @@ describe("loanService", () => {
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
 
+  test("createLoan respects backdated loanDate", async () => {
+    const memberId = crypto.randomUUID();
+    const loanName = `Backdate Loan ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+
+    const { id: loanId } = await createLoan(db, {
+      memberId,
+      name: loanName,
+      amount: 5000000,
+      tenor: 12,
+      purpose: "Historis",
+      status: "Menunggu",
+      loanDate: "2024-05-20",
+    });
+
+    const loan = await db.query("SELECT createdAt FROM loans WHERE id = ?").get(loanId) as {
+      createdAt: string;
+    } | null;
+    const d = new Date(loan!.createdAt);
+    expect(d.getFullYear()).toBe(2024);
+    expect(d.getMonth()).toBe(4);
+    expect(d.getDate()).toBe(20);
+
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("recordLoanPayment respects backdated paymentDate", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Pay Backdate ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, totalAmount, interestAmount, approvedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 1000000, 12, "Test", "Disetujui", "2024-01-15T12:00:00.000Z", 1000000, 0, "2024-01-15T12:00:00.000Z"]
+    );
+
+    await recordLoanPayment(db, loanId, {
+      amount: 100000,
+      method: "Transfer",
+      paymentDate: "2024-02-10",
+    });
+
+    const pay = await db
+      .query("SELECT paymentDate FROM loan_payments WHERE loanId = ?")
+      .get(loanId) as { paymentDate: string } | null;
+    const d = new Date(pay!.paymentDate);
+    expect(d.getFullYear()).toBe(2024);
+    expect(d.getMonth()).toBe(1);
+    expect(d.getDate()).toBe(10);
+
+    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
   test("recordLoanPayment rejects overpayment", async () => {
     const memberId = crypto.randomUUID();
     const loanId = crypto.randomUUID();

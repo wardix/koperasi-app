@@ -1,5 +1,6 @@
 import type { Db } from "../db";
 import type { MemberSavingsCols } from "../db/entities";
+import { resolveCalendarDateIso } from "../lib/dates";
 import { ServiceError } from "./errors";
 
 export type SavingsType = "pokok" | "wajib" | "sukarela";
@@ -11,41 +12,9 @@ export type UpdateSavingsInput = {
   transactionDate?: string;
 };
 
-/**
- * Resolve ISO timestamp for a savings transaction.
- * Uses local noon for calendar dates so toLocaleDateString stays on the same day.
- */
+/** @deprecated use resolveCalendarDateIso from ../lib/dates */
 export function resolveTransactionCreatedAt(transactionDate?: string): string {
-  if (!transactionDate) {
-    return new Date().toISOString();
-  }
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(transactionDate);
-  if (!match) {
-    throw new ServiceError("Format tanggal tidak valid", 400);
-  }
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const localNoon = new Date(year, month - 1, day, 12, 0, 0, 0);
-
-  if (
-    Number.isNaN(localNoon.getTime()) ||
-    localNoon.getFullYear() !== year ||
-    localNoon.getMonth() !== month - 1 ||
-    localNoon.getDate() !== day
-  ) {
-    throw new ServiceError("Tanggal transaksi tidak valid", 400);
-  }
-
-  const today = new Date();
-  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-  if (localNoon.getTime() > endOfToday.getTime()) {
-    throw new ServiceError("Tanggal transaksi tidak boleh di masa depan", 400);
-  }
-
-  return localNoon.toISOString();
+  return resolveCalendarDateIso(transactionDate);
 }
 
 export type UpdateSavingsResult = {
