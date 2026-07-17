@@ -26,8 +26,9 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
     ) as outflows
   `).get() as { total: number }
 
-  const totalInflow = totalInflowRes?.total || 0
-  const totalOutflow = totalOutflowRes?.total || 0
+  // Postgres SUM may arrive as string; coerce so JSON clients format correctly
+  const totalInflow = Number(totalInflowRes?.total ?? 0) || 0
+  const totalOutflow = Number(totalOutflowRes?.total ?? 0) || 0
   const netCash = totalInflow - totalOutflow
 
   const queryStr = `

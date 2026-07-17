@@ -1,6 +1,12 @@
-export function formatRp(value: number | undefined | null): string {
-  if (value == null) return 'Rp 0';
-  return 'Rp ' + value.toLocaleString('id-ID');
+/**
+ * Format a money value as Indonesian Rupiah with thousand separators.
+ * Coerces string numbers (common from Postgres SUM/bigint) so separators always apply.
+ */
+export function formatRp(value: number | string | undefined | null): string {
+  if (value == null || value === '') return 'Rp 0';
+  const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+  if (!Number.isFinite(n)) return 'Rp 0';
+  return 'Rp ' + n.toLocaleString('id-ID');
 }
 
 export function formatDate(dateString: string | undefined | null): string {
