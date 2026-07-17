@@ -232,6 +232,7 @@ export default function Shell() {
           
           {/* Coming Soon Routes */}
           <Route path="/reports" element={<ProtectedRoute permission="read:reports"><Reports /></ProtectedRoute>} />
+          <Route path="/report" element={<Navigate to="/reports" replace />} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/loans-tx" element={<LoansTx />} />
           <Route path="/cashflow" element={<ProtectedRoute permission="read:cashflow"><Cashflow /></ProtectedRoute>} />

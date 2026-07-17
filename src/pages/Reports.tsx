@@ -366,7 +366,39 @@ export default function ReportsTemplate() {
             {/* Preview area card */}
             <StackItem style={{ flex: '1 1 auto' }}>
               <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
-                {(reportResponse || monthlyInterestRes || arRes || savingsMemberRes || cashflowRes) && (
+                {(() => {
+                  // Only open the printable card when the *selected* report has data.
+                  // Other endpoints may resolve earlier (empty arrays are truthy) and must
+                  // not render summary sections that read reportResponse.members / .loans.
+                  const summaryReady = !!(
+                    reportResponse &&
+                    reportResponse.members &&
+                    reportResponse.loans
+                  );
+                  const hasSelectedData =
+                    (selectedReport === 'cooperative_summary' ||
+                      selectedReport === 'savings_summary' ||
+                      selectedReport === 'loans_summary')
+                      ? summaryReady
+                      : selectedReport === 'interest_income'
+                        ? Array.isArray(monthlyInterestRes)
+                        : selectedReport === 'ar_summary'
+                          ? Array.isArray(arRes)
+                          : selectedReport === 'savings_member'
+                            ? Array.isArray(savingsMemberRes)
+                            : selectedReport === 'cashflow_statement'
+                              ? Array.isArray(cashflowRes)
+                              : false;
+
+                  if (!hasSelectedData) {
+                    return (
+                      <Text type="supporting" color="secondary">
+                        {isLoading ? 'Memuat data laporan…' : 'Belum ada data untuk laporan ini.'}
+                      </Text>
+                    );
+                  }
+
+                  return (
                   <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <VStack gap={5}>
                       {/* Document Header */}
@@ -393,8 +425,8 @@ export default function ReportsTemplate() {
                         </Text>
                       </div>
 
-                      {/* Report Content */}
-                      {selectedReport === 'cooperative_summary' && (
+                      {/* Report Content — each section requires its own payload */}
+                      {selectedReport === 'cooperative_summary' && summaryReady && reportResponse && (
                         <VStack gap={4}>
                           <Text type="body">
                             Laporan ini menyajikan rangkuman perkembangan koperasi secara umum yang mencakup data keanggotaan, akumulasi simpanan, serta total portofolio penyaluran pinjaman.
@@ -409,30 +441,30 @@ export default function ReportsTemplate() {
                             <tbody>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Anggota Terdaftar</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members.totalMembers} Orang</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members?.totalMembers ?? 0} Orang</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Anggota Berstatus Aktif</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members.activeMembers} Orang</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members?.activeMembers ?? 0} Orang</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Dana Simpanan Anggota</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members.totalSavings)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Pinjaman Tersalurkan (Kredit Aktif)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans.totalLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #374151' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Penerimaan Angsuran Pinjaman</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans.totalPaymentsReceived)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans?.totalPaymentsReceived)}</td>
                               </tr>
                             </tbody>
                           </table>
                         </VStack>
                       )}
 
-                      {selectedReport === 'savings_summary' && (
+                      {selectedReport === 'savings_summary' && summaryReady && reportResponse && (
                         <VStack gap={4}>
                           <Text type="body">
                             Rincian portfolio dana simpanan yang dihimpun dari seluruh anggota koperasi yang terbagi berdasarkan jenis simpanan pokok, wajib, dan sukarela.
@@ -447,26 +479,26 @@ export default function ReportsTemplate() {
                             <tbody>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Simpanan Pokok (Modal Awal)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members.totalPokok)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalPokok)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Simpanan Wajib (Bulanan)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members.totalWajib)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalWajib)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Simpanan Sukarela (Tabungan Bebas)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members.totalSukarela)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalSukarela)}</td>
                               </tr>
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Seluruh Simpanan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members.totalSavings)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
                               </tr>
                             </tbody>
                           </table>
                         </VStack>
                       )}
 
-                      {selectedReport === 'loans_summary' && (
+                      {selectedReport === 'loans_summary' && summaryReady && reportResponse && (
                         <VStack gap={4}>
                           <Text type="body">
                             Rincian portofolio kredit dan pinjaman yang telah disalurkan kepada anggota beserta status pengembalian dan kualitas aset kredit.
@@ -481,19 +513,19 @@ export default function ReportsTemplate() {
                             <tbody>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Lancar Aktif (Disetujui)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans.activeLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans?.activeLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Lunas (Telah Diselesaikan)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans.paidLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans?.paidLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Bermasalah (Macet / NPL)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-error, #ef4444)' }}>{formatRp(reportResponse.loans.badLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-error, #ef4444)' }}>{formatRp(reportResponse.loans?.badLoansAmount)}</td>
                               </tr>
                               <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Kumulatif Penyaluran Pinjaman</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600 }}>{formatRp(reportResponse.loans.totalLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600 }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -714,7 +746,8 @@ export default function ReportsTemplate() {
                       </div>
                     </VStack>
                   </Card>
-                )}
+                  );
+                })()}
               </DataStateView>
             </StackItem>
           </Grid>
