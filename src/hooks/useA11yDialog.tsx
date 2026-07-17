@@ -19,12 +19,29 @@ export function useA11yDialog(defaultOptions?: DialogOptions) {
     ...dialog,
     element,
     show: (content: ReactNode, options?: DialogOptions) => {
+      // Dialog shell caps at ~75vh; without overflow on the body, tall forms
+      // (e.g. Tambah Pengajuan Pinjaman) clip the submit button with no scroll.
       dialog.show(
-        <div tabIndex={-1} style={{ outline: 'none' }}>
+        <div
+          tabIndex={-1}
+          style={{
+            outline: 'none',
+            maxHeight: 'min(70vh, 100%)',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
           {content}
         </div>,
-        options
+        {
+          maxHeight: '85vh',
+          ...defaultOptions,
+          ...options,
+        }
       );
     }
-  }), [dialog, element]);
+  }), [dialog, element, defaultOptions]);
 }
