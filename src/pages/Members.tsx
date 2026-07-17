@@ -129,9 +129,14 @@ export default function MembersTemplate() {
     dialog.show(
       <UpdateSavingsDialogContent 
         onClose={() => dialog.hide()}
-        onSave={(additionalSavings, savingsType) => {
+        onSave={({ additionalSavings, savingsType, transactionDate }) => {
           apiAction.execute(
-            () => api.put(`/api/members/${member.id}/savings`, { additionalSavings, savingsType }),
+            () =>
+              api.put(`/api/members/${member.id}/savings`, {
+                additionalSavings,
+                savingsType,
+                transactionDate,
+              }),
             {
               successMsg: 'Mutasi simpanan berhasil',
               errorMsg: 'Gagal melakukan mutasi simpanan',
