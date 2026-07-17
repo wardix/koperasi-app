@@ -81,13 +81,36 @@ export interface LoanPaymentRow {
 }
 
 export interface CashflowRow {
-  source: 'savings' | 'loan_payment' | 'loan_disbursement';
+  source: 'savings' | 'loan_payment' | 'loan_disbursement' | 'expense';
   id: string;
   date: string;
   partyName?: string;
   description: string;
   amount: number;
   flowType: 'inflow' | 'outflow';
+}
+
+export type ExpenseCategory =
+  | 'notaris'
+  | 'atk'
+  | 'sewa'
+  | 'utilitas'
+  | 'gaji'
+  | 'transport'
+  | 'pajak'
+  | 'lainnya';
+
+export interface ExpenseRow {
+  id: string;
+  expenseDate: string;
+  category: ExpenseCategory | string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  createdBy?: string | null;
+  createdAt?: string;
+  updatedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface CashflowResponse {

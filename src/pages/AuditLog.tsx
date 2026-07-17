@@ -47,6 +47,9 @@ const ACTION_LABELS: Record<string, string> = {
   update_payment: 'Ubah Pembayaran',
   delete_payment: 'Hapus Pembayaran',
   update_loan_disbursement: 'Ubah Tanggal Pencairan',
+  create_expense: 'Catat Pengeluaran',
+  update_expense: 'Ubah Pengeluaran',
+  delete_expense: 'Hapus Pengeluaran',
 };
 
 function formatTimestamp(ts: string): string {

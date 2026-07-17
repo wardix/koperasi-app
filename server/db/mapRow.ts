@@ -43,6 +43,10 @@ export const CAMEL_CASE_FIELDS = [
   "borrowerName",
   "partyName",
   "flowType",
+  // expenses
+  "expenseDate",
+  "paymentMethod",
+  "deletedAt",
   // loan_schedules
   "installmentNo",
   "dueDate",

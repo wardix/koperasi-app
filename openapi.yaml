@@ -27,6 +27,8 @@ tags:
     description: Non-performing loans
   - name: cashflow
     description: Arus kas
+  - name: expenses
+    description: Pengeluaran operasional koperasi
   - name: reports
     description: Laporan ringkasan
 components:
@@ -785,6 +787,89 @@ paths:
                           total: { type: integer }
                           page: { type: integer }
                           limit: { type: integer }
+  /expenses:
+    get:
+      tags: [expenses]
+      summary: Daftar pengeluaran operasional
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+    post:
+      tags: [expenses]
+      summary: Catat pengeluaran (mis. jasa notaris)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expenseDate, category, description, amount]
+              properties:
+                expenseDate: { type: string, format: date }
+                category:
+                  type: string
+                  enum: [notaris, atk, sewa, utilitas, gaji, transport, pajak, lainnya]
+                description: { type: string }
+                amount: { type: integer, exclusiveMinimum: 0 }
+                paymentMethod:
+                  type: string
+                  enum: [Transfer, Cash, Debit]
+                  default: Transfer
+      responses:
+        '201':
+          $ref: '#/components/responses/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /expenses/{id}:
+    put:
+      tags: [expenses]
+      summary: Ubah pengeluaran
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expenseDate: { type: string, format: date }
+                category:
+                  type: string
+                  enum: [notaris, atk, sewa, utilitas, gaji, transport, pajak, lainnya]
+                description: { type: string }
+                amount: { type: integer, exclusiveMinimum: 0 }
+                paymentMethod:
+                  type: string
+                  enum: [Transfer, Cash, Debit]
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [expenses]
+      summary: Soft-delete pengeluaran
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /reports/summary:
     get:
       tags: [reports]

@@ -43,6 +43,51 @@ export const savingsSchema = z.object({
 // Schema for transaction type validation
 export const transactionTypeSchema = z.enum(SAVINGS_TRANSACTION_TYPES);
 
+/** Operating expense categories for cooperative cash outflows */
+export const EXPENSE_CATEGORIES = [
+  'notaris',
+  'atk',
+  'sewa',
+  'utilitas',
+  'gaji',
+  'transport',
+  'pajak',
+  'lainnya',
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const expenseSchema = z.object({
+  expenseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
+  category: z.enum(EXPENSE_CATEGORIES),
+  description: z.string().min(1, "Keterangan wajib diisi").max(500).transform(sanitize),
+  amount: z.number().int().positive("Nominal harus lebih dari 0"),
+  paymentMethod: z.enum(["Transfer", "Cash", "Debit"]).default("Transfer"),
+})
+
+export const expenseUpdateSchema = z
+  .object({
+    expenseDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+      .optional(),
+    category: z.enum(EXPENSE_CATEGORIES).optional(),
+    description: z.string().min(1).max(500).transform(sanitize).optional(),
+    amount: z.number().int().positive().optional(),
+    paymentMethod: z.enum(["Transfer", "Cash", "Debit"]).optional(),
+  })
+  .refine(
+    (v) =>
+      v.expenseDate != null ||
+      v.category != null ||
+      v.description != null ||
+      v.amount != null ||
+      v.paymentMethod != null,
+    { message: "Minimal satu field harus diisi" }
+  )
+
 export const loanSchema = z.object({
   memberId: z.string().min(1, "Member ID is required").transform(sanitize),
   name: z.string().min(1, "Name is required").transform(sanitize),

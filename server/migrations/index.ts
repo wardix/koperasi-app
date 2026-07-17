@@ -12,6 +12,7 @@ import { createAddJTiBlacklistMigration } from "./0014_add_jti_blacklist";
 import { createSoftDeleteMigration } from "./0015_soft_delete";
 import { createMigration as createAddMemberLoginMigration } from "./0016_add_member_login";
 import { createMigration as createAddNotificationLogsMigration } from "./0017_add_notification_logs";
+import { createAddExpensesMigration } from "./0018_add_expenses";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -42,6 +43,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createSoftDeleteMigration(db),
     createAddMemberLoginMigration(db),
     createAddNotificationLogsMigration(db),
+    createAddExpensesMigration(db),
   ];
 }
 

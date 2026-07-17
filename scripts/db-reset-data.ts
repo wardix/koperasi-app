@@ -35,6 +35,7 @@ const businessTables = [
   "loan_schedules",
   "loans",
   "transactions",
+  "expenses",
   "shu_member_allocations",
   "shu_closes",
   "notification_logs",

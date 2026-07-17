@@ -25,6 +25,8 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
       UNION ALL
       SELECT l.amount FROM loans l
         WHERE l.status IN ('Disetujui', 'Lunas') AND l.deletedAt IS NULL
+      UNION ALL
+      SELECT e.amount FROM expenses e WHERE e.deletedAt IS NULL
     ) as outflows
   `).get() as { total: number }
 
@@ -72,6 +74,19 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
     WHERE l.status IN ('Disetujui', 'Lunas')
       AND l.deletedAt IS NULL
 
+    UNION ALL
+
+    SELECT
+      'expense' as source,
+      e.id,
+      e.expenseDate as "date",
+      'Pengeluaran' as "partyName",
+      (e.category || ' — ' || e.description) as description,
+      e.amount,
+      'outflow' as "flowType"
+    FROM expenses e
+    WHERE e.deletedAt IS NULL
+
     ORDER BY "date" DESC
     LIMIT ? OFFSET ?
   `
@@ -86,6 +101,8 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
         INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
       UNION ALL
       SELECT id FROM loans WHERE status IN ('Disetujui', 'Lunas') AND deletedAt IS NULL
+      UNION ALL
+      SELECT id FROM expenses WHERE deletedAt IS NULL
     ) as combined
   `
   const totalRes = await db.query(countQuery).get() as { count: number }

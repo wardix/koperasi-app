@@ -42,6 +42,7 @@ const Roles = React.lazy(() => import('../pages/Roles'));
 const Savings = React.lazy(() => import('../pages/Savings'));
 const LoansTx = React.lazy(() => import('../pages/LoansTx'));
 const Cashflow = React.lazy(() => import('../pages/Cashflow'));
+const Expenses = React.lazy(() => import('../pages/Expenses'));
 const NPL = React.lazy(() => import('../pages/NPL'));
 const Reports = React.lazy(() => import('../pages/Reports'));
 const AuditLog = React.lazy(() => import('../pages/AuditLog'));
@@ -168,6 +169,14 @@ export default function Shell() {
                 onClick={() => navigate('/cashflow')}
               />
             )}
+            {hasPermission('read:expenses') && (
+              <SideNavItem
+                label="Pengeluaran"
+                icon={BanknotesIcon}
+                isSelected={path === '/expenses'}
+                onClick={() => navigate('/expenses')}
+              />
+            )}
           </SideNavSection>
           <SideNavSection title="Kredit & Persetujuan">
             <SideNavItem 
@@ -226,6 +235,7 @@ export default function Shell() {
           <Route path="/savings" element={<Savings />} />
           <Route path="/loans-tx" element={<LoansTx />} />
           <Route path="/cashflow" element={<ProtectedRoute permission="read:cashflow"><Cashflow /></ProtectedRoute>} />
+          <Route path="/expenses" element={<ProtectedRoute permission="read:expenses"><Expenses /></ProtectedRoute>} />
           <Route path="/npl" element={<ProtectedRoute permission="read:npl"><NPL /></ProtectedRoute>} />
           <Route path="/roles" element={<Roles />} />
           <Route path="/audit-log" element={<AuditLog />} />
