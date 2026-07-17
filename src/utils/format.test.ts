@@ -1,5 +1,23 @@
 import { expect, test, describe } from "bun:test";
-import { formatAmountInput, parseAmountInput } from "./format";
+import { formatAmountInput, formatRp, parseAmountInput } from "./format";
+
+describe("formatRp", () => {
+  test("formats numbers with thousand separators", () => {
+    expect(formatRp(1000000)).toBe("Rp 1.000.000");
+    expect(formatRp(0)).toBe("Rp 0");
+  });
+
+  test("formats numeric strings from Postgres SUM", () => {
+    expect(formatRp("2500000")).toBe("Rp 2.500.000");
+    expect(formatRp("0")).toBe("Rp 0");
+  });
+
+  test("handles null/invalid as zero", () => {
+    expect(formatRp(null)).toBe("Rp 0");
+    expect(formatRp(undefined)).toBe("Rp 0");
+    expect(formatRp("")).toBe("Rp 0");
+  });
+});
 
 describe("formatAmountInput", () => {
   test("adds Indonesian thousand separators", () => {
