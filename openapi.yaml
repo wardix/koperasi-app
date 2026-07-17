@@ -110,6 +110,10 @@ components:
           type: string
           enum: [pokok, wajib, sukarela]
           default: sukarela
+        transactionDate:
+          type: string
+          format: date
+          description: Tanggal transaksi opsional (YYYY-MM-DD) untuk data historis; default hari ini
     LoanInput:
       type: object
       required: [memberId, name, amount, tenor, purpose]

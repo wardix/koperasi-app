@@ -7,7 +7,46 @@ export type SavingsType = "pokok" | "wajib" | "sukarela";
 export type UpdateSavingsInput = {
   additionalSavings: number;
   savingsType: SavingsType;
+  /** Optional backdated date as YYYY-MM-DD. Defaults to now when omitted. */
+  transactionDate?: string;
 };
+
+/**
+ * Resolve ISO timestamp for a savings transaction.
+ * Uses local noon for calendar dates so toLocaleDateString stays on the same day.
+ */
+export function resolveTransactionCreatedAt(transactionDate?: string): string {
+  if (!transactionDate) {
+    return new Date().toISOString();
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(transactionDate);
+  if (!match) {
+    throw new ServiceError("Format tanggal tidak valid", 400);
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const localNoon = new Date(year, month - 1, day, 12, 0, 0, 0);
+
+  if (
+    Number.isNaN(localNoon.getTime()) ||
+    localNoon.getFullYear() !== year ||
+    localNoon.getMonth() !== month - 1 ||
+    localNoon.getDate() !== day
+  ) {
+    throw new ServiceError("Tanggal transaksi tidak valid", 400);
+  }
+
+  const today = new Date();
+  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  if (localNoon.getTime() > endOfToday.getTime()) {
+    throw new ServiceError("Tanggal transaksi tidak boleh di masa depan", 400);
+  }
+
+  return localNoon.toISOString();
+}
 
 export type UpdateSavingsResult = {
   newTotal: number;
@@ -78,6 +117,7 @@ export async function updateMemberSavings(
     additionalSavingsNum,
     input.savingsType
   );
+  const createdAt = resolveTransactionCreatedAt(input.transactionDate);
 
   await database.transaction(async () => {
     await database
@@ -94,7 +134,7 @@ export async function updateMemberSavings(
       Math.abs(additionalSavingsNum),
       Number(member.totalSavings ?? 0),
       newTotal,
-      new Date().toISOString(),
+      createdAt,
       createdBy
     );
   })();

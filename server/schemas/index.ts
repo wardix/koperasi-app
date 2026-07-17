@@ -32,7 +32,12 @@ export const savingsSchema = z.object({
     z.number(),
     z.string().regex(/^-?\d+$/).transform(val => parseInt(val, 10))
   ]),
-  savingsType: z.enum(["pokok", "wajib", "sukarela"]).default("sukarela")
+  savingsType: z.enum(["pokok", "wajib", "sukarela"]).default("sukarela"),
+  /** Optional backdated transaction date (YYYY-MM-DD). Defaults to now when omitted. */
+  transactionDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional(),
 })
 
 // Schema for transaction type validation
