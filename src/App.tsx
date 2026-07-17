@@ -292,6 +292,65 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
   );
 }
 
+// ============= SKELETON COMPONENT =============
+
+function DashboardSkeleton() {
+  return (
+    <VStack gap={6}>
+      <VStack gap={6}>
+        <HStack hAlign="between" vAlign="center">
+          <div className="skeleton" style={{ width: '250px', height: '28px' }}></div>
+          <div className="skeleton" style={{ width: '120px', height: '36px', borderRadius: '6px' }}></div>
+        </HStack>
+        <div className="skeleton" style={{ width: '100%', height: '300px', borderRadius: '8px' }}></div>
+      </VStack>
+
+      <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="hover-card">
+            <VStack gap={2}>
+              <div className="skeleton" style={{ width: '60%', height: '20px' }}></div>
+              <div className="skeleton" style={{ width: '80%', height: '32px' }}></div>
+              <div className="skeleton" style={{ width: '40%', height: '16px' }}></div>
+            </VStack>
+          </Card>
+        ))}
+      </Grid>
+      
+      <Divider />
+      
+      <HStack hAlign="between" vAlign="center">
+        <div className="skeleton" style={{ width: '250px', height: '28px' }}></div>
+      </HStack>
+      <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
+        {[1, 2].map((i) => (
+          <Card key={i} className="hover-card">
+            <VStack gap={4}>
+              <div className="skeleton" style={{ width: '40%', height: '20px' }}></div>
+              <div className="skeleton" style={{ width: '100%', height: '24px' }}></div>
+              <HStack gap={4}>
+                <div className="skeleton" style={{ width: '60px', height: '30px' }}></div>
+                <div className="skeleton" style={{ width: '60px', height: '30px' }}></div>
+              </HStack>
+            </VStack>
+          </Card>
+        ))}
+      </Grid>
+      
+      <Divider />
+      
+      <VStack gap={4}>
+         <div className="skeleton" style={{ width: '200px', height: '28px' }}></div>
+         <Card className="hover-card">
+            <VStack gap={4}>
+               {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ width: '100%', height: '40px' }}></div>)}
+            </VStack>
+         </Card>
+      </VStack>
+    </VStack>
+  );
+}
+
 // ============= MAIN COMPONENT =============
 
 export default function DashboardTemplate() {
@@ -323,7 +382,7 @@ export default function DashboardTemplate() {
       height="auto"
       content={
         <LayoutContent padding={6}>
-          <DataStateView isLoading={isLoading} error={error} onRetry={fetchStats} errorTitle="Gagal Memuat Dasbor">
+          <DataStateView isLoading={isLoading} error={error} onRetry={fetchStats} errorTitle="Gagal Memuat Dasbor" loadingComponent={<DashboardSkeleton />}>
           <VStack gap={6}>
             {/* Trend Chart */}
             <VStack gap={6}>
