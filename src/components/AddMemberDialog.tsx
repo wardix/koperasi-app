@@ -1,6 +1,5 @@
 'use client';
 
-import {useState} from 'react';
 import {DialogHeader} from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -11,6 +10,11 @@ import {
 } from '@astryxdesign/core/Layout';
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {Text} from '@astryxdesign/core/Text';
+
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import type { MemberRow } from '../shared/types';
 import {formatAmountInput, parseAmountInput} from '../utils/format';
@@ -25,19 +29,32 @@ function formatJoinDate(isoDate: string): string {
   return d.toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'});
 }
 
-export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: Omit<MemberRow, 'id' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>) => void}) {
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('Anggota');
-  const [deposit, setDeposit] = useState(formatAmountInput('500000'));
-  const [joinDate, setJoinDate] = useState(todayISO());
+const memberSchema = z.object({
+  name: z.string().min(3, 'Nama minimal 3 karakter'),
+  role: z.string().min(1, 'Jabatan tidak boleh kosong'),
+  joinDate: z.string().min(1, 'Tanggal bergabung harus diisi'),
+  deposit: z.string().refine(val => parseAmountInput(val) >= 10000, 'Setoran minimal Rp 10.000'),
+});
+type MemberForm = z.infer<typeof memberSchema>;
 
-  const handleSave = () => {
+export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: Omit<MemberRow, 'id' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>) => void}) {
+  const { control, handleSubmit, formState: { errors } } = useForm<MemberForm>({
+    resolver: zodResolver(memberSchema),
+    defaultValues: {
+      name: '',
+      role: 'Anggota',
+      joinDate: todayISO(),
+      deposit: formatAmountInput('500000'),
+    }
+  });
+
+  const onSubmit = (data: MemberForm) => {
     onAdd({
-      name,
-      role,
+      name: data.name,
+      role: data.role,
       status: 'Aktif',
-      joinDate: formatJoinDate(joinDate),
-      simpananPokok: parseAmountInput(deposit),
+      joinDate: formatJoinDate(data.joinDate),
+      simpananPokok: parseAmountInput(data.deposit),
       simpananWajib: 0,
       simpananSukarela: 0,
     });
@@ -55,41 +72,79 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       }
       content={
         <LayoutContent padding={4}>
-          <VStack gap={4}>
-            <TextInput
-              label="Nama Lengkap"
-              value={name}
-              onChange={setName}
-              placeholder="Contoh: Budi Santoso"
-            />
-            <TextInput
-              label="Jabatan"
-              value={role}
-              onChange={setRole}
-              placeholder="Contoh: Anggota, Pengurus"
-            />
-            <TextInput
-              label="Tanggal Bergabung"
-              value={joinDate}
-              onChange={setJoinDate}
-              type="date"
-            />
-            <TextInput
-              label="Setoran Awal (Simpanan Pokok) (Rp)"
-              value={deposit}
-              onChange={(raw) => setDeposit(formatAmountInput(raw))}
-              type="text"
-              placeholder="Contoh: 500.000"
-              description="Pemisah ribuan ditambahkan otomatis"
-            />
-          </VStack>
+          <form id="add-member-form" onSubmit={handleSubmit(onSubmit)}>
+            <VStack gap={4}>
+              <Controller
+                name="name"
+                control={control}
+                render={({ field }) => (
+                  <VStack gap={1}>
+                    <TextInput
+                      label="Nama Lengkap"
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Contoh: Budi Santoso"
+                    />
+                    {errors.name && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.name.message}</Text>}
+                  </VStack>
+                )}
+              />
+              <Controller
+                name="role"
+                control={control}
+                render={({ field }) => (
+                  <VStack gap={1}>
+                    <TextInput
+                      label="Jabatan"
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Contoh: Anggota, Pengurus"
+                    />
+                    {errors.role && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.role.message}</Text>}
+                  </VStack>
+                )}
+              />
+              <Controller
+                name="joinDate"
+                control={control}
+                render={({ field }) => (
+                  <VStack gap={1}>
+                    <TextInput
+                      label="Tanggal Bergabung"
+                      value={field.value}
+                      onChange={field.onChange}
+                      type="date"
+                    />
+                    {errors.joinDate && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.joinDate.message}</Text>}
+                  </VStack>
+                )}
+              />
+              <Controller
+                name="deposit"
+                control={control}
+                render={({ field }) => (
+                  <VStack gap={1}>
+                    <TextInput
+                      label="Setoran Awal (Simpanan Pokok) (Rp)"
+                      value={field.value}
+                      onChange={(raw) => field.onChange(formatAmountInput(raw))}
+                      type="text"
+                      placeholder="Contoh: 500.000"
+                      description="Pemisah ribuan ditambahkan otomatis"
+                    />
+                    {errors.deposit && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.deposit.message}</Text>}
+                  </VStack>
+                )}
+              />
+            </VStack>
+          </form>
         </LayoutContent>
       }
       footer={
         <LayoutFooter>
           <HStack gap={2} hAlign="end">
             <Button label="Batal" variant="secondary" onClick={onClose} />
-            <Button label="Simpan Data" variant="primary" onClick={handleSave} disabled={!name} />
+            <Button label="Simpan Data" variant="primary" type="submit" form="add-member-form" />
           </HStack>
         </LayoutFooter>
       }
