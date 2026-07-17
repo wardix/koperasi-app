@@ -21,6 +21,7 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
   }
 
   // Menjalankan query yang independen secara paralel
+  // Soft-deleted members/loans (deletedAt set) excluded from dashboard / growth trends
   const [
     activeMembersRes,
     totalSavingsRes,
@@ -32,15 +33,26 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
     paymentRows,
     recentRows
   ] = await Promise.all([
-    db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif'").get<{ c: number }>(),
-    db.query("SELECT SUM(totalSavings) as s FROM members").get<{ s: number | null }>(),
-    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui'").get<{ s: number | null }>(),
-    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get<{ s: number | null }>(),
-    db.query("SELECT role, COUNT(*) as count FROM members GROUP BY role").all<GroupCount>(),
-    db.query("SELECT purpose, COUNT(*) as count FROM loans GROUP BY purpose").all<GroupCount>(),
-    db.query("SELECT TO_CHAR(createdAt::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM transactions WHERE type LIKE 'setor_%' GROUP BY month").all<MonthTotal>(),
-    db.query("SELECT TO_CHAR(paymentDate::timestamp, 'YYYY-MM') as month, SUM(amount) as total FROM loan_payments GROUP BY month").all<MonthTotal>(),
-    db.query("SELECT id, name, totalSavings, joinDate FROM members ORDER BY id DESC LIMIT 5").all<Pick<MemberRow, 'id' | 'name' | 'totalSavings' | 'joinDate'>>()
+    db.query("SELECT COUNT(*) as c FROM members WHERE status = 'Aktif' AND deletedAt IS NULL").get<{ c: number }>(),
+    db.query("SELECT SUM(totalSavings) as s FROM members WHERE deletedAt IS NULL").get<{ s: number | null }>(),
+    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Disetujui' AND deletedAt IS NULL").get<{ s: number | null }>(),
+    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet' AND deletedAt IS NULL").get<{ s: number | null }>(),
+    db.query("SELECT role, COUNT(*) as count FROM members WHERE deletedAt IS NULL GROUP BY role").all<GroupCount>(),
+    db.query("SELECT purpose, COUNT(*) as count FROM loans WHERE deletedAt IS NULL GROUP BY purpose").all<GroupCount>(),
+    db.query(`
+      SELECT TO_CHAR(t.createdAt::timestamp, 'YYYY-MM') as month, SUM(t.amount) as total
+      FROM transactions t
+      INNER JOIN members m ON t.memberId = m.id AND m.deletedAt IS NULL
+      WHERE t.type LIKE 'setor_%'
+      GROUP BY month
+    `).all<MonthTotal>(),
+    db.query(`
+      SELECT TO_CHAR(p.paymentDate::timestamp, 'YYYY-MM') as month, SUM(p.amount) as total
+      FROM loan_payments p
+      INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
+      GROUP BY month
+    `).all<MonthTotal>(),
+    db.query("SELECT id, name, totalSavings, joinDate FROM members WHERE deletedAt IS NULL ORDER BY id DESC LIMIT 5").all<Pick<MemberRow, 'id' | 'name' | 'totalSavings' | 'joinDate'>>()
   ]);
 
   const activeMembers = activeMembersRes?.c || 0;
