@@ -15,6 +15,7 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
       SELECT t.amount FROM transactions t WHERE t.type LIKE 'setor_%'
       UNION ALL
       SELECT p.amount FROM loan_payments p
+        INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
     ) as inflows
   `).get() as { total: number }
 
@@ -22,7 +23,8 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
     SELECT SUM(amount) as total FROM (
       SELECT t.amount FROM transactions t WHERE t.type LIKE 'tarik_%'
       UNION ALL
-      SELECT l.amount FROM loans l WHERE l.status IN ('Disetujui', 'Lunas')
+      SELECT l.amount FROM loans l
+        WHERE l.status IN ('Disetujui', 'Lunas') AND l.deletedAt IS NULL
     ) as outflows
   `).get() as { total: number }
 
@@ -54,7 +56,7 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
       p.amount,
       'inflow' as "flowType"
     FROM loan_payments p
-    LEFT JOIN loans l ON p.loanId = l.id
+    INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
 
     UNION ALL
 
@@ -68,6 +70,7 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
       'outflow' as "flowType"
     FROM loans l
     WHERE l.status IN ('Disetujui', 'Lunas')
+      AND l.deletedAt IS NULL
 
     ORDER BY "date" DESC
     LIMIT ? OFFSET ?
@@ -79,9 +82,10 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
     SELECT COUNT(*) as count FROM (
       SELECT id FROM transactions
       UNION ALL
-      SELECT id FROM loan_payments
+      SELECT p.id FROM loan_payments p
+        INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
       UNION ALL
-      SELECT id FROM loans WHERE status IN ('Disetujui', 'Lunas')
+      SELECT id FROM loans WHERE status IN ('Disetujui', 'Lunas') AND deletedAt IS NULL
     ) as combined
   `
   const totalRes = await db.query(countQuery).get() as { count: number }

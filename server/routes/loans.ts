@@ -163,6 +163,7 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
+  // Soft-deleted loans (deletedAt set) must not appear as pencairan / angsuran ledger rows
   const rows = await db.query(`
     SELECT * FROM (
       SELECT
@@ -175,6 +176,7 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
         l.name as "borrowerName"
       FROM loans l
       WHERE l.status IN ('Disetujui', 'Lunas', 'Macet')
+        AND l.deletedAt IS NULL
 
       UNION ALL
 
@@ -187,7 +189,7 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
         p.method as "method",
         l.name as "borrowerName"
       FROM loan_payments p
-      LEFT JOIN loans l ON p.loanId = l.id
+      INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
     ) combined
     ORDER BY "paymentDate" DESC
     LIMIT ? OFFSET ?
@@ -195,8 +197,9 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
 
   const totalRes = await db.query(`
     SELECT (
-      (SELECT COUNT(*) FROM loans WHERE status IN ('Disetujui', 'Lunas', 'Macet')) +
-      (SELECT COUNT(*) FROM loan_payments)
+      (SELECT COUNT(*) FROM loans WHERE status IN ('Disetujui', 'Lunas', 'Macet') AND deletedAt IS NULL) +
+      (SELECT COUNT(*) FROM loan_payments p
+       INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL)
     ) as count
   `).get<{ count: number }>()
 
