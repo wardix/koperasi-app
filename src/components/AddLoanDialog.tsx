@@ -98,7 +98,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   };
 
   return (
-    <VStack padding={4} gap={4}>
+    <VStack padding={4} gap={4} style={{ width: '100%', boxSizing: 'border-box' }}>
       <VStack gap={1}>
         <Heading level={3}>Tambah Pengajuan Pinjaman</Heading>
         <Text type="supporting" color="secondary">
@@ -201,7 +201,20 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
         )}
       </VStack>
 
-      <HStack gap={2} hAlign="end">
+      {/* Sticky footer so Simpan stays reachable while the form scrolls */}
+      <HStack
+        gap={2}
+        hAlign="end"
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          paddingTop: 'var(--spacing-3)',
+          paddingBottom: 'var(--spacing-1)',
+          backgroundColor: 'var(--color-background-primary, var(--color-background-body, #fff))',
+          borderTop: '1px solid var(--color-border-primary, rgba(0,0,0,0.08))',
+          zIndex: 1,
+        }}
+      >
         <Button label="Batal" variant="secondary" onClick={onClose} />
         <Button label="Simpan" variant="primary" onClick={handleSave} />
       </HStack>

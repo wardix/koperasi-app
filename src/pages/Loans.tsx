@@ -64,7 +64,7 @@ const fieldDefs = [
 export default function LoansTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
-  const dialog = useA11yDialog({purpose: 'form', width: 480});
+  const dialog = useA11yDialog({purpose: 'form', width: 520, maxHeight: '85vh'});
   const toast = useToast();
   const { hasPermission } = useAuth();
   const apiAction = useApiAction();
