@@ -7,6 +7,31 @@ export function apiUrl(path: string): string {
   return `${baseUrl}${resolvedPath}`;
 }
 
+function isPublicApiPath(path: string): boolean {
+  const normalized = path.startsWith('/api/') && !path.startsWith('/api/v1/')
+    ? path.replace('/api/', '/api/v1/')
+    : path;
+  return (
+    normalized === '/api/v1/settings/branding' ||
+    normalized === '/api/v1/auth/login' ||
+    normalized === '/api/v1/auth/logout' ||
+    normalized === '/api/v1/auth/refresh' ||
+    normalized === '/api/v1/auth/google' ||
+    normalized.startsWith('/api/v1/member-auth/')
+  );
+}
+
+function clearSessionAndRedirectToLogin() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('role');
+  const path = window.location.pathname;
+  // Avoid hard-reload loops on the login screen (and member portal)
+  if (path === '/login' || path.startsWith('/login/') || path.startsWith('/portal')) {
+    return;
+  }
+  window.location.href = '/login';
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');
   const headers = {
@@ -23,7 +48,8 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     path === '/api/auth/login' ||
     path === '/api/v1/auth/login';
 
-  if (res.status === 401 && !isAuthRefreshPath && !isAuthLoginPath) {
+  // Public endpoints must never trigger refresh/redirect (would flicker login forever)
+  if (res.status === 401 && !isAuthRefreshPath && !isAuthLoginPath && !isPublicApiPath(path)) {
     const refreshRes = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
       credentials: 'include'
@@ -36,12 +62,10 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
         headers['Authorization'] = `Bearer ${data.token}`;
         res = await fetch(apiUrl(path), { ...options, headers });
       } else {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        clearSessionAndRedirectToLogin();
       }
     } else {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      clearSessionAndRedirectToLogin();
     }
   }
   
