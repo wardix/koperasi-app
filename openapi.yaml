@@ -138,6 +138,18 @@ components:
         status:
           type: string
           enum: [Menunggu, Disetujui, Ditolak, Lunas]
+        approvedDate:
+          type: string
+          format: date
+          description: Tanggal pencairan/persetujuan (YYYY-MM-DD) untuk data historis
+    LoanDisbursementDateInput:
+      type: object
+      required: [disbursementDate]
+      properties:
+        disbursementDate:
+          type: string
+          format: date
+          description: Tanggal pencairan pinjaman (YYYY-MM-DD)
     PaymentInput:
       type: object
       required: [amount, method]
@@ -148,6 +160,15 @@ components:
           type: string
           format: date
           description: Tanggal angsuran opsional (YYYY-MM-DD) untuk data historis; default hari ini
+    PaymentUpdateInput:
+      type: object
+      properties:
+        amount: { type: number, exclusiveMinimum: 0 }
+        method: { type: string }
+        paymentDate:
+          type: string
+          format: date
+          description: Tanggal angsuran (YYYY-MM-DD)
     LoginInput:
       type: object
       required: [email, password]
@@ -524,6 +545,28 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/PaginatedList'
+  /loans/{id}/disbursement-date:
+    put:
+      tags: [loans]
+      summary: Ubah tanggal pencairan pinjaman yang sudah disetujui
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanDisbursementDateInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /loans/{id}/payments:
     get:
       tags: [loans]
@@ -555,6 +598,49 @@ paths:
           $ref: '#/components/responses/MessageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /loans/{id}/payments/{paymentId}:
+    put:
+      tags: [loans]
+      summary: Ubah nominal/tanggal/metode angsuran
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentUpdateInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [loans]
+      summary: Hapus angsuran dan hitung ulang alokasi
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
         '404':
           $ref: '#/components/responses/NotFound'
   /savings/transactions:

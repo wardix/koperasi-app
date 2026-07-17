@@ -59,6 +59,15 @@ export const loanSchema = z.object({
 
 export const loanStatusSchema = z.object({
   status: z.enum(["Menunggu", "Disetujui", "Ditolak", "Lunas"]),
+  /**
+   * Optional disbursement / approval calendar date (YYYY-MM-DD).
+   * When approving historical loans, set this so cashflow pencairan uses the past date
+   * instead of the moment the approve button is clicked.
+   */
+  approvedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional(),
 })
 
 export const paymentSchema = z.object({
@@ -69,6 +78,25 @@ export const paymentSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
     .optional(),
+})
+
+export const paymentUpdateSchema = z
+  .object({
+    amount: z.number().positive().optional(),
+    method: z.string().min(1).transform(sanitize).optional(),
+    paymentDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+      .optional(),
+  })
+  .refine((v) => v.amount != null || v.method != null || v.paymentDate != null, {
+    message: "Minimal satu field harus diisi (amount, method, atau paymentDate)",
+  })
+
+export const loanDisbursementDateSchema = z.object({
+  disbursementDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
 })
 
 // Common passwords blocklist (top 100 most common)

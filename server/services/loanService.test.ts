@@ -3,8 +3,12 @@ import db from "../db";
 import {
   calculateLoanInterest,
   createLoan,
+  deleteLoanPayment,
   recordLoanPayment,
   resolveLoanTotalAmount,
+  updateLoanDisbursementDate,
+  updateLoanPayment,
+  updateLoanStatus,
 } from "./loanService";
 import { ServiceError } from "./errors";
 
@@ -89,6 +93,43 @@ describe("loanService", () => {
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
 
+  test("updateLoanStatus Disetujui uses approvedDate for createdAt and approvedAt", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Approve Date ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 2000000, 6, "Test", "Menunggu", new Date().toISOString()]
+    );
+
+    await updateLoanStatus(db, loanId, "Disetujui", { approvedDate: "2024-04-01" });
+
+    const loan = await db
+      .query("SELECT status, createdAt, approvedAt FROM loans WHERE id = ?")
+      .get(loanId) as { status: string; createdAt: string; approvedAt: string };
+
+    expect(loan.status).toBe("Disetujui");
+    const created = new Date(loan.createdAt);
+    const approved = new Date(loan.approvedAt);
+    expect(created.getFullYear()).toBe(2024);
+    expect(created.getMonth()).toBe(3);
+    expect(created.getDate()).toBe(1);
+    expect(approved.getFullYear()).toBe(2024);
+    expect(approved.getMonth()).toBe(3);
+    expect(approved.getDate()).toBe(1);
+
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
   test("recordLoanPayment respects backdated paymentDate", async () => {
     const memberId = crypto.randomUUID();
     const loanId = crypto.randomUUID();
@@ -119,6 +160,111 @@ describe("loanService", () => {
     expect(d.getMonth()).toBe(1);
     expect(d.getDate()).toBe(10);
 
+    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("updateLoanDisbursementDate updates approvedAt and createdAt", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Disburse Edit ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, approvedAt, totalAmount, interestAmount, scheduleGenerated)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        loanId,
+        memberId,
+        loanName,
+        3000000,
+        6,
+        "Test",
+        "Disetujui",
+        new Date().toISOString(),
+        new Date().toISOString(),
+        3000000,
+        0,
+        true,
+      ]
+    );
+
+    const result = await updateLoanDisbursementDate(db, loanId, "2024-03-15");
+    const d = new Date(result.after.approvedAt);
+    expect(d.getFullYear()).toBe(2024);
+    expect(d.getMonth()).toBe(2);
+    expect(d.getDate()).toBe(15);
+
+    const loan = await db
+      .query("SELECT createdAt, approvedAt FROM loans WHERE id = ?")
+      .get<{ createdAt: string; approvedAt: string }>(loanId);
+    expect(new Date(loan!.createdAt).getDate()).toBe(15);
+    expect(new Date(loan!.approvedAt).getDate()).toBe(15);
+
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("updateLoanPayment and deleteLoanPayment recalculate totals", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `EditPay ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, totalAmount, interestAmount, approvedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        loanId,
+        memberId,
+        loanName,
+        1000000,
+        12,
+        "Test",
+        "Disetujui",
+        "2024-01-15T12:00:00.000Z",
+        1000000,
+        0,
+        "2024-01-15T12:00:00.000Z",
+      ]
+    );
+
+    const { id: paymentId } = await recordLoanPayment(db, loanId, {
+      amount: 100000,
+      method: "Transfer",
+      paymentDate: "2024-02-01",
+    });
+
+    const updated = await updateLoanPayment(db, loanId, paymentId, {
+      amount: 150000,
+      paymentDate: "2024-02-05",
+    });
+    expect(Number(updated.after.amount)).toBe(150000);
+    const d = new Date(updated.after.paymentDate);
+    expect(d.getDate()).toBe(5);
+
+    let sum = await db
+      .query("SELECT COALESCE(SUM(amount),0) as paid FROM loan_payments WHERE loanId = ?")
+      .get<{ paid: number }>(loanId);
+    expect(Number(sum?.paid)).toBe(150000);
+
+    await deleteLoanPayment(db, loanId, paymentId);
+    sum = await db
+      .query("SELECT COALESCE(SUM(amount),0) as paid FROM loan_payments WHERE loanId = ?")
+      .get<{ paid: number }>(loanId);
+    expect(Number(sum?.paid)).toBe(0);
+
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
     await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
     await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);

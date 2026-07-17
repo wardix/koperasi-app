@@ -145,10 +145,16 @@ async function generateInstallmentSchedule(
   ]);
 }
 
+export type UpdateLoanStatusOptions = {
+  /** YYYY-MM-DD disbursement date; defaults to loan createdAt then today */
+  approvedDate?: string;
+};
+
 export async function updateLoanStatus(
   database: Db,
   loanId: string,
-  status: string
+  status: string,
+  options?: UpdateLoanStatusOptions
 ): Promise<{ before: Pick<LoanRow, "status" | "memberId"> | null }> {
   if (status === "Disetujui") {
     await database.transaction(async () => {
@@ -162,16 +168,33 @@ export async function updateLoanStatus(
         createdAt: string | null;
       } | null;
 
-      // Use loan date as approvedAt when backdating historical loans
-      const approvedAt = loan?.createdAt ? new Date(loan.createdAt).toISOString() : new Date().toISOString();
-      const stmt = database.prepare(`UPDATE loans SET status = ?, approvedAt = ? WHERE id = ?`);
-      await stmt.run(status, approvedAt, loanId);
+      // Prefer explicit approvedDate (from approve UI), else loan application date, else now.
+      // Also align createdAt so cashflow/LoansTx (pencairan) show the historical date.
+      let approvedAt: string;
+      if (options?.approvedDate) {
+        approvedAt = resolveCalendarDateIso(options.approvedDate);
+      } else if (loan?.createdAt) {
+        const parsed = new Date(loan.createdAt);
+        approvedAt = Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+      } else {
+        approvedAt = new Date().toISOString();
+      }
+
+      const stmt = database.prepare(
+        `UPDATE loans SET status = ?, approvedAt = ?, createdAt = ? WHERE id = ?`
+      );
+      await stmt.run(status, approvedAt, approvedAt, loanId);
 
       const bungaRatePercent = await getBungaRatePercent(database);
 
       if (loan && !loan.scheduleGenerated) {
-        const { interestAmount, totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRatePercent);
-        await generateInstallmentSchedule(database, loan, bungaRatePercent, interestAmount, totalAmount);
+        const loanForSchedule = { ...loan, createdAt: approvedAt, amount: Number(loan.amount) };
+        const { interestAmount, totalAmount } = calculateLoanInterest(
+          loanForSchedule.amount,
+          loan.tenor,
+          bungaRatePercent
+        );
+        await generateInstallmentSchedule(database, loanForSchedule, bungaRatePercent, interestAmount, totalAmount);
       }
     })();
   } else {
@@ -193,6 +216,170 @@ export type RecordPaymentInput = {
   paymentDate?: string;
 };
 
+export type UpdatePaymentInput = {
+  amount?: number;
+  method?: string;
+  /** Optional backdated payment date as YYYY-MM-DD */
+  paymentDate?: string;
+};
+
+type PaymentRow = {
+  id: string;
+  loanId: string;
+  amount: number;
+  paymentDate: string;
+  method: string;
+};
+
+/**
+ * Reset schedule allocations and re-apply all payments in chronological order.
+ * Keeps loan_payments rows as source of truth after edit/delete.
+ */
+async function rebuildLoanPaymentAllocations(database: Db, loanId: string): Promise<void> {
+  const loan = await database.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
+  if (!loan) {
+    throw new ServiceError("Loan not found", 404);
+  }
+
+  // Reset schedules
+  await database.run(
+    `UPDATE loan_schedules
+     SET paidAmount = 0, status = 'Pending', updatedAt = CURRENT_TIMESTAMP
+     WHERE loanId = ?`,
+    [loanId]
+  );
+
+  // Reset loan status away from Lunas/Macet while rebuilding (unless no schedule and unpaid)
+  if (loan.status === "Lunas" || loan.status === "Macet") {
+    await database.run(`UPDATE loans SET status = 'Disetujui', paidInstallments = 0 WHERE id = ?`, [loanId]);
+  } else {
+    await database.run(`UPDATE loans SET paidInstallments = 0 WHERE id = ?`, [loanId]);
+  }
+
+  const payments = await database
+    .query(
+      `SELECT id, loanId, amount, paymentDate, method FROM loan_payments
+       WHERE loanId = ?
+       ORDER BY paymentDate ASC, id ASC`
+    )
+    .all<PaymentRow>(loanId);
+
+  const totalAmount = await resolveLoanTotalAmount(database, loan);
+  let totalPaid = 0;
+
+  for (const payment of payments) {
+    totalPaid += Number(payment.amount);
+    await allocatePaymentToSchedules(database, loanId, Number(payment.amount), payment.paymentDate);
+  }
+
+  const paidInstallmentCount = await database
+    .query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Paid'`)
+    .get<{ count: number }>(loanId);
+  await database.run(`UPDATE loans SET paidInstallments = ? WHERE id = ?`, [
+    Number(paidInstallmentCount?.count || 0),
+    loanId,
+  ]);
+
+  const scheduleCount = await database
+    .query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ?`)
+    .get<{ count: number }>(loanId);
+
+  if (Number(scheduleCount?.count || 0) > 0) {
+    const remainingPending = await database
+      .query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status IN ('Pending', 'Late')`)
+      .get<{ count: number }>(loanId);
+
+    if (Number(remainingPending?.count || 0) === 0 && payments.length > 0) {
+      await database.run(`UPDATE loans SET status = 'Lunas', paidInstallments = totalInstallments WHERE id = ?`, [
+        loanId,
+      ]);
+    } else {
+      // Mark overdue installments
+      const now = new Date();
+      const overdue = await database
+        .query(
+          `SELECT dueDate FROM loan_schedules
+           WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE
+           ORDER BY dueDate ASC LIMIT 1`
+        )
+        .get<{ dueDate: string }>(loanId);
+
+      if (overdue?.dueDate) {
+        const dpd = Math.floor(
+          (now.getTime() - new Date(overdue.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (dpd >= 90) {
+          await database.run(`UPDATE loans SET status = 'Macet' WHERE id = ?`, [loanId]);
+        }
+        await database.run(
+          `UPDATE loan_schedules SET status = 'Late', updatedAt = CURRENT_TIMESTAMP
+           WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE`,
+          [loanId]
+        );
+      } else if (loan.status === "Lunas" || loan.status === "Macet") {
+        // already reset to Disetujui above when rebuilding
+      } else if (payments.length > 0 && totalPaid < totalAmount) {
+        await database.run(`UPDATE loans SET status = 'Disetujui' WHERE id = ? AND status = 'Lunas'`, [loanId]);
+      }
+    }
+  } else if (totalPaid >= totalAmount && payments.length > 0) {
+    await database.run(`UPDATE loans SET status = 'Lunas' WHERE id = ?`, [loanId]);
+  } else if (loan.status === "Lunas" && totalPaid < totalAmount) {
+    await database.run(`UPDATE loans SET status = 'Disetujui' WHERE id = ?`, [loanId]);
+  }
+}
+
+async function allocatePaymentToSchedules(
+  database: Db,
+  loanId: string,
+  amount: number,
+  paymentDateIso: string
+): Promise<void> {
+  let allocatedAmount = amount;
+  const schedules = await database
+    .query(
+      `SELECT * FROM loan_schedules
+       WHERE loanId = ? AND status IN ('Pending', 'Late')
+       ORDER BY installmentNo ASC`
+    )
+    .all<LoanScheduleRow>(loanId);
+
+  if (schedules.length === 0) return;
+
+  const asOf = new Date(paymentDateIso);
+  const dendaSetting = await database
+    .query("SELECT value FROM settings WHERE key = 'denda'")
+    .get<{ value: string }>();
+  const dendaPercent = parseFloat(dendaSetting?.value || "0");
+
+  for (const schedule of schedules) {
+    if (allocatedAmount <= 0) break;
+
+    const dueDate = new Date(schedule.dueDate);
+    const daysLate = Math.floor((asOf.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+    const lateFee =
+      daysLate > 0 ? Math.round(Number(schedule.principalAmount) * (dendaPercent / 100)) : 0;
+
+    const totalDue = Number(schedule.principalAmount) + Number(schedule.interestAmount) + lateFee;
+    const paymentForThisInstallment = Math.min(
+      allocatedAmount,
+      totalDue - Number(schedule.paidAmount || 0)
+    );
+
+    if (paymentForThisInstallment <= 0) continue;
+
+    const newPaidAmount = Number(schedule.paidAmount || 0) + paymentForThisInstallment;
+    const isFullyPaid = newPaidAmount >= totalDue;
+
+    await database.run(
+      `UPDATE loan_schedules SET paidAmount = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+      [newPaidAmount, isFullyPaid ? "Paid" : "Pending", schedule.id]
+    );
+
+    allocatedAmount -= paymentForThisInstallment;
+  }
+}
+
 export async function recordLoanPayment(
   database: Db,
   loanId: string,
@@ -202,7 +389,6 @@ export async function recordLoanPayment(
   const paymentDate = resolveCalendarDateIso(input.paymentDate);
 
   await database.transaction(async () => {
-    // Lock the loan row to serialize concurrent payment attempts
     const loan = await database.query("SELECT * FROM loans WHERE id = ? FOR UPDATE").get<LoanRow>(loanId);
     if (!loan) {
       throw new ServiceError("Loan not found", 404);
@@ -210,114 +396,198 @@ export async function recordLoanPayment(
 
     const totalAmount = await resolveLoanTotalAmount(database, loan);
     const paid = Number(
-      (await database.query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?").get<{ paid: number | null }>(
-        loanId
-      ))?.paid || 0
+      (
+        await database
+          .query("SELECT SUM(amount) as paid FROM loan_payments WHERE loanId = ?")
+          .get<{ paid: number | null }>(loanId)
+      )?.paid || 0
     );
 
     if (paid + input.amount > totalAmount) {
       throw new ServiceError("Total pembayaran melebihi jumlah pinjaman");
     }
 
-    const stmt = database.prepare(`
-      INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    await stmt.run(id, loanId, input.amount, paymentDate, input.method);
+    await database
+      .prepare(
+        `INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(id, loanId, input.amount, paymentDate, input.method);
 
-    let allocatedAmount = input.amount;
-    const pendingSchedules = await database
-      .query(`
-        SELECT * FROM loan_schedules
-        WHERE loanId = ? AND status = 'Pending'
-        ORDER BY installmentNo ASC
-      `)
-      .all<LoanScheduleRow>(loanId);
-
-    if (pendingSchedules.length > 0) {
-      // Use payment date for late-fee calculation when backdating
-      const asOf = new Date(paymentDate);
-      for (const schedule of pendingSchedules) {
-        if (allocatedAmount <= 0) break;
-
-        const dueDate = new Date(schedule.dueDate);
-        const daysLate = Math.floor((asOf.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        let lateFee = 0;
-        if (daysLate > 0) {
-          const dendaSetting = await database.query("SELECT value FROM settings WHERE key = 'denda'").get<{ value: string }>();
-          const dendaPercent = parseFloat(dendaSetting?.value || "0");
-          lateFee = Math.round(schedule.principalAmount * (dendaPercent / 100));
-        }
-
-        const totalDue = Number(schedule.principalAmount) + Number(schedule.interestAmount) + lateFee;
-        const paymentForThisInstallment = Math.min(allocatedAmount, totalDue - Number(schedule.paidAmount || 0));
-
-        if (paymentForThisInstallment > 0) {
-          const newPaidAmount = Number(schedule.paidAmount || 0) + paymentForThisInstallment;
-          const isFullyPaid = newPaidAmount >= totalDue;
-
-          await database.run(
-            `UPDATE loan_schedules SET paidAmount = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-            [newPaidAmount, isFullyPaid ? "Paid" : "Pending", schedule.id]
-          );
-
-          allocatedAmount -= paymentForThisInstallment;
-
-          if (isFullyPaid) {
-            const remainingPending = await database
-              .query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Pending'`)
-              .get<{ count: number }>(loanId);
-            if (Number(remainingPending?.count || 0) === 0) {
-              await database.run(`UPDATE loans SET status = 'Lunas', paidInstallments = totalInstallments WHERE id = ?`, [
-                loanId,
-              ]);
-            }
-          }
-        }
-      }
-
-      const paidInstallmentCount = await database
-        .query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ? AND status = 'Paid'`)
-        .get<{ count: number }>(loanId);
-      if (paidInstallmentCount && Number(paidInstallmentCount.count || 0) > 0) {
-        await database.run(`UPDATE loans SET paidInstallments = ? WHERE id = ?`, [
-          Number(paidInstallmentCount.count),
-          loanId,
-        ]);
-      }
-
-      const overdueSchedules = await database
-        .query(`
-          SELECT * FROM loan_schedules
-          WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE
-          ORDER BY dueDate ASC LIMIT 1
-        `)
-        .all<LoanScheduleRow>(loanId);
-
-      if (overdueSchedules.length > 0) {
-        const oldestOverdue = overdueSchedules[0];
-        const oldestDueDate = new Date(oldestOverdue.dueDate);
-        const dpd = Math.floor((today.getTime() - oldestDueDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (dpd >= 90) {
-          await database.run(`UPDATE loans SET status = 'Macet' WHERE id = ?`, [loanId]);
-        }
-
-        await database.run(
-          `UPDATE loan_schedules SET status = 'Late', updatedAt = CURRENT_TIMESTAMP WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE`,
-          [loanId]
-        );
-      }
-    } else {
-      const newTotalPaid = paid + input.amount;
-      if (newTotalPaid >= totalAmount) {
-        await database.run(`UPDATE loans SET status = 'Lunas' WHERE id = ?`, [loanId]);
-      }
-    }
+    await rebuildLoanPaymentAllocations(database, loanId);
   })();
 
   return { id };
+}
+
+export async function updateLoanPayment(
+  database: Db,
+  loanId: string,
+  paymentId: string,
+  input: UpdatePaymentInput
+): Promise<{ before: PaymentRow; after: PaymentRow }> {
+  let before: PaymentRow | null = null;
+  let after: PaymentRow | null = null;
+
+  await database.transaction(async () => {
+    const loan = await database.query("SELECT * FROM loans WHERE id = ? FOR UPDATE").get<LoanRow>(loanId);
+    if (!loan) {
+      throw new ServiceError("Loan not found", 404);
+    }
+
+    const existing = await database
+      .query("SELECT id, loanId, amount, paymentDate, method FROM loan_payments WHERE id = ? AND loanId = ?")
+      .get<PaymentRow>(paymentId, loanId);
+
+    if (!existing) {
+      throw new ServiceError("Pembayaran tidak ditemukan", 404);
+    }
+    before = existing;
+
+    const nextAmount = input.amount != null ? Number(input.amount) : Number(existing.amount);
+    if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
+      throw new ServiceError("Nominal pembayaran harus lebih dari 0", 400);
+    }
+
+    const nextMethod = input.method?.trim() || existing.method;
+    const nextPaymentDate = input.paymentDate
+      ? resolveCalendarDateIso(input.paymentDate)
+      : existing.paymentDate;
+
+    const totalAmount = await resolveLoanTotalAmount(database, loan);
+    const otherPaid = Number(
+      (
+        await database
+          .query(
+            "SELECT COALESCE(SUM(amount), 0) as paid FROM loan_payments WHERE loanId = ? AND id != ?"
+          )
+          .get<{ paid: number }>(loanId, paymentId)
+      )?.paid || 0
+    );
+
+    if (otherPaid + nextAmount > totalAmount) {
+      throw new ServiceError("Total pembayaran melebihi jumlah pinjaman", 400);
+    }
+
+    await database.run(
+      `UPDATE loan_payments SET amount = ?, paymentDate = ?, method = ? WHERE id = ? AND loanId = ?`,
+      [nextAmount, nextPaymentDate, nextMethod, paymentId, loanId]
+    );
+
+    await rebuildLoanPaymentAllocations(database, loanId);
+
+    after = await database
+      .query("SELECT id, loanId, amount, paymentDate, method FROM loan_payments WHERE id = ?")
+      .get<PaymentRow>(paymentId);
+  })();
+
+  if (!before || !after) {
+    throw new ServiceError("Pembayaran tidak ditemukan", 404);
+  }
+  return { before, after };
+}
+
+export async function deleteLoanPayment(
+  database: Db,
+  loanId: string,
+  paymentId: string
+): Promise<{ before: PaymentRow }> {
+  let before: PaymentRow | null = null;
+
+  await database.transaction(async () => {
+    const loan = await database.query("SELECT * FROM loans WHERE id = ? FOR UPDATE").get<LoanRow>(loanId);
+    if (!loan) {
+      throw new ServiceError("Loan not found", 404);
+    }
+
+    const existing = await database
+      .query("SELECT id, loanId, amount, paymentDate, method FROM loan_payments WHERE id = ? AND loanId = ?")
+      .get<PaymentRow>(paymentId, loanId);
+
+    if (!existing) {
+      throw new ServiceError("Pembayaran tidak ditemukan", 404);
+    }
+    before = existing;
+
+    await database.run(`DELETE FROM loan_payments WHERE id = ? AND loanId = ?`, [paymentId, loanId]);
+    await rebuildLoanPaymentAllocations(database, loanId);
+  })();
+
+  if (!before) {
+    throw new ServiceError("Pembayaran tidak ditemukan", 404);
+  }
+  return { before };
+}
+
+/**
+ * Update pencairan / disbursement date for an already-approved loan.
+ * Aligns approvedAt + createdAt (cashflow / LoansTx) and shifts schedule due dates.
+ */
+export async function updateLoanDisbursementDate(
+  database: Db,
+  loanId: string,
+  disbursementDate: string
+): Promise<{ before: { approvedAt: string | null; createdAt: string | null }; after: { approvedAt: string; createdAt: string } }> {
+  const iso = resolveCalendarDateIso(disbursementDate);
+  let before: { approvedAt: string | null; createdAt: string | null } = {
+    approvedAt: null,
+    createdAt: null,
+  };
+
+  await database.transaction(async () => {
+    const loan = await database
+      .query(
+        `SELECT id, status, approvedAt, createdAt, scheduleGenerated
+         FROM loans WHERE id = ? AND deletedAt IS NULL FOR UPDATE`
+      )
+      .get<{
+        id: string;
+        status: string;
+        approvedAt: string | null;
+        createdAt: string | null;
+        scheduleGenerated: boolean;
+      }>(loanId);
+
+    if (!loan) {
+      throw new ServiceError("Loan not found", 404);
+    }
+    if (loan.status !== "Disetujui" && loan.status !== "Lunas" && loan.status !== "Macet") {
+      throw new ServiceError("Hanya pinjaman yang sudah disetujui yang bisa diubah tanggal pencairannya", 400);
+    }
+
+    before = { approvedAt: loan.approvedAt, createdAt: loan.createdAt };
+
+    await database.run(`UPDATE loans SET approvedAt = ?, createdAt = ? WHERE id = ?`, [
+      iso,
+      iso,
+      loanId,
+    ]);
+
+    // Shift installment due dates from the new disbursement base
+    const schedules = await database
+      .query(
+        `SELECT id, installmentNo FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC`
+      )
+      .all<{ id: string; installmentNo: number }>(loanId);
+
+    if (schedules.length > 0) {
+      const baseDate = new Date(iso);
+      for (const row of schedules) {
+        const due = addMonthsYmd(baseDate, Number(row.installmentNo));
+        await database.run(`UPDATE loan_schedules SET dueDate = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, [
+          due,
+          row.id,
+        ]);
+      }
+      // Re-apply payments so Late/Lunas status stays consistent with new due dates
+      await rebuildLoanPaymentAllocations(database, loanId);
+    }
+  })();
+
+  return {
+    before,
+    after: { approvedAt: iso, createdAt: iso },
+  };
 }
 
 export async function deleteLoan(database: Db, loanId: string): Promise<void> {

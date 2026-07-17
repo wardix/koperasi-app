@@ -32,6 +32,10 @@ export interface LoanRow {
   paidAmount?: number;
   interestAmount?: number;
   totalAmount?: number;
+  /** Application / loan date (ISO) — set from loanDate on create */
+  createdAt?: string;
+  /** Disbursement / approval timestamp (ISO) */
+  approvedAt?: string;
 }
 
 export interface PaginatedResponse<T> {

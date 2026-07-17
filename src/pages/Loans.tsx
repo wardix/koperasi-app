@@ -45,6 +45,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddLoanDialogContent} from '../components/AddLoanDialog';
+import {ApproveLoanDialogContent} from '../components/ApproveLoanDialog';
 import {LoanDetailDialogContent} from '../components/LoanDetailDialog';
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';
@@ -80,16 +81,41 @@ export default function LoansTemplate() {
     }
   }, [loansResponse]);
 
-  const handleUpdateStatus = useCallback((id: string, status: string) => {
+  const handleUpdateStatus = useCallback((id: string, status: string, approvedDate?: string) => {
     apiAction.execute(
-      () => api.put(`/api/loans/${id}/status`, { status }),
+      () =>
+        api.put(`/api/loans/${id}/status`, {
+          status,
+          ...(approvedDate ? { approvedDate } : {}),
+        }),
       {
         successMsg: 'Status pinjaman berhasil diperbarui',
         errorMsg: 'Terjadi kesalahan sistem',
-        onSuccess: () => setLocalLoans(loans => loans.map(loan => loan.id === id ? { ...loan, status } : loan))
+        onSuccess: () => {
+          setLocalLoans((loans) =>
+            loans.map((loan) => (loan.id === id ? { ...loan, status } : loan))
+          );
+          fetchLoans();
+        },
       }
     );
-  }, [apiAction]);
+  }, [apiAction, fetchLoans]);
+
+  const handleApproveLoan = useCallback(
+    (loan: LoanRow) => {
+      dialog.show(
+        <ApproveLoanDialogContent
+          loan={loan}
+          onClose={() => dialog.hide()}
+          onConfirm={(approvedDate) => {
+            handleUpdateStatus(loan.id, 'Disetujui', approvedDate);
+            dialog.hide();
+          }}
+        />
+      );
+    },
+    [dialog, handleUpdateStatus]
+  );
 
   const filtered = useMemo(() => {
     return applyFilters(filters, localLoans);
@@ -203,7 +229,7 @@ export default function LoansTemplate() {
           <HStack gap={2}>
             {hasPermission('approve:loans') && item.status === 'Menunggu' && (
               <>
-                <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Disetujui')} />
+                <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleApproveLoan(item)} />
                 <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Ditolak')} />
               </>
             )}
@@ -238,7 +264,7 @@ export default function LoansTemplate() {
         );
       },
     },
-  ], [hasPermission, handleUpdateStatus, dialog, fetchLoans, handleDeleteLoan]);
+  ], [hasPermission, handleUpdateStatus, handleApproveLoan, dialog, fetchLoans, handleDeleteLoan]);
 
   return (
     <>
