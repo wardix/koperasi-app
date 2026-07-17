@@ -10,6 +10,8 @@ export const PUBLIC_AUTH_PATHS = [
   `/api/v1/member-auth/logout`,
   `/api/v1/member-auth/refresh`,
   `/api/v1/cron/due-dates`,
+  // Public branding for login shell (no secrets)
+  `/api/v1/settings/branding`,
 ] as const;
 
 /** Legacy paths without /auth segment — forwarded with Deprecation header. */
