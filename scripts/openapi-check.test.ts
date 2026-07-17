@@ -14,7 +14,7 @@ describe("openapi-check", () => {
 
   test("manifest includes all required issue #207 resource groups", () => {
     const tags = new Set(OPENAPI_ROUTE_MANIFEST.map((entry) => entry.tag));
-    for (const required of ["auth", "members", "loans", "savings", "shu", "npl", "cashflow", "reports"]) {
+    for (const required of ["auth", "members", "loans", "savings", "shu", "npl", "cashflow", "expenses", "reports"]) {
       expect(tags.has(required)).toBe(true);
     }
   });

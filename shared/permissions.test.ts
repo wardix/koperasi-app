@@ -13,6 +13,9 @@ describe("permissions", () => {
 
   test("admin receives granular financial read permissions", () => {
     expect(hasPermission("admin", "read:cashflow")).toBe(true);
+    expect(hasPermission("admin", "read:expenses")).toBe(true);
+    expect(hasPermission("admin", "create:expenses")).toBe(true);
+    expect(hasPermission("admin", "delete:expenses")).toBe(false);
     expect(hasPermission("admin", "read:npl")).toBe(true);
     expect(hasPermission("admin", "read:reports")).toBe(true);
     expect(hasPermission("admin", "export:reports")).toBe(true);

@@ -3,6 +3,7 @@ export type Permission =
   | 'read:members' | 'create:members' | 'update:members' | 'delete:members' | 'update:savings'
   | 'read:loans' | 'create:loans' | 'approve:loans' | 'delete:loans' | 'create:payments'
   | 'read:cashflow'
+  | 'read:expenses' | 'create:expenses' | 'update:expenses' | 'delete:expenses'
   | 'read:npl'
   | 'read:reports' | 'export:reports'
   | 'read:shu'
@@ -22,6 +23,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'read:members', 'create:members', 'update:members', 'update:savings',
     'read:loans', 'create:loans', 'approve:loans', 'create:payments',
     'read:cashflow',
+    'read:expenses', 'create:expenses', 'update:expenses',
     'read:npl',
     'read:reports', 'export:reports',
     'read:shu',
@@ -32,6 +34,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'read:members', 'create:members', 'update:members', 'delete:members', 'update:savings',
     'read:loans', 'create:loans', 'approve:loans', 'delete:loans', 'create:payments',
     'read:cashflow',
+    'read:expenses', 'create:expenses', 'update:expenses', 'delete:expenses',
     'read:npl',
     'read:reports', 'export:reports',
     'read:shu',
