@@ -17,6 +17,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
 import {Link} from '@astryxdesign/core/Link';
 import {Divider} from '@astryxdesign/core/Divider';
+import {api} from '../services/api';
 
 // TypeScript declarations for Google Identity Services
 declare global {
@@ -112,8 +113,29 @@ export default function LoginTwoColumn() {
   const [errorMessage, setErrorMessage] = useState('Kata sandi salah. Coba lagi.');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [koperasiName, setKoperasiName] = useState('Koperasi');
   const { login, loginWithGoogle, confirmLogin } = useAuth();
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Public branding endpoint — no auth required
+        const data = await api.get<{ koperasiName?: string }>('/api/settings/branding');
+        const name = data?.koperasiName?.trim();
+        if (!cancelled && name) {
+          setKoperasiName(name);
+          document.title = name;
+        }
+      } catch {
+        // Keep default brand name if branding endpoint is unavailable
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -195,7 +217,7 @@ export default function LoginTwoColumn() {
                   <HStack gap={2} vAlign="center">
                     <Icon icon={SquaresPlusIcon} />
                     <Text type="body" weight="bold">
-                      Koperasi Maju Bersama
+                      {koperasiName}
                     </Text>
                   </HStack>
 
