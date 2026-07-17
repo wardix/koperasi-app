@@ -35,12 +35,14 @@ import {
   BanknotesIcon,
   PencilIcon,
   ClockIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddMemberDialogContent} from '../components/AddMemberDialog';
 import {EditMemberDialogContent} from '../components/EditMemberDialog';
 import {UpdateSavingsDialogContent} from '../components/UpdateSavingsDialog';
 import {TransactionHistoryDialogContent} from '../components/TransactionHistoryDialog';
+import {PortalAccessDialogContent} from '../components/PortalAccessDialog';
 import {useToast} from '@astryxdesign/core/Toast';
 import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
@@ -178,6 +180,26 @@ export default function MembersTemplate() {
     );
   }, [dialog, apiAction, fetchMembers]);
 
+  const handlePortalAccess = useCallback((member: MemberRow) => {
+    dialog.show(
+      <PortalAccessDialogContent
+        member={member}
+        onClose={() => dialog.hide()}
+        onSave={(payload) => {
+          apiAction.execute(
+            () => api.put(`/api/members/${member.id}/portal-access`, payload),
+            {
+              successMsg: 'Akses portal anggota diperbarui. Bagikan URL /portal ke anggota.',
+              errorMsg: 'Gagal mengatur akses portal',
+              onSuccess: () => fetchMembers(),
+              onFinally: () => dialog.hide(),
+            }
+          );
+        }}
+      />
+    );
+  }, [dialog, apiAction, fetchMembers]);
+
   const columns: TableColumn<MemberRow>[] = useMemo(() => [
     {
       key: 'name',
@@ -236,7 +258,7 @@ export default function MembersTemplate() {
     {
       key: 'actions',
       header: 'Aksi',
-      width: pixel(180),
+      width: pixel(220),
       renderCell: (item: MemberRow) => (
         <HStack gap={1}>
           {hasPermission('update:members') && (
@@ -246,6 +268,15 @@ export default function MembersTemplate() {
               variant="ghost" 
               size="sm" 
               onClick={() => handleEditMember(item)} 
+            />
+          )}
+          {hasPermission('update:members') && (
+            <IconButton
+              icon={<Icon icon={KeyIcon} />}
+              label={item.hasPortalAccess ? 'Portal aktif' : 'Akses portal'}
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePortalAccess(item)}
             />
           )}
           {hasPermission('update:savings') && (
@@ -277,7 +308,7 @@ export default function MembersTemplate() {
         </HStack>
       ),
     },
-  ], [hasPermission, handleEditMember, handleUpdateSavings, handleShowHistory, handleDelete]);
+  ], [hasPermission, handleEditMember, handlePortalAccess, handleUpdateSavings, handleShowHistory, handleDelete]);
 
   const filtered = useMemo(() => {
     return applyFilters(filters, members);

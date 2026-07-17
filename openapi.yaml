@@ -453,6 +453,31 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/DataResponse'
+  /members/{id}/portal-access:
+    put:
+      tags: [members]
+      summary: Set email/password akses portal anggota (/portal)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email sudah dipakai
   /loans:
     get:
       tags: [loans]

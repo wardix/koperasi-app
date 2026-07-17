@@ -19,6 +19,10 @@ export interface MemberRow {
   simpananWajib: number;
   simpananSukarela: number;
   totalSavings: number;
+  /** Portal login email (no password returned) */
+  email?: string | null;
+  /** Whether a portal password is set */
+  hasPortalAccess?: boolean;
 }
 
 export interface LoanRow {

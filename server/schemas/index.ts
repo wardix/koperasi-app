@@ -15,6 +15,25 @@ export const memberSchema = z.object({
   totalSavings: z.number().nonnegative().optional(),
 })
 
+/** Admin sets portal login for a member (email + optional new password). */
+export const memberPortalAccessSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .email("Format email tidak valid")
+      .optional()
+      .or(z.literal("")),
+    password: z
+      .string()
+      .min(8, "Password minimal 8 karakter")
+      .optional()
+      .or(z.literal("")),
+  })
+  .refine((v) => !!(v.email && v.email.length > 0) || !!(v.password && v.password.length > 0), {
+    message: "Isi email dan/atau password portal",
+  })
+
 // Strict transaction types for savings operations
 export const SAVINGS_TRANSACTION_TYPES = [
   'setor_pokok',

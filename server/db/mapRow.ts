@@ -47,6 +47,7 @@ export const CAMEL_CASE_FIELDS = [
   "expenseDate",
   "paymentMethod",
   "deletedAt",
+  "hasPortalAccess",
   // loan_schedules
   "installmentNo",
   "dueDate",

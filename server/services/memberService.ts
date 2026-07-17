@@ -117,6 +117,70 @@ export async function updateMember(
   return { before: { name: oldMember.name, role: oldMember.role } };
 }
 
+export type PortalAccessInput = {
+  email?: string;
+  password?: string;
+};
+
+/**
+ * Set or update portal login credentials for a member.
+ * Password is hashed with Bun.password; empty password keeps the existing hash.
+ */
+export async function setMemberPortalAccess(
+  database: Db,
+  id: string,
+  input: PortalAccessInput
+): Promise<{ before: { email: string | null; hasPassword: boolean }; after: { email: string | null; hasPassword: boolean } }> {
+  const member = await database
+    .query("SELECT id, email, password FROM members WHERE id = ? AND deletedAt IS NULL")
+    .get<{ id: string; email: string | null; password: string | null }>(id);
+
+  if (!member) {
+    throw new ServiceError("Member not found", 404);
+  }
+
+  const nextEmail =
+    input.email !== undefined && input.email !== ""
+      ? input.email.trim().toLowerCase()
+      : input.email === ""
+        ? null
+        : member.email;
+
+  if (nextEmail) {
+    const clash = await database
+      .query("SELECT id FROM members WHERE email = ? AND id != ? AND deletedAt IS NULL")
+      .get<{ id: string }>(nextEmail, id);
+    if (clash) {
+      throw new ServiceError("Email sudah dipakai anggota lain", 409);
+    }
+  }
+
+  let nextPassword = member.password;
+  if (input.password && input.password.length > 0) {
+    nextPassword = await Bun.password.hash(input.password);
+  }
+
+  if (!nextEmail && !nextPassword) {
+    throw new ServiceError("Email portal wajib diisi untuk mengaktifkan akses", 400);
+  }
+
+  // If setting password for first time, email is required
+  if (input.password && input.password.length > 0 && !nextEmail && !member.email) {
+    throw new ServiceError("Email portal wajib diisi bersama password", 400);
+  }
+
+  await database.run(`UPDATE members SET email = ?, password = ? WHERE id = ?`, [
+    nextEmail,
+    nextPassword,
+    id,
+  ]);
+
+  return {
+    before: { email: member.email, hasPassword: !!(member.password && member.password.length > 0) },
+    after: { email: nextEmail, hasPassword: !!(nextPassword && nextPassword.length > 0) },
+  };
+}
+
 export async function deleteMember(database: Db, id: string): Promise<Pick<MemberRow, "name" | "role">> {
   const before = await database
     .query("SELECT name, role FROM members WHERE id = ? AND deletedAt IS NULL")
