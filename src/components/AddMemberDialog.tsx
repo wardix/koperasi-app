@@ -13,6 +13,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 
 import type { MemberRow } from '../shared/types';
+import {formatAmountInput, parseAmountInput} from '../utils/format';
 
 function todayISO() {
   const d = new Date();
@@ -27,7 +28,7 @@ function formatJoinDate(isoDate: string): string {
 export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: Omit<MemberRow, 'id' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>) => void}) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('Anggota');
-  const [deposit, setDeposit] = useState('500000');
+  const [deposit, setDeposit] = useState(formatAmountInput('500000'));
   const [joinDate, setJoinDate] = useState(todayISO());
 
   const handleSave = () => {
@@ -36,7 +37,7 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       role,
       status: 'Aktif',
       joinDate: formatJoinDate(joinDate),
-      simpananPokok: parseInt(deposit, 10) || 0,
+      simpananPokok: parseAmountInput(deposit),
       simpananWajib: 0,
       simpananSukarela: 0,
     });
@@ -76,9 +77,10 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
             <TextInput
               label="Setoran Awal (Simpanan Pokok) (Rp)"
               value={deposit}
-              onChange={setDeposit}
-              type="number"
-              placeholder="Contoh: 500000"
+              onChange={(raw) => setDeposit(formatAmountInput(raw))}
+              type="text"
+              placeholder="Contoh: 500.000"
+              description="Pemisah ribuan ditambahkan otomatis"
             />
           </VStack>
         </LayoutContent>

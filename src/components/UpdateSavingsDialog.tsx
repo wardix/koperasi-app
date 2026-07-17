@@ -5,6 +5,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {DateInput} from '@astryxdesign/core/DateInput';
 import {Button} from '@astryxdesign/core/Button';
 import {Selector} from '@astryxdesign/core/Selector';
+import {formatAmountInput, parseAmountInput} from '../utils/format';
 
 function todayIsoDate(): string {
   const d = new Date();
@@ -30,10 +31,15 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
   const [savingsType, setSavingsType] = useState<'pokok' | 'wajib' | 'sukarela'>('sukarela');
   const [transactionDate, setTransactionDate] = useState<string>(todayIsoDate());
 
+  const handleAmountChange = (raw: string) => {
+    setAmount(formatAmountInput(raw));
+  };
+
   const handleSave = () => {
-    if (!amount || !transactionDate) return;
+    const additionalSavings = parseAmountInput(amount);
+    if (!amount || amount === '-' || additionalSavings === 0 || !transactionDate) return;
     onSave({
-      additionalSavings: parseInt(amount, 10) || 0,
+      additionalSavings,
       savingsType,
       transactionDate,
     });
@@ -63,10 +69,11 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
         />
         <TextInput
           label="Nominal (Rp)"
-          type="number"
+          type="text"
           value={amount}
-          onChange={setAmount}
-          placeholder="Contoh: 100000 (Setor) atau -50000 (Tarik)"
+          onChange={handleAmountChange}
+          placeholder="Contoh: 1.000.000 (Setor) atau -50.000 (Tarik)"
+          description="Pemisah ribuan ditambahkan otomatis. Awali dengan - untuk penarikan."
         />
         <DateInput
           label="Tanggal Transaksi"
