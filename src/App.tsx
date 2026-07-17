@@ -162,7 +162,7 @@ const MetricCard = React.memo(function MetricCard({
   positive?: boolean;
 }) {
   return (
-    <Card>
+    <Card className="hover-card">
       <VStack gap={2}>
         <Heading level={4}>{label}</Heading>
         <HStack gap={2} vAlign="center">
@@ -201,7 +201,7 @@ const StackedBarCard = React.memo(function StackedBarCard({
   const chartData = [Object.fromEntries(data.map(d => [d.label, d.value]))];
 
   return (
-    <Card>
+    <Card className="hover-card">
       <VStack gap={4}>
         <Heading level={4}>{title}</Heading>
         {data.length === 0 ? <Text>Belum ada data</Text> : (
@@ -274,7 +274,7 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
   ], []);
 
   return (
-    <Card>
+    <Card className="hover-card">
       <VStack gap={6}>
         <HStack hAlign="between" vAlign="center">
           <Heading level={4}>Aktivitas Terbaru</Heading>
