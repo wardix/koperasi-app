@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
@@ -11,6 +10,29 @@ import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 
+type PortalLoan = {
+  id: string;
+  purpose: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  totalAmount?: number;
+  monthlyPayment?: number;
+  interestAmount?: number;
+  tenor?: number;
+};
+
+type ScheduleRow = {
+  id: string;
+  installmentNo: number;
+  dueDate: string;
+  principalAmount: number;
+  interestAmount: number;
+  paidAmount: number;
+  status: string;
+  lateFee?: number;
+};
+
 export default function MemberPortal() {
   const [memberToken, setMemberToken] = useState(localStorage.getItem('memberToken'));
   const [email, setEmail] = useState('');
@@ -20,8 +42,11 @@ export default function MemberPortal() {
 
   const [profile, setProfile] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [loans, setLoans] = useState<any[]>([]);
+  const [loans, setLoans] = useState<PortalLoan[]>([]);
   const [activeTab, setActiveTab] = useState<'savings' | 'loans'>('savings');
+  const [selectedLoan, setSelectedLoan] = useState<PortalLoan | null>(null);
+  const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   useEffect(() => {
     if (memberToken) {
@@ -34,18 +59,44 @@ export default function MemberPortal() {
       setLoading(true);
       const headers = { Authorization: `Bearer ${memberToken}` };
       const [profileRes, txRes, loansRes] = await Promise.all([
-        fetch('/api/v1/portal/profile', { headers }).then(r => r.json()),
-        fetch('/api/v1/portal/savings/transactions', { headers }).then(r => r.json()),
-        fetch('/api/v1/portal/loans', { headers }).then(r => r.json())
+        fetch('/api/v1/portal/profile', { headers }).then((r) => r.json()),
+        fetch('/api/v1/portal/savings/transactions', { headers }).then((r) => r.json()),
+        fetch('/api/v1/portal/loans', { headers }).then((r) => r.json()),
       ]);
 
       if (profileRes.success) setProfile(profileRes.data);
-      if (txRes.success) setTransactions(txRes.data);
-      if (loansRes.success) setLoans(loansRes.data);
-    } catch (err) {
+      if (txRes.success) setTransactions(txRes.data || []);
+      if (loansRes.success) setLoans(loansRes.data || []);
+      if (!profileRes.success) {
+        setError(profileRes.message || 'Sesi berakhir, silakan masuk lagi');
+        localStorage.removeItem('memberToken');
+        setMemberToken(null);
+      }
+    } catch {
       setError('Gagal memuat data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSchedule = async (loan: PortalLoan) => {
+    setSelectedLoan(loan);
+    setScheduleLoading(true);
+    setSchedule([]);
+    try {
+      const headers = { Authorization: `Bearer ${memberToken}` };
+      const res = await fetch(`/api/v1/portal/loans/${loan.id}/schedule`, { headers }).then((r) =>
+        r.json()
+      );
+      if (res.success) {
+        setSchedule(res.data || []);
+      } else {
+        setError(res.message || 'Gagal memuat jadwal angsuran');
+      }
+    } catch {
+      setError('Gagal memuat jadwal angsuran');
+    } finally {
+      setScheduleLoading(false);
     }
   };
 
@@ -57,8 +108,8 @@ export default function MemberPortal() {
       const res = await fetch('/api/v1/member-auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      }).then(r => r.json());
+        body: JSON.stringify({ email, password }),
+      }).then((r) => r.json());
 
       if (res.success) {
         localStorage.setItem('memberToken', res.data.token);
@@ -66,7 +117,7 @@ export default function MemberPortal() {
       } else {
         setError(res.message || 'Login gagal');
       }
-    } catch (err) {
+    } catch {
       setError('Terjadi kesalahan jaringan');
     } finally {
       setLoading(false);
@@ -78,38 +129,126 @@ export default function MemberPortal() {
     localStorage.removeItem('memberToken');
     setMemberToken(null);
     setProfile(null);
+    setSelectedLoan(null);
+    setSchedule([]);
   };
+
+  const scheduleCols: TableColumn<ScheduleRow>[] = useMemo(
+    () => [
+      {
+        key: 'installmentNo',
+        header: 'Cicilan',
+        width: pixel(80),
+        renderCell: (i) => <Text type="body">#{i.installmentNo}</Text>,
+      },
+      {
+        key: 'dueDate',
+        header: 'Jatuh Tempo',
+        width: pixel(120),
+        renderCell: (i) => (
+          <Text type="body">{new Date(i.dueDate).toLocaleDateString('id-ID')}</Text>
+        ),
+      },
+      {
+        key: 'principalAmount',
+        header: 'Pokok',
+        width: pixel(110),
+        renderCell: (i) => formatRp(i.principalAmount),
+      },
+      {
+        key: 'interestAmount',
+        header: 'Bunga',
+        width: pixel(110),
+        renderCell: (i) => formatRp(i.interestAmount),
+      },
+      {
+        key: 'paidAmount',
+        header: 'Sudah Bayar',
+        width: pixel(120),
+        renderCell: (i) => formatRp(i.paidAmount || 0),
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        width: pixel(100),
+        renderCell: (i) => {
+          const variant =
+            i.status === 'Paid' ? 'success' : i.status === 'Late' ? 'error' : 'neutral';
+          const label =
+            i.status === 'Paid' ? 'Lunas' : i.status === 'Late' ? 'Terlambat' : 'Belum';
+          return <Badge variant={variant} label={label} />;
+        },
+      },
+    ],
+    []
+  );
+
+  const remainingOnSchedule = useMemo(() => {
+    return schedule.reduce((sum, row) => {
+      const due =
+        Number(row.principalAmount || 0) +
+        Number(row.interestAmount || 0) +
+        Number(row.lateFee || 0);
+      const paid = Number(row.paidAmount || 0);
+      return sum + Math.max(0, due - paid);
+    }, 0);
+  }, [schedule]);
 
   if (!memberToken) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-background-subtle)' }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'var(--color-background-subtle)',
+          padding: 16,
+        }}
+      >
         <Card style={{ width: '100%', maxWidth: 400, padding: 32 }}>
           <VStack gap={6}>
-            <Heading level={2} align="center">Portal Anggota</Heading>
-            <Text type="body" color="secondary" align="center">Masuk untuk melihat simpanan & pinjaman Anda.</Text>
-            {error && <Text color="error">{error}</Text>}
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Heading level={2} align="center">
+              Portal Anggota
+            </Heading>
+            <Text type="body" color="secondary" align="center">
+              Masuk untuk melihat simpanan, pinjaman, dan jadwal angsuran Anda.
+            </Text>
+            {error ? (
+              <Text type="supporting" color="accent">
+                {error}
+              </Text>
+            ) : null}
+            <form
+              onSubmit={handleLogin}
+              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
               <VStack gap={2}>
                 <Text type="supporting">ID Anggota / Email</Text>
-                <input 
-                  type="text" 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)} 
-                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6 }} 
-                  required 
+                <input
+                  type="text"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6 }}
+                  required
                 />
               </VStack>
               <VStack gap={2}>
                 <Text type="supporting">Kata Sandi</Text>
-                <input 
-                  type="password" 
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)} 
-                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6 }} 
-                  required 
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6 }}
+                  required
                 />
               </VStack>
-              <Button label={loading ? 'Memproses...' : 'Masuk'} type="submit" variant="primary" disabled={loading} />
+              <Button
+                label={loading ? 'Memproses...' : 'Masuk'}
+                type="submit"
+                variant="primary"
+                isDisabled={loading}
+              />
             </form>
           </VStack>
         </Card>
@@ -118,21 +257,87 @@ export default function MemberPortal() {
   }
 
   if (loading && !profile) {
-    return <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spinner size="lg" /></div>;
+    return (
+      <div
+        style={{
+          height: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   const txCols: TableColumn<any>[] = [
-    { key: 'createdAt', header: 'Tanggal', width: pixel(120), renderCell: (i) => new Date(i.createdAt).toLocaleDateString('id-ID') },
+    {
+      key: 'createdAt',
+      header: 'Tanggal',
+      width: pixel(120),
+      renderCell: (i) => new Date(i.createdAt).toLocaleDateString('id-ID'),
+    },
     { key: 'type', header: 'Jenis', width: pixel(100) },
-    { key: 'amount', header: 'Jumlah', width: pixel(150), renderCell: (i) => formatRp(i.amount) },
-    { key: 'balanceAfter', header: 'Saldo Akhir', width: proportional(1), renderCell: (i) => formatRp(i.balanceAfter) },
+    {
+      key: 'amount',
+      header: 'Jumlah',
+      width: pixel(150),
+      renderCell: (i) => formatRp(i.amount),
+    },
+    {
+      key: 'balanceAfter',
+      header: 'Saldo Akhir',
+      width: proportional(1),
+      renderCell: (i) => formatRp(i.balanceAfter),
+    },
   ];
 
-  const loanCols: TableColumn<any>[] = [
-    { key: 'createdAt', header: 'Tgl Pengajuan', width: pixel(120), renderCell: (i) => new Date(i.createdAt).toLocaleDateString('id-ID') },
+  const loanCols: TableColumn<PortalLoan>[] = [
+    {
+      key: 'createdAt',
+      header: 'Tgl Pengajuan',
+      width: pixel(120),
+      renderCell: (i) => new Date(i.createdAt).toLocaleDateString('id-ID'),
+    },
     { key: 'purpose', header: 'Keperluan', width: proportional(1) },
-    { key: 'amount', header: 'Jumlah', width: pixel(120), renderCell: (i) => formatRp(i.amount) },
-    { key: 'status', header: 'Status', width: pixel(100), renderCell: (i) => <Badge variant={i.status === 'Disetujui' ? 'success' : 'neutral'} label={i.status} /> },
+    {
+      key: 'amount',
+      header: 'Pokok',
+      width: pixel(120),
+      renderCell: (i) => formatRp(i.amount),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: pixel(100),
+      renderCell: (i) => (
+        <Badge
+          variant={i.status === 'Disetujui' ? 'success' : i.status === 'Lunas' ? 'success' : 'neutral'}
+          label={i.status}
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      width: pixel(120),
+      renderCell: (i) => (
+        <Button
+          label={selectedLoan?.id === i.id ? 'Tutup' : 'Jadwal'}
+          size="sm"
+          variant={selectedLoan?.id === i.id ? 'secondary' : 'primary'}
+          onClick={() => {
+            if (selectedLoan?.id === i.id) {
+              setSelectedLoan(null);
+              setSchedule([]);
+            } else {
+              loadSchedule(i);
+            }
+          }}
+        />
+      ),
+    },
   ];
 
   return (
@@ -143,36 +348,118 @@ export default function MemberPortal() {
             <Heading level={2}>Selamat Datang, {profile?.name}</Heading>
             <Button label="Keluar" onClick={handleLogout} variant="ghost" />
           </HStack>
-          
+
+          {error ? (
+            <Text type="supporting" color="accent">
+              {error}
+            </Text>
+          ) : null}
+
           <Grid gap={4}>
             <Card>
               <VStack gap={2}>
                 <Text type="supporting">Total Simpanan</Text>
-                <Heading level={2} color="primary">{formatRp(profile?.totalSavings || 0)}</Heading>
+                <Heading level={2} color="primary">
+                  {formatRp(profile?.totalSavings || 0)}
+                </Heading>
+              </VStack>
+            </Card>
+            <Card>
+              <VStack gap={2}>
+                <Text type="supporting">Pokok</Text>
+                <Heading level={3}>{formatRp(profile?.simpananPokok || 0)}</Heading>
+              </VStack>
+            </Card>
+            <Card>
+              <VStack gap={2}>
+                <Text type="supporting">Wajib</Text>
+                <Heading level={3}>{formatRp(profile?.simpananWajib || 0)}</Heading>
+              </VStack>
+            </Card>
+            <Card>
+              <VStack gap={2}>
+                <Text type="supporting">Sukarela</Text>
+                <Heading level={3}>{formatRp(profile?.simpananSukarela || 0)}</Heading>
               </VStack>
             </Card>
           </Grid>
 
           <HStack gap={4}>
-            <Button label="Simpanan" variant={activeTab === 'savings' ? 'primary' : 'ghost'} onClick={() => setActiveTab('savings')} />
-            <Button label="Pinjaman" variant={activeTab === 'loans' ? 'primary' : 'ghost'} onClick={() => setActiveTab('loans')} />
+            <Button
+              label="Simpanan"
+              variant={activeTab === 'savings' ? 'primary' : 'ghost'}
+              onClick={() => {
+                setActiveTab('savings');
+                setSelectedLoan(null);
+              }}
+            />
+            <Button
+              label="Pinjaman"
+              variant={activeTab === 'loans' ? 'primary' : 'ghost'}
+              onClick={() => setActiveTab('loans')}
+            />
           </HStack>
 
           <Card>
             <VStack gap={4}>
-              <Heading level={4}>{activeTab === 'savings' ? 'Riwayat Simpanan' : 'Daftar Pinjaman'}</Heading>
+              <Heading level={4}>
+                {activeTab === 'savings' ? 'Riwayat Simpanan' : 'Daftar Pinjaman'}
+              </Heading>
               {activeTab === 'savings' ? (
                 transactions.length > 0 ? (
                   <Table data={transactions} columns={txCols} idKey="id" density="balanced" />
                 ) : (
                   <Text type="supporting">Belum ada transaksi</Text>
                 )
-              ) : (
-                loans.length > 0 ? (
+              ) : loans.length > 0 ? (
+                <VStack gap={4}>
                   <Table data={loans} columns={loanCols} idKey="id" density="balanced" />
-                ) : (
-                  <Text type="supporting">Belum ada pinjaman</Text>
-                )
+
+                  {selectedLoan && (
+                    <VStack gap={3}>
+                      <Heading level={4}>
+                        Jadwal Angsuran — {selectedLoan.purpose || 'Pinjaman'}
+                      </Heading>
+                      <HStack gap={4} wrap="wrap">
+                        <Text type="supporting">
+                          Pokok: <Text type="body" weight="semibold">{formatRp(selectedLoan.amount)}</Text>
+                        </Text>
+                        <Text type="supporting">
+                          Total tagihan:{' '}
+                          <Text type="body" weight="semibold">
+                            {formatRp(selectedLoan.totalAmount || selectedLoan.amount)}
+                          </Text>
+                        </Text>
+                        {selectedLoan.monthlyPayment != null && (
+                          <Text type="supporting">
+                            Angsuran/bulan:{' '}
+                            <Text type="body" weight="semibold">
+                              {formatRp(selectedLoan.monthlyPayment)}
+                            </Text>
+                          </Text>
+                        )}
+                        <Text type="supporting">
+                          Sisa dari jadwal:{' '}
+                          <Text type="body" weight="semibold">
+                            {formatRp(remainingOnSchedule)}
+                          </Text>
+                        </Text>
+                      </HStack>
+
+                      {scheduleLoading ? (
+                        <Spinner size="md" />
+                      ) : schedule.length > 0 ? (
+                        <Table data={schedule} columns={scheduleCols} idKey="id" density="balanced" />
+                      ) : (
+                        <Text type="supporting">
+                          Jadwal angsuran belum tersedia (pinjaman mungkin belum disetujui).
+                        </Text>
+                      )}
+                    </VStack>
+                  )}
+                </VStack>
+              ) : (
+                <Text type="supporting">Belum ada pinjaman</Text>
               )}
             </VStack>
           </Card>
@@ -182,9 +469,14 @@ export default function MemberPortal() {
   );
 }
 
-// Minimal Grid component placeholder since we didn't import it
-const Grid = ({ children, gap }: any) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: `${gap * 4}px` }}>
+const Grid = ({ children, gap }: { children: React.ReactNode; gap: number }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: `${gap * 4}px`,
+    }}
+  >
     {children}
   </div>
 );

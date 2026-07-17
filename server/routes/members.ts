@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 import db from '../db'
 import type { MemberRow, TransactionRow } from '../db/entities'
-import { memberSchema, savingsSchema } from '../schemas'
+import { memberPortalAccessSchema, memberSchema, savingsSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { createMember, deleteMember, updateMember } from '../services/memberService'
+import { createMember, deleteMember, setMemberPortalAccess, updateMember } from '../services/memberService'
 import { updateMemberSavings } from '../services/savingsService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
@@ -19,7 +19,18 @@ members.get('/', requirePermission('read:members'), async (c) => {
 
   const whereClause = includeArchived ? '' : 'WHERE deletedAt IS NULL'
 
-  const rows = await db.query(`SELECT * FROM members ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`).all<MemberRow>(limit, offset)
+  // Never return password hashes to the client
+  const rows = await db.query(`
+    SELECT
+      id, name, role, status, joinDate,
+      simpananPokok, simpananWajib, simpananSukarela, totalSavings,
+      email,
+      CASE WHEN password IS NOT NULL AND password <> '' THEN TRUE ELSE FALSE END AS "hasPortalAccess"
+    FROM members
+    ${whereClause}
+    ORDER BY id DESC
+    LIMIT ? OFFSET ?
+  `).all<MemberRow>(limit, offset)
   const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number }>()
 
   return c.json({
@@ -115,6 +126,44 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
 
     clearStatsCache()
     return c.json({ success: true, message: 'Member updated successfully' })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+/** Set email + password for member self-service portal (/portal) */
+members.put('/:id/portal-access', requirePermission('update:members'), async (c) => {
+  const body = await c.req.json()
+  const parsed = memberPortalAccessSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  try {
+    const id = requireRouteParam(c, 'id')
+    const { before, after } = await setMemberPortalAccess(db, id, {
+      email: parsed.data.email,
+      password: parsed.data.password,
+    })
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_member',
+      entity: 'members',
+      entityId: id,
+      before: { email: before.email, hasPortalAccess: before.hasPassword },
+      after: { email: after.email, hasPortalAccess: after.hasPassword },
+      ip: getClientIp(c),
+    })
+
+    return c.json({
+      success: true,
+      message: 'Akses portal anggota diperbarui',
+      data: { email: after.email, hasPortalAccess: after.hasPassword },
+    })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response
