@@ -10,11 +10,13 @@ interface DataStateViewProps {
   error?: string | null;
   onRetry?: () => void;
   errorTitle?: string;
+  loadingComponent?: ReactNode;
   children: ReactNode;
 }
 
-export function DataStateView({ isLoading, error, onRetry, errorTitle = 'Gagal Memuat Data', children }: DataStateViewProps) {
+export function DataStateView({ isLoading, error, onRetry, errorTitle = 'Gagal Memuat Data', loadingComponent, children }: DataStateViewProps) {
   if (isLoading) {
+    if (loadingComponent) return <>{loadingComponent}</>;
     return (
       <Center style={{height: '100%'}}>
         <Spinner size="lg" />
