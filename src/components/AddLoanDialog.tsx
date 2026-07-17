@@ -8,7 +8,7 @@ import {Typeahead} from '@astryxdesign/core/Typeahead';
 import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
 import {useApiQuery} from '../hooks/useApiQuery';
 import type {PaginatedResponse, MemberRow, LoanRow, SettingsData} from '../shared/types';
-import {formatRp} from '../utils/format';
+import {formatAmountInput, formatRp, parseAmountInput} from '../utils/format';
 
 interface Props {
   onClose: () => void;
@@ -39,8 +39,8 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
     bootstrap: () => memberItems,
   };
 
-  const parsedAmount = Number(amount) || 0;
-  const parsedTenor = parseInt(tenor) || 12;
+  const parsedAmount = parseAmountInput(amount);
+  const parsedTenor = parseInt(tenor, 10) || 12;
 
   const simulation = useMemo(() => {
     if (parsedAmount <= 0) return null;
@@ -59,12 +59,12 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   }, [parsedAmount, parsedTenor, bungaRate]);
 
   const handleSave = () => {
-    if (!selectedMember || !amount) return;
+    if (!selectedMember || parsedAmount <= 0) return;
     onAdd({
       memberId: selectedMember.id,
       name: selectedMember.label,
-      amount: Number(amount) || 0,
-      tenor: parseInt(tenor) || 12,
+      amount: parsedAmount,
+      tenor: parsedTenor,
       purpose,
       status: 'Menunggu',
     });
@@ -91,16 +91,17 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
         />
         <TextInput
           label="Jumlah Pinjaman (Rp)"
-          type="number"
+          type="text"
           value={amount}
-          onChange={setAmount}
-          placeholder="Contoh: 5000000"
+          onChange={(raw) => setAmount(formatAmountInput(raw))}
+          placeholder="Contoh: 5.000.000"
+          description="Pemisah ribuan ditambahkan otomatis"
         />
         <TextInput
           label="Tenor (Bulan)"
-          type="number"
+          type="text"
           value={tenor}
-          onChange={setTenor}
+          onChange={(raw) => setTenor(raw.replace(/\D/g, ''))}
           placeholder="12"
         />
         <TextInput

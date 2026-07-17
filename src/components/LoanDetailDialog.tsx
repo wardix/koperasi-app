@@ -18,7 +18,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {api} from '../services/api';
 import {useToast} from '@astryxdesign/core/Toast';
 import type {LoanRow} from '../shared/types';
-import {formatRp} from '../utils/format';
+import {formatAmountInput, formatRp, parseAmountInput} from '../utils/format';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 
@@ -56,7 +56,7 @@ export function LoanDetailDialogContent({
   const remainingDebt = totalHutang - totalPaid;
 
   const handlePay = async () => {
-    const amount = parseInt(payAmount, 10);
+    const amount = parseAmountInput(payAmount);
     if (!amount || amount <= 0 || amount > remainingDebt) return;
     
     setIsSubmitting(true);
@@ -160,15 +160,16 @@ export function LoanDetailDialogContent({
                     <TextInput
                       label="Nominal Pembayaran (Rp)"
                       value={payAmount}
-                      onChange={setPayAmount}
-                      type="number"
-                      placeholder={`Saran: ${angsuranPerBulan}`}
+                      onChange={(raw) => setPayAmount(formatAmountInput(raw))}
+                      type="text"
+                      placeholder={`Saran: ${formatAmountInput(String(angsuranPerBulan))}`}
+                      description="Pemisah ribuan ditambahkan otomatis"
                     />
                   </div>
                   <Button 
                     label="Bayar" 
                     onClick={handlePay} 
-                    disabled={!payAmount || isSubmitting} 
+                    disabled={!payAmount || parseAmountInput(payAmount) <= 0 || isSubmitting} 
                   />
                 </HStack>
               </VStack>
