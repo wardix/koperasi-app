@@ -61,7 +61,7 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
     SELECT 
       'loan_disbursement' as source,
       l.id,
-      COALESCE(l.createdAt, '2026-01-01T00:00:00.000Z') as "date",
+      COALESCE(l.approvedAt::text, l.createdAt::text, '2026-01-01T00:00:00.000Z') as "date",
       l.name as "partyName",
       'Pencairan Pinjaman' as description,
       l.amount,

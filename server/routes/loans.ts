@@ -1,15 +1,24 @@
 import { Hono } from 'hono'
 import db from '../db'
 import type { LoanPaymentRow, LoanRow } from '../db/entities'
-import { loanSchema, loanStatusSchema, paymentSchema } from '../schemas'
+import {
+  loanDisbursementDateSchema,
+  loanSchema,
+  loanStatusSchema,
+  paymentSchema,
+  paymentUpdateSchema,
+} from '../schemas'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import {
   createLoan,
   deleteLoan,
+  deleteLoanPayment,
   enrichLoanForList,
   getBungaRatePercent,
   recordLoanPayment,
+  updateLoanDisbursementDate,
+  updateLoanPayment,
   updateLoanStatus,
 } from '../services/loanService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
@@ -96,8 +105,8 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
 
   try {
     const id = requireRouteParam(c, 'id')
-    const { status } = parsed.data
-    const { before } = await updateLoanStatus(db, id, status)
+    const { status, approvedDate } = parsed.data
+    const { before } = await updateLoanStatus(db, id, status, { approvedDate })
 
     const action = status === 'Disetujui' ? 'approve_loan' : 'reject_loan'
     await audit(db, {
@@ -106,12 +115,43 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
       entity: 'loans',
       entityId: id,
       before: before ? { status: before.status } : undefined,
-      after: { status },
+      after: { status, approvedDate: approvedDate ?? null },
       ip: getClientIp(c),
     })
 
     clearStatsCache()
     return c.json({ success: true, message: 'Loan status updated' })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+loans.put('/:id/disbursement-date', requirePermission('approve:loans'), async (c) => {
+  const body = await c.req.json()
+  const parsed = loanDisbursementDateSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  try {
+    const id = requireRouteParam(c, 'id')
+    const { before, after } = await updateLoanDisbursementDate(db, id, parsed.data.disbursementDate)
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_loan_disbursement',
+      entity: 'loans',
+      entityId: id,
+      before,
+      after,
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+    return c.json({ success: true, message: 'Tanggal pencairan diperbarui', data: after })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response
@@ -130,7 +170,7 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
         l.id || '-disburse' as "id",
         l.id as "loanId",
         l.amount as "amount",
-        l.createdAt as "paymentDate",
+        COALESCE(l.approvedAt::text, l.createdAt::text) as "paymentDate",
         'Transfer' as "method",
         l.name as "borrowerName"
       FROM loans l
@@ -206,6 +246,75 @@ loans.post('/:id/payments', requirePermission('create:payments'), async (c) => {
 
     clearStatsCache()
     return c.json({ success: true, message: 'Payment recorded successfully', id }, 201)
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+loans.put('/:id/payments/:paymentId', requirePermission('create:payments'), async (c) => {
+  const body = await c.req.json()
+  const parsed = paymentUpdateSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  try {
+    const loanId = requireRouteParam(c, 'id')
+    const paymentId = requireRouteParam(c, 'paymentId')
+    const { before, after } = await updateLoanPayment(db, loanId, paymentId, parsed.data)
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'update_payment',
+      entity: 'loan_payments',
+      entityId: paymentId,
+      before: {
+        amount: before.amount,
+        paymentDate: before.paymentDate,
+        method: before.method,
+      },
+      after: {
+        amount: after.amount,
+        paymentDate: after.paymentDate,
+        method: after.method,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+    return c.json({ success: true, message: 'Payment updated successfully', data: after })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+loans.delete('/:id/payments/:paymentId', requirePermission('create:payments'), async (c) => {
+  try {
+    const loanId = requireRouteParam(c, 'id')
+    const paymentId = requireRouteParam(c, 'paymentId')
+    const { before } = await deleteLoanPayment(db, loanId, paymentId)
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'delete_payment',
+      entity: 'loan_payments',
+      entityId: paymentId,
+      before: {
+        loanId: before.loanId,
+        amount: before.amount,
+        paymentDate: before.paymentDate,
+        method: before.method,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+    return c.json({ success: true, message: 'Payment deleted successfully' })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response

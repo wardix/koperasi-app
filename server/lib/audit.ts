@@ -21,6 +21,9 @@ export type AuditAction =
   | 'close_shu'
   | 'reopen_shu'
   | 'create_payment'
+  | 'update_payment'
+  | 'delete_payment'
+  | 'update_loan_disbursement'
   | 'archive_loan'
   | 'archive_member';
 

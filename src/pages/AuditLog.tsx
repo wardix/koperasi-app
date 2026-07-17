@@ -44,6 +44,9 @@ const ACTION_LABELS: Record<string, string> = {
   close_shu: 'Tutup SHU',
   reopen_shu: 'Buka Kembali SHU',
   create_payment: 'Catat Pembayaran',
+  update_payment: 'Ubah Pembayaran',
+  delete_payment: 'Hapus Pembayaran',
+  update_loan_disbursement: 'Ubah Tanggal Pencairan',
 };
 
 function formatTimestamp(ts: string): string {

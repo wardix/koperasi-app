@@ -31,10 +31,13 @@ export const OPENAPI_ROUTE_MANIFEST: RouteEntry[] = [
   { method: "GET", path: "/loans", tag: "loans" },
   { method: "POST", path: "/loans", tag: "loans" },
   { method: "PUT", path: "/loans/{id}/status", tag: "loans" },
+  { method: "PUT", path: "/loans/{id}/disbursement-date", tag: "loans" },
   { method: "DELETE", path: "/loans/{id}", tag: "loans" },
   { method: "GET", path: "/loans/payments", tag: "loans" },
   { method: "GET", path: "/loans/{id}/payments", tag: "loans" },
   { method: "POST", path: "/loans/{id}/payments", tag: "loans" },
+  { method: "PUT", path: "/loans/{id}/payments/{paymentId}", tag: "loans" },
+  { method: "DELETE", path: "/loans/{id}/payments/{paymentId}", tag: "loans" },
 
   // Savings
   { method: "GET", path: "/savings/transactions", tag: "savings" },
