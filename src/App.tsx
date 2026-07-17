@@ -107,7 +107,7 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
           <Line
             type="monotone"
             dataKey="simpanan"
-            name="Total Simpanan"
+            name="Saldo Simpanan"
             stroke={chartColors.simpanan}
             strokeWidth={2}
             dot={false}
@@ -115,7 +115,7 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
           <Line
             type="monotone"
             dataKey="pinjaman"
-            name="Total Pinjaman"
+            name="Sisa Pinjaman"
             stroke={chartColors.pinjaman}
             strokeWidth={2}
             dot={false}
@@ -123,8 +123,8 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
         </LineChart>
       </ResponsiveContainer>
       <HStack gap={6} vAlign="center">
-        <ChartLegendItem color={chartColors.simpanan} label="Simpanan" />
-        <ChartLegendItem color={chartColors.pinjaman} label="Pinjaman" />
+        <ChartLegendItem color={chartColors.simpanan} label="Saldo Simpanan" />
+        <ChartLegendItem color={chartColors.pinjaman} label="Sisa Pinjaman" />
       </HStack>
     </VStack>
   );
