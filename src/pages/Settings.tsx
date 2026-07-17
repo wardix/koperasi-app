@@ -128,7 +128,11 @@ export default function SettingsTemplate() {
       {
         successMsg: 'Pengaturan berhasil disimpan!',
         errorMsg: 'Terjadi kesalahan saat menyimpan pengaturan',
-        onSuccess: () => fetchSettings()
+        onSuccess: () => {
+          fetchSettings();
+          // Notify shell/header to refresh brand name without full reload
+          window.dispatchEvent(new Event('app-settings-changed'));
+        }
       }
     );
   };

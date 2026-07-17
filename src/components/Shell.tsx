@@ -27,9 +27,11 @@ import React, { Suspense, type ReactNode } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import type { Permission } from '../../shared/permissions';
+import type { SettingsData } from '../../shared/types';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
+import { useApiQuery } from '../hooks/useApiQuery';
 
 const App = React.lazy(() => import('../App'));
 const Members = React.lazy(() => import('../pages/Members'));
@@ -53,14 +55,31 @@ function ProtectedRoute({ permission, children }: { permission: Permission; chil
   return <>{children}</>;
 }
 
+const DEFAULT_KOPERASI_NAME = 'Koperasi';
+const SETTINGS_CHANGED_EVENT = 'app-settings-changed';
+
 export default function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasPermission, logout } = useAuth();
   const { mode, setMode } = useThemeMode();
+  const { data: settings, refetch: refetchSettings } = useApiQuery<SettingsData>('/api/settings');
 
   const path = location.pathname;
   const isDark = mode === 'dark';
+  const koperasiName = settings?.koperasiName?.trim() || DEFAULT_KOPERASI_NAME;
+
+  React.useEffect(() => {
+    document.title = koperasiName;
+  }, [koperasiName]);
+
+  React.useEffect(() => {
+    const onSettingsChanged = () => {
+      refetchSettings();
+    };
+    window.addEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
+  }, [refetchSettings]);
 
   return (
     <AppShell
@@ -71,7 +90,7 @@ export default function Shell() {
           label="Main navigation"
           heading={
               <TopNavHeading
-              heading="Koperasi Maju Bersama"
+              heading={koperasiName}
               logo={
                 <NavIcon
                   icon={<CubeIcon style={{width: 16, height: 16}} />}
