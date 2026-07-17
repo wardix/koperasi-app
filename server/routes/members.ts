@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
+import { sign } from 'hono/jwt'
 import db from '../db'
 import type { MemberRow, TransactionRow } from '../db/entities'
 import { memberPortalAccessSchema, memberSchema, savingsSchema } from '../schemas'
-import { requirePermission } from '../middleware'
+import { requirePermission, secretKey } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { createMember, deleteMember, setMemberPortalAccess, updateMember } from '../services/memberService'
 import { updateMemberSavings } from '../services/savingsService'
@@ -126,6 +127,61 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
 
     clearStatsCache()
     return c.json({ success: true, message: 'Member updated successfully' })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+/**
+ * Admin impersonation: short-lived member JWT to preview /portal as that member.
+ * Does not require the member to have portal password set.
+ */
+members.post('/:id/impersonate', requirePermission('read:members'), async (c) => {
+  try {
+    const id = requireRouteParam(c, 'id')
+    const member = await db
+      .query(
+        `SELECT id, name, email, status FROM members WHERE id = ? AND deletedAt IS NULL`
+      )
+      .get<{ id: string; name: string; email: string | null; status: string }>(id)
+
+    if (!member) {
+      return c.json({ success: false, message: 'Anggota tidak ditemukan' }, 404)
+    }
+
+    const actor = getActor(c)
+    const expSec = 15 * 60
+    const payload = {
+      sub: member.id,
+      email: member.email || member.id,
+      role: 'member',
+      name: member.name,
+      impersonatedBy: actor,
+      preview: true,
+      exp: Math.floor(Date.now() / 1000) + expSec,
+    }
+    const token = await sign(payload, secretKey)
+
+    await audit(db, {
+      actor,
+      action: 'update_member',
+      entity: 'members',
+      entityId: id,
+      after: { impersonationPreview: true, memberName: member.name },
+      ip: getClientIp(c),
+    })
+
+    return c.json({
+      success: true,
+      data: {
+        token,
+        memberId: member.id,
+        memberName: member.name,
+        expiresIn: expSec,
+      },
+    })
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response

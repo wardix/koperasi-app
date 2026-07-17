@@ -36,7 +36,9 @@ import {
   PencilIcon,
   ClockIcon,
   KeyIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddMemberDialogContent} from '../components/AddMemberDialog';
 import {EditMemberDialogContent} from '../components/EditMemberDialog';
@@ -83,6 +85,7 @@ export default function MembersTemplate() {
   const toast = useToast();
   const { hasPermission } = useAuth();
   const apiAction = useApiAction();
+  const navigate = useNavigate();
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -200,6 +203,33 @@ export default function MembersTemplate() {
     );
   }, [dialog, apiAction, fetchMembers]);
 
+  /** Admin opens /portal as this member (short-lived impersonation token). */
+  const handlePreviewPortal = useCallback(
+    (member: MemberRow) => {
+      apiAction.execute(
+        () =>
+          api.post<{
+            token: string;
+            memberId: string;
+            memberName: string;
+            expiresIn: number;
+          }>(`/api/members/${member.id}/impersonate`),
+        {
+          successMsg: `Pratinjau portal: ${member.name}`,
+          errorMsg: 'Gagal membuka pratinjau portal',
+          onSuccess: (data) => {
+            // Keep admin JWT in localStorage; portal uses sessionStorage preview token
+            sessionStorage.setItem('memberPreviewToken', data.token);
+            sessionStorage.setItem('memberPreviewName', data.memberName || member.name);
+            sessionStorage.setItem('memberPreviewReturn', '/members');
+            navigate('/portal');
+          },
+        }
+      );
+    },
+    [apiAction, navigate]
+  );
+
   const columns: TableColumn<MemberRow>[] = useMemo(() => [
     {
       key: 'name',
@@ -258,7 +288,7 @@ export default function MembersTemplate() {
     {
       key: 'actions',
       header: 'Aksi',
-      width: pixel(220),
+      width: pixel(260),
       renderCell: (item: MemberRow) => (
         <HStack gap={1}>
           {hasPermission('update:members') && (
@@ -268,6 +298,15 @@ export default function MembersTemplate() {
               variant="ghost" 
               size="sm" 
               onClick={() => handleEditMember(item)} 
+            />
+          )}
+          {hasPermission('read:members') && (
+            <IconButton
+              icon={<Icon icon={EyeIcon} />}
+              label="Lihat portal anggota"
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePreviewPortal(item)}
             />
           )}
           {hasPermission('update:members') && (
@@ -308,7 +347,7 @@ export default function MembersTemplate() {
         </HStack>
       ),
     },
-  ], [hasPermission, handleEditMember, handlePortalAccess, handleUpdateSavings, handleShowHistory, handleDelete]);
+  ], [hasPermission, handleEditMember, handlePreviewPortal, handlePortalAccess, handleUpdateSavings, handleShowHistory, handleDelete]);
 
   const filtered = useMemo(() => {
     return applyFilters(filters, members);

@@ -26,6 +26,7 @@ export const OPENAPI_ROUTE_MANIFEST: RouteEntry[] = [
   { method: "DELETE", path: "/members/{id}", tag: "members" },
   { method: "PUT", path: "/members/{id}/savings", tag: "members" },
   { method: "PUT", path: "/members/{id}/portal-access", tag: "members" },
+  { method: "POST", path: "/members/{id}/impersonate", tag: "members" },
   { method: "GET", path: "/members/{id}/transactions", tag: "members" },
 
   // Loans

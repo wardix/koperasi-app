@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
@@ -9,6 +10,14 @@ import { formatRp } from '../utils/format';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
+
+const PREVIEW_TOKEN_KEY = 'memberPreviewToken';
+const PREVIEW_NAME_KEY = 'memberPreviewName';
+const PREVIEW_RETURN_KEY = 'memberPreviewReturn';
+
+function readPortalToken(): string | null {
+  return sessionStorage.getItem(PREVIEW_TOKEN_KEY) || localStorage.getItem('memberToken');
+}
 
 type PortalLoan = {
   id: string;
@@ -34,7 +43,10 @@ type ScheduleRow = {
 };
 
 export default function MemberPortal() {
-  const [memberToken, setMemberToken] = useState(localStorage.getItem('memberToken'));
+  const navigate = useNavigate();
+  const [isPreview] = useState(() => !!sessionStorage.getItem(PREVIEW_TOKEN_KEY));
+  const [previewName] = useState(() => sessionStorage.getItem(PREVIEW_NAME_KEY) || '');
+  const [memberToken, setMemberToken] = useState<string | null>(() => readPortalToken());
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,6 +60,20 @@ export default function MemberPortal() {
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
+  const clearPreviewSession = useCallback(() => {
+    sessionStorage.removeItem(PREVIEW_TOKEN_KEY);
+    sessionStorage.removeItem(PREVIEW_NAME_KEY);
+    sessionStorage.removeItem(PREVIEW_RETURN_KEY);
+  }, []);
+
+  const exitPreview = useCallback(() => {
+    const returnTo = sessionStorage.getItem(PREVIEW_RETURN_KEY) || '/members';
+    clearPreviewSession();
+    setMemberToken(null);
+    setProfile(null);
+    navigate(returnTo);
+  }, [clearPreviewSession, navigate]);
+
   useEffect(() => {
     if (memberToken) {
       loadData();
@@ -55,9 +81,11 @@ export default function MemberPortal() {
   }, [memberToken]);
 
   const loadData = async () => {
+    const token = readPortalToken();
+    if (!token) return;
     try {
       setLoading(true);
-      const headers = { Authorization: `Bearer ${memberToken}` };
+      const headers = { Authorization: `Bearer ${token}` };
       const [profileRes, txRes, loansRes] = await Promise.all([
         fetch('/api/v1/portal/profile', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/savings/transactions', { headers }).then((r) => r.json()),
@@ -69,7 +97,11 @@ export default function MemberPortal() {
       if (loansRes.success) setLoans(loansRes.data || []);
       if (!profileRes.success) {
         setError(profileRes.message || 'Sesi berakhir, silakan masuk lagi');
-        localStorage.removeItem('memberToken');
+        if (sessionStorage.getItem(PREVIEW_TOKEN_KEY)) {
+          clearPreviewSession();
+        } else {
+          localStorage.removeItem('memberToken');
+        }
         setMemberToken(null);
       }
     } catch {
@@ -80,11 +112,13 @@ export default function MemberPortal() {
   };
 
   const loadSchedule = async (loan: PortalLoan) => {
+    const token = readPortalToken();
+    if (!token) return;
     setSelectedLoan(loan);
     setScheduleLoading(true);
     setSchedule([]);
     try {
-      const headers = { Authorization: `Bearer ${memberToken}` };
+      const headers = { Authorization: `Bearer ${token}` };
       const res = await fetch(`/api/v1/portal/loans/${loan.id}/schedule`, { headers }).then((r) =>
         r.json()
       );
@@ -105,6 +139,8 @@ export default function MemberPortal() {
     setLoading(true);
     setError('');
     try {
+      // Real member login should not use preview session
+      clearPreviewSession();
       const res = await fetch('/api/v1/member-auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,6 +161,10 @@ export default function MemberPortal() {
   };
 
   const handleLogout = () => {
+    if (isPreview || sessionStorage.getItem(PREVIEW_TOKEN_KEY)) {
+      exitPreview();
+      return;
+    }
     fetch('/api/v1/member-auth/logout', { method: 'POST' });
     localStorage.removeItem('memberToken');
     setMemberToken(null);
@@ -344,9 +384,36 @@ export default function MemberPortal() {
     <Layout>
       <LayoutContent padding={4}>
         <VStack gap={6}>
+          {isPreview && (
+            <Card
+              style={{
+                padding: 16,
+                backgroundColor: 'var(--color-background-secondary, #fef3c7)',
+                border: '1px solid var(--color-border-primary, #f59e0b)',
+              }}
+            >
+              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                <VStack gap={1}>
+                  <Text type="body" weight="bold">
+                    Mode pratinjau admin
+                  </Text>
+                  <Text type="supporting" color="secondary">
+                    Anda melihat portal sebagai {previewName || profile?.name || 'anggota'}.
+                    Perubahan tidak disimpan ke sesi anggota. Token pratinjau berlaku ~15 menit.
+                  </Text>
+                </VStack>
+                <Button label="Kembali ke Admin" variant="primary" onClick={exitPreview} />
+              </HStack>
+            </Card>
+          )}
+
           <HStack justify="space-between" vAlign="center" wrap="wrap">
             <Heading level={2}>Selamat Datang, {profile?.name}</Heading>
-            <Button label="Keluar" onClick={handleLogout} variant="ghost" />
+            <Button
+              label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
+              onClick={handleLogout}
+              variant="ghost"
+            />
           </HStack>
 
           {error ? (
