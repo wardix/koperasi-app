@@ -1,5 +1,6 @@
 import type { Db } from "../db";
 import type { LoanRow, LoanScheduleRow } from "../db/entities";
+import { addMonthsYmd, resolveCalendarDateIso } from "../lib/dates";
 import { ServiceError } from "./errors";
 
 export function calculateLoanInterest(amount: number, tenor: string | number, bungaRate: number) {
@@ -33,11 +34,13 @@ export type CreateLoanInput = {
   tenor: number;
   purpose: string;
   status: string;
+  /** Optional backdated loan date as YYYY-MM-DD */
+  loanDate?: string;
 };
 
 export async function createLoan(database: Db, input: CreateLoanInput): Promise<{ id: string }> {
   const id = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+  const createdAt = resolveCalendarDateIso(input.loanDate);
 
   const insert = database.prepare(`
     INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
@@ -92,7 +95,7 @@ export function enrichLoanForList(loan: LoanRow & { paidAmount?: number }, bunga
 
 async function generateInstallmentSchedule(
   database: Db,
-  loan: { id: string; amount: number; tenor: string | number },
+  loan: { id: string; amount: number; tenor: string | number; createdAt?: string | null },
   bungaRatePercent: number,
   interestAmount: number,
   totalAmount: number
@@ -106,10 +109,14 @@ async function generateInstallmentSchedule(
   );
 
   const i = bungaRatePercent / 1200;
+  // Base schedule on loan createdAt so backdated loans get historical due dates
+  let baseDate = loan.createdAt ? new Date(loan.createdAt) : new Date();
+  if (Number.isNaN(baseDate.getTime())) {
+    baseDate = new Date();
+  }
 
   for (let month = 1; month <= tenorMonths; month++) {
-    const dueDate = new Date();
-    dueDate.setMonth(dueDate.getMonth() + month);
+    const dueDate = addMonthsYmd(baseDate, month);
 
     const remainingPrincipal = loan.amount - (loan.amount * (month - 1)) / tenorMonths;
     const currentPrincipal = Math.floor(remainingPrincipal / (tenorMonths - month + 1));
@@ -125,7 +132,7 @@ async function generateInstallmentSchedule(
         `${loan.id}-${month}`,
         loan.id,
         month,
-        dueDate.toISOString().split("T")[0],
+        dueDate,
         currentPrincipal,
         currentInterest,
       ]
@@ -145,13 +152,22 @@ export async function updateLoanStatus(
 ): Promise<{ before: Pick<LoanRow, "status" | "memberId"> | null }> {
   if (status === "Disetujui") {
     await database.transaction(async () => {
-      const stmt = database.prepare(`UPDATE loans SET status = ?, approvedAt = CURRENT_TIMESTAMP WHERE id = ?`);
-      await stmt.run(status, loanId);
+      const loan = (await database
+        .query("SELECT id, amount, tenor, scheduleGenerated, createdAt FROM loans WHERE id = ?")
+        .get(loanId)) as {
+        id: string;
+        amount: number;
+        tenor: string;
+        scheduleGenerated: boolean;
+        createdAt: string | null;
+      } | null;
+
+      // Use loan date as approvedAt when backdating historical loans
+      const approvedAt = loan?.createdAt ? new Date(loan.createdAt).toISOString() : new Date().toISOString();
+      const stmt = database.prepare(`UPDATE loans SET status = ?, approvedAt = ? WHERE id = ?`);
+      await stmt.run(status, approvedAt, loanId);
 
       const bungaRatePercent = await getBungaRatePercent(database);
-      const loan = (await database
-        .query("SELECT id, amount, tenor, scheduleGenerated FROM loans WHERE id = ?")
-        .get(loanId)) as { id: string; amount: number; tenor: string; scheduleGenerated: boolean } | null;
 
       if (loan && !loan.scheduleGenerated) {
         const { interestAmount, totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRatePercent);
@@ -173,6 +189,8 @@ export async function updateLoanStatus(
 export type RecordPaymentInput = {
   amount: number;
   method: string;
+  /** Optional backdated payment date as YYYY-MM-DD */
+  paymentDate?: string;
 };
 
 export async function recordLoanPayment(
@@ -181,7 +199,7 @@ export async function recordLoanPayment(
   input: RecordPaymentInput
 ): Promise<{ id: string }> {
   const id = crypto.randomUUID();
-  const paymentDate = new Date().toISOString();
+  const paymentDate = resolveCalendarDateIso(input.paymentDate);
 
   await database.transaction(async () => {
     // Lock the loan row to serialize concurrent payment attempts
@@ -217,12 +235,13 @@ export async function recordLoanPayment(
       .all<LoanScheduleRow>(loanId);
 
     if (pendingSchedules.length > 0) {
-      const today = new Date();
+      // Use payment date for late-fee calculation when backdating
+      const asOf = new Date(paymentDate);
       for (const schedule of pendingSchedules) {
         if (allocatedAmount <= 0) break;
 
         const dueDate = new Date(schedule.dueDate);
-        const daysLate = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysLate = Math.floor((asOf.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
 
         let lateFee = 0;
         if (daysLate > 0) {

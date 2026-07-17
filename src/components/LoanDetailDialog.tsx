@@ -11,6 +11,7 @@ import {
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {DateInput} from '@astryxdesign/core/DateInput';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {Badge} from '@astryxdesign/core/Badge';
@@ -30,6 +31,14 @@ interface Payment {
   method: string;
 }
 
+function todayIsoDate(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function LoanDetailDialogContent({
   loan,
   onClose,
@@ -40,6 +49,7 @@ export function LoanDetailDialogContent({
   onUpdate: () => void;
 }) {
   const [payAmount, setPayAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(todayIsoDate());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
 
@@ -52,22 +62,24 @@ export function LoanDetailDialogContent({
   const totalHutang = loan.totalAmount || (pokok + bunga);
   const angsuranPerBulan = Math.ceil(totalHutang / tenorBulan);
   
-  const totalPaid = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const remainingDebt = totalHutang - totalPaid;
+  const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+  const remainingDebt = Number(totalHutang) - totalPaid;
 
   const handlePay = async () => {
     const amount = parseAmountInput(payAmount);
-    if (!amount || amount <= 0 || amount > remainingDebt) return;
+    if (!amount || amount <= 0 || amount > remainingDebt || !paymentDate) return;
     
     setIsSubmitting(true);
     try {
       await api.post(`/api/loans/${loan.id}/payments`, {
         amount,
-        method: 'Transfer'
+        method: 'Transfer',
+        paymentDate,
       });
       
       toast({body: 'Pembayaran berhasil', type: 'info'});
         setPayAmount('');
+        setPaymentDate(todayIsoDate());
         refetch();
         onUpdate();
         
@@ -155,23 +167,31 @@ export function LoanDetailDialogContent({
                 <Text type="supporting" color="secondary">
                   Angsuran per bulan yang disarankan: {formatRp(angsuranPerBulan)}
                 </Text>
-                <HStack gap={3} vAlign="end">
-                  <div style={{ flex: 1 }}>
-                    <TextInput
-                      label="Nominal Pembayaran (Rp)"
-                      value={payAmount}
-                      onChange={(raw) => setPayAmount(formatAmountInput(raw))}
-                      type="text"
-                      placeholder={`Saran: ${formatAmountInput(String(angsuranPerBulan))}`}
-                      description="Pemisah ribuan ditambahkan otomatis"
-                    />
-                  </div>
-                  <Button 
-                    label="Bayar" 
-                    onClick={handlePay} 
-                    disabled={!payAmount || parseAmountInput(payAmount) <= 0 || isSubmitting} 
+                <VStack gap={3}>
+                  <TextInput
+                    label="Nominal Pembayaran (Rp)"
+                    value={payAmount}
+                    onChange={(raw) => setPayAmount(formatAmountInput(raw))}
+                    type="text"
+                    placeholder={`Saran: ${formatAmountInput(String(angsuranPerBulan))}`}
+                    description="Pemisah ribuan ditambahkan otomatis"
                   />
-                </HStack>
+                  <DateInput
+                    label="Tanggal Pembayaran"
+                    description="Bisa diisi mundur untuk angsuran historis"
+                    value={paymentDate}
+                    onChange={(val) => setPaymentDate(val ?? todayIsoDate())}
+                    max={todayIsoDate()}
+                    isRequired
+                  />
+                  <HStack hAlign="end">
+                    <Button
+                      label="Bayar"
+                      onClick={handlePay}
+                      disabled={!payAmount || parseAmountInput(payAmount) <= 0 || !paymentDate || isSubmitting}
+                    />
+                  </HStack>
+                </VStack>
               </VStack>
             )}
 
