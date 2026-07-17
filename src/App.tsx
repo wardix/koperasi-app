@@ -19,7 +19,7 @@ import {Button} from '@astryxdesign/core/Button';
 import React, {useState, useEffect} from 'react';
 import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
-import {formatRp} from './utils/format';
+import {formatRp, formatDate} from './utils/format';
 import {
   BarChart,
   Bar,
@@ -265,7 +265,12 @@ function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities
       width: pixel(150),
       renderCell: (item) => formatRp(item.amount)
     },
-    {key: 'date', header: 'Tanggal', width: pixel(120)},
+    {
+      key: 'date', 
+      header: 'Tanggal', 
+      width: pixel(120),
+      renderCell: (item) => formatDate(item.date)
+    },
   ], []);
 
   return (
@@ -295,12 +300,18 @@ export default function DashboardTemplate() {
 
   useEffect(() => {
     if (dashboardData) {
-      const formatRp = (val: number) => 'Rp ' + (val / 1000000).toFixed(1) + ' M';
+      const formatCompactRp = (val: number) => new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        notation: 'compact',
+        maximumFractionDigits: 1
+      }).format(val);
+      
       setMetrics([
-        { label: 'Total Anggota Aktif', value: dashboardData.activeMembers },
-        { label: 'Total Simpanan', value: formatRp(dashboardData.totalSavings) },
-        { label: 'Pinjaman Berjalan', value: formatRp(dashboardData.totalLoans) },
-        { label: 'Kredit Macet (NPL)', value: dashboardData.npl },
+        { label: 'Total Anggota Aktif', value: String(dashboardData.activeMembers) },
+        { label: 'Total Simpanan', value: formatCompactRp(dashboardData.totalSavings) },
+        { label: 'Pinjaman Berjalan', value: formatCompactRp(dashboardData.totalLoans) },
+        { label: 'Kredit Macet (NPL)', value: String(dashboardData.npl) },
       ]);
     } else {
       setMetrics([]);
