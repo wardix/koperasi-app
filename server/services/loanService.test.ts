@@ -1,10 +1,12 @@
 import { expect, test, describe } from "bun:test";
 import db from "../db";
 import {
+  buildAmortizationSchedule,
   calculateLoanInterest,
   createLoan,
   deleteLoanPayment,
   recordLoanPayment,
+  regenerateLoanInstallmentSchedule,
   resolveLoanTotalAmount,
   updateLoanDisbursementDate,
   updateLoanPayment,
@@ -28,6 +30,52 @@ describe("loanService", () => {
         expect(res.interestAmount).toBe(expInterest);
         expect(res.totalAmount).toBe(expTotal);
       });
+    });
+  });
+
+  describe("buildAmortizationSchedule (annuity / declining balance)", () => {
+    test("fixed installment, rising principal, falling interest; principals sum to loan amount", () => {
+      const principal = 10_000_000;
+      const tenor = 12;
+      const rate = 18;
+      const { monthlyPayment, rows } = buildAmortizationSchedule(principal, tenor, rate);
+
+      expect(rows).toHaveLength(tenor);
+      expect(monthlyPayment).toBe(916_800);
+
+      // Month 1: lower principal, higher interest than month 2
+      expect(rows[0].principalAmount).toBeLessThan(rows[1].principalAmount);
+      expect(rows[0].interestAmount).toBeGreaterThan(rows[1].interestAmount);
+
+      // Month 1 interest ≈ balance * monthly rate
+      expect(rows[0].interestAmount).toBe(Math.round(principal * (rate / 1200)));
+
+      // Installments 1..n-1: principal + interest === fixed monthly payment
+      for (let i = 0; i < rows.length - 1; i++) {
+        expect(rows[i].principalAmount + rows[i].interestAmount).toBe(monthlyPayment);
+      }
+
+      // Principal declines over the life of the loan overall
+      expect(rows[0].principalAmount).toBeLessThan(rows[rows.length - 1].principalAmount);
+      expect(rows[0].interestAmount).toBeGreaterThan(rows[rows.length - 1].interestAmount);
+
+      const sumPrincipal = rows.reduce((s, r) => s + r.principalAmount, 0);
+      expect(sumPrincipal).toBe(principal);
+    });
+
+    test("zero interest splits principal evenly (last gets remainder)", () => {
+      const { monthlyPayment, rows } = buildAmortizationSchedule(1_000_000, 3, 0);
+      expect(monthlyPayment).toBe(Math.ceil(1_000_000 / 3));
+      expect(rows.every((r) => r.interestAmount === 0)).toBe(true);
+      expect(rows.reduce((s, r) => s + r.principalAmount, 0)).toBe(1_000_000);
+    });
+
+    test("single-period loan is principal + one interest charge", () => {
+      const { rows, monthlyPayment } = buildAmortizationSchedule(2_000_000, 1, 24);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].principalAmount).toBe(2_000_000);
+      expect(rows[0].interestAmount).toBe(40_000);
+      expect(monthlyPayment).toBe(2_040_000);
     });
   });
 
@@ -89,6 +137,93 @@ describe("loanService", () => {
     expect(d.getMonth()).toBe(4);
     expect(d.getDate()).toBe(20);
 
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("regenerateLoanInstallmentSchedule fixes wrong principal/interest and keeps payments", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Regen Sched ${memberId}`;
+    const principal = 10_000_000;
+    const tenor = 12;
+    const rate = 18;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, approvedAt, interestRate, scheduleGenerated, totalInstallments)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        loanId,
+        memberId,
+        loanName,
+        principal,
+        tenor,
+        "Test",
+        "Disetujui",
+        "2024-01-01T00:00:00.000Z",
+        "2024-01-01T00:00:00.000Z",
+        rate,
+        true,
+        tenor,
+      ]
+    );
+
+    // Seed intentionally wrong flat-principal schedule (old bug shape)
+    for (let m = 1; m <= tenor; m++) {
+      const dueMonth = ((m % 12) + 1).toString().padStart(2, "0");
+      const dueYear = 2024 + Math.floor(m / 12);
+      await db.run(
+        `INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
+         VALUES (?, ?, ?, ?, ?, ?, 0, 'Pending')`,
+        [`${loanId}-${m}`, loanId, m, `${dueYear}-${dueMonth}-01`, 833333, m * 1000]
+      );
+    }
+
+    // One payment should re-allocate onto new schedule
+    await db.run(
+      `INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
+       VALUES (?, ?, ?, ?, ?)`,
+      [`pay-${loanId}`, loanId, 916_800, "2024-02-01T00:00:00.000Z", "Transfer"]
+    );
+
+    const result = await regenerateLoanInstallmentSchedule(db, loanId);
+    expect(result.rows).toBe(tenor);
+    expect(result.monthlyPayment).toBe(916_800);
+
+    const rows = await db
+      .query(
+        `SELECT installmentNo, principalAmount, interestAmount, paidAmount, status
+         FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC`
+      )
+      .all<{
+        installmentNo: number;
+        principalAmount: number;
+        interestAmount: number;
+        paidAmount: number;
+        status: string;
+      }>(loanId);
+
+    expect(rows).toHaveLength(tenor);
+    expect(Number(rows[0].principalAmount)).toBeLessThan(Number(rows[1].principalAmount));
+    expect(Number(rows[0].interestAmount)).toBeGreaterThan(Number(rows[1].interestAmount));
+    expect(Number(rows[0].interestAmount)).toBe(Math.round(principal * (rate / 1200)));
+    expect(Number(rows[0].principalAmount) + Number(rows[0].interestAmount)).toBe(916_800);
+
+    const sumPrincipal = rows.reduce((s, r) => s + Number(r.principalAmount), 0);
+    expect(sumPrincipal).toBe(principal);
+
+    // First installment fully covered by one monthly payment
+    expect(Number(rows[0].paidAmount)).toBe(916_800);
+    expect(rows[0].status).toBe("Paid");
+    expect(Number(rows[1].paidAmount)).toBe(0);
+
+    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
     await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });

@@ -12,6 +12,7 @@
     "openapi:check": "bun run scripts/openapi-check.ts",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
     "db:migrate": "bun -e \"import('./server/db.ts').then(() => process.exit(0))\"",
+    "db:regenerate-loan-schedules": "bun run scripts/regenerate-loan-schedules.ts",
     "db:reset-data": "bun run scripts/db-reset-data.ts",
     "start": "bun run server/index.ts",
     "typecheck": "tsc --noEmit"

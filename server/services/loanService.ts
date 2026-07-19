@@ -10,6 +10,7 @@ export function calculateLoanInterest(amount: number, tenor: string | number, bu
     return {
       interestAmount: 0,
       totalAmount: amount,
+      monthlyPayment: Math.ceil(amount / tenorMonths),
     };
   }
 
@@ -24,7 +25,72 @@ export function calculateLoanInterest(amount: number, tenor: string | number, bu
   return {
     interestAmount,
     totalAmount,
+    monthlyPayment: roundedMonthlyPayment,
   };
+}
+
+export type AmortizationRow = {
+  installmentNo: number;
+  principalAmount: number;
+  interestAmount: number;
+};
+
+/**
+ * Classical declining-balance (annuity) schedule:
+ * - fixed monthly installment (principal + interest ≈ monthlyPayment)
+ * - early periods: higher interest, lower principal
+ * - later periods: lower interest, higher principal
+ * - sum of principalAmount === original principal
+ */
+export function buildAmortizationSchedule(
+  principal: number,
+  tenor: string | number,
+  annualRatePercent: number
+): { monthlyPayment: number; totalAmount: number; interestAmount: number; rows: AmortizationRow[] } {
+  const tenorMonths = Math.max(1, parseInt(String(tenor)) || 1);
+  const amount = Math.max(0, Math.round(Number(principal) || 0));
+  const { monthlyPayment, totalAmount, interestAmount } = calculateLoanInterest(
+    amount,
+    tenorMonths,
+    annualRatePercent
+  );
+
+  const monthlyRate = annualRatePercent > 0 ? annualRatePercent / 1200 : 0;
+  let balance = amount;
+  const rows: AmortizationRow[] = [];
+
+  for (let month = 1; month <= tenorMonths; month++) {
+    const interestPart =
+      monthlyRate > 0 && balance > 0 ? Math.round(balance * monthlyRate) : 0;
+
+    let principalPart: number;
+    if (month === tenorMonths) {
+      // Final installment clears remaining principal (handles rounding drift)
+      principalPart = balance;
+    } else if (monthlyRate <= 0) {
+      principalPart = Math.floor(amount / tenorMonths);
+    } else {
+      principalPart = monthlyPayment - interestPart;
+      if (principalPart < 0) principalPart = 0;
+      if (principalPart > balance) principalPart = balance;
+    }
+
+    rows.push({
+      installmentNo: month,
+      principalAmount: principalPart,
+      interestAmount: interestPart,
+    });
+    balance -= principalPart;
+  }
+
+  // Safety: if rounding left a residual (should be 0), fold into last principal
+  if (balance !== 0 && rows.length > 0) {
+    const last = rows[rows.length - 1];
+    last.principalAmount += balance;
+    balance = 0;
+  }
+
+  return { monthlyPayment, totalAmount, interestAmount, rows };
 }
 
 export type CreateLoanInput = {
@@ -93,34 +159,36 @@ export function enrichLoanForList(loan: LoanRow & { paidAmount?: number }, bunga
   };
 }
 
-async function generateInstallmentSchedule(
+/**
+ * Write (or replace) installment rows for a loan using annuity amortization.
+ * Does not touch loan_payments; call rebuildLoanPaymentAllocations after replace.
+ */
+async function writeInstallmentSchedule(
   database: Db,
   loan: { id: string; amount: number; tenor: string | number; createdAt?: string | null },
   bungaRatePercent: number,
-  interestAmount: number,
-  totalAmount: number
-): Promise<void> {
-  const tenorMonths = parseInt(String(loan.tenor));
-  const monthlyPayment = Math.ceil(totalAmount / tenorMonths);
+  options?: { replaceExisting?: boolean }
+): Promise<ReturnType<typeof buildAmortizationSchedule>> {
+  const schedule = buildAmortizationSchedule(loan.amount, loan.tenor, bungaRatePercent);
+  const tenorMonths = schedule.rows.length;
 
   await database.run(
     `UPDATE loans SET interestRate = ?, monthlyPayment = ?, totalAmount = ?, interestAmount = ? WHERE id = ?`,
-    [bungaRatePercent, monthlyPayment, totalAmount, interestAmount, loan.id]
+    [bungaRatePercent, schedule.monthlyPayment, schedule.totalAmount, schedule.interestAmount, loan.id]
   );
 
-  const i = bungaRatePercent / 1200;
+  if (options?.replaceExisting) {
+    await database.run(`DELETE FROM loan_schedules WHERE loanId = ?`, [loan.id]);
+  }
+
   // Base schedule on loan createdAt so backdated loans get historical due dates
   let baseDate = loan.createdAt ? new Date(loan.createdAt) : new Date();
   if (Number.isNaN(baseDate.getTime())) {
     baseDate = new Date();
   }
 
-  for (let month = 1; month <= tenorMonths; month++) {
-    const dueDate = addMonthsYmd(baseDate, month);
-
-    const remainingPrincipal = loan.amount - (loan.amount * (month - 1)) / tenorMonths;
-    const currentPrincipal = Math.floor(remainingPrincipal / (tenorMonths - month + 1));
-    const currentInterest = Math.round((loan.amount - currentPrincipal * (tenorMonths - month + 1)) * i);
+  for (const row of schedule.rows) {
+    const dueDate = addMonthsYmd(baseDate, row.installmentNo);
 
     await database.run(
       `
@@ -129,12 +197,12 @@ async function generateInstallmentSchedule(
       ON CONFLICT (loanId, installmentNo) DO NOTHING
     `,
       [
-        `${loan.id}-${month}`,
+        `${loan.id}-${row.installmentNo}`,
         loan.id,
-        month,
+        row.installmentNo,
         dueDate,
-        currentPrincipal,
-        currentInterest,
+        row.principalAmount,
+        row.interestAmount,
       ]
     );
   }
@@ -143,6 +211,83 @@ async function generateInstallmentSchedule(
     tenorMonths,
     loan.id,
   ]);
+
+  return schedule;
+}
+
+async function generateInstallmentSchedule(
+  database: Db,
+  loan: { id: string; amount: number; tenor: string | number; createdAt?: string | null },
+  bungaRatePercent: number,
+  _interestAmount: number,
+  _totalAmount: number
+): Promise<void> {
+  await writeInstallmentSchedule(database, loan, bungaRatePercent);
+}
+
+/**
+ * Rebuild schedule for one loan with correct annuity principal/interest split.
+ * Preserves loan_payments and re-allocates them onto the new schedule.
+ * Uses snapshot interestRate when present; otherwise current bungaPinjaman setting.
+ */
+export async function regenerateLoanInstallmentSchedule(
+  database: Db,
+  loanId: string
+): Promise<{ rows: number; monthlyPayment: number }> {
+  return database.transaction(async () => {
+    const loan = await database.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
+    if (!loan) {
+      throw new ServiceError("Loan not found", 404);
+    }
+
+    const snapRate = loan.interestRate != null ? Number(loan.interestRate) : NaN;
+    const bungaRatePercent = Number.isFinite(snapRate)
+      ? snapRate
+      : await getBungaRatePercent(database);
+
+    // Prefer disbursement/approval date for due-date base
+    const baseIso = loan.approvedAt || loan.createdAt;
+    const schedule = await writeInstallmentSchedule(
+      database,
+      {
+        id: loan.id,
+        amount: Number(loan.amount),
+        tenor: loan.tenor,
+        createdAt: baseIso,
+      },
+      bungaRatePercent,
+      { replaceExisting: true }
+    );
+
+    await rebuildLoanPaymentAllocations(database, loanId);
+
+    return { rows: schedule.rows.length, monthlyPayment: schedule.monthlyPayment };
+  })();
+}
+
+/**
+ * Regenerate schedules for all active approved/outstanding/paid-off loans.
+ * Skips soft-deleted and pending/rejected applications.
+ */
+export async function regenerateAllLoanInstallmentSchedules(
+  database: Db
+): Promise<{ processed: number; loanIds: string[] }> {
+  const loans = await database
+    .query(
+      `SELECT id FROM loans
+       WHERE deletedAt IS NULL
+         AND status IN ('Disetujui', 'Lunas', 'Macet')
+       ORDER BY id ASC`
+    )
+    .all<{ id: string }>();
+
+  const loanIds: string[] = [];
+  for (const row of loans) {
+    await regenerateLoanInstallmentSchedule(database, row.id);
+    loanIds.push(row.id);
+  }
+
+  return { processed: loanIds.length, loanIds };
 }
 
 export type UpdateLoanStatusOptions = {
