@@ -19,7 +19,7 @@ import {Button} from '@astryxdesign/core/Button';
 import React, {useState, useEffect} from 'react';
 import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
-import {formatRp, formatDate} from './utils/format';
+import {formatRp, formatCompactRp, formatDate} from './utils/format';
 import {
   BarChart,
   Bar,
@@ -91,17 +91,17 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={(v) => 'Rp ' + (v / 1000000).toFixed(0) + 'M'}
+            tickFormatter={(v) => formatCompactRp(v)}
             tick={{
               fontSize: 'var(--font-size-sm, 12px)',
               fill: 'var(--color-text-secondary, #4E606F)',
             }}
             axisLine={false}
             tickLine={false}
-            width={60}
+            width={72}
           />
           <Tooltip
-            formatter={(value: number) => ['Rp ' + (value/1000000).toFixed(1) + ' Juta', '']}
+            formatter={(value: number) => [formatCompactRp(value), '']}
             cursor={{stroke: 'var(--color-border, rgba(5, 54, 89, 0.1))'}}
           />
           <Line
@@ -369,13 +369,6 @@ export default function DashboardTemplate() {
 
   useEffect(() => {
     if (dashboardData) {
-      const formatCompactRp = (val: number) => new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        notation: 'compact',
-        maximumFractionDigits: 1
-      }).format(val);
-      
       const approvedCount = dashboardData.approvedLoansCount ?? 0;
       setMetrics([
         { label: 'Total Anggota Aktif', value: String(dashboardData.activeMembers) },

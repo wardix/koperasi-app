@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { formatAmountInput, formatRp, parseAmountInput } from "./format";
+import { formatAmountInput, formatCompactRp, formatRp, parseAmountInput } from "./format";
 
 describe("formatRp", () => {
   test("formats numbers with thousand separators", () => {
@@ -16,6 +16,24 @@ describe("formatRp", () => {
     expect(formatRp(null)).toBe("Rp 0");
     expect(formatRp(undefined)).toBe("Rp 0");
     expect(formatRp("")).toBe("Rp 0");
+  });
+});
+
+describe("formatCompactRp", () => {
+  test("uses Indonesian jt suffix (not M)", () => {
+    const oneJt = formatCompactRp(1_000_000);
+    expect(oneJt).toContain("jt");
+    expect(oneJt).not.toMatch(/\bM\b/);
+    expect(oneJt).toMatch(/Rp/);
+
+    const onePointFive = formatCompactRp(1_500_000);
+    expect(onePointFive).toContain("jt");
+    expect(onePointFive).toMatch(/1[,.]5/);
+  });
+
+  test("handles null/invalid as zero", () => {
+    expect(formatCompactRp(null)).toBe("Rp 0");
+    expect(formatCompactRp(undefined)).toBe("Rp 0");
   });
 });
 
