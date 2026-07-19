@@ -201,7 +201,7 @@ export default function MemberPortal() {
       },
       {
         key: 'interestAmount',
-        header: 'Bunga',
+        header: 'Biaya Admin',
         width: pixel(110),
         renderCell: (i) => formatRp(i.interestAmount),
       },
