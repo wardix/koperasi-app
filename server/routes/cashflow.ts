@@ -53,12 +53,13 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
       'loan_payment' as source,
       p.id,
       p.paymentDate as "date",
-      l.name as "partyName",
+      COALESCE(m.name, l.name) as "partyName",
       'Angsuran Pinjaman' as description,
       p.amount,
       'inflow' as "flowType"
     FROM loan_payments p
     INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
+    LEFT JOIN members m ON m.id = l.memberId
 
     UNION ALL
 
@@ -66,11 +67,12 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
       'loan_disbursement' as source,
       l.id,
       COALESCE(l.approvedAt::text, l.createdAt::text, '2026-01-01T00:00:00.000Z') as "date",
-      l.name as "partyName",
+      COALESCE(m.name, l.name) as "partyName",
       'Pencairan Pinjaman' as description,
       l.amount,
       'outflow' as "flowType"
     FROM loans l
+    LEFT JOIN members m ON m.id = l.memberId
     WHERE l.status IN ('Disetujui', 'Lunas')
       AND l.deletedAt IS NULL
 

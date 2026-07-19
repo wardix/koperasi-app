@@ -35,11 +35,12 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
   const whereClause = includeArchived ? '' : 'WHERE l.deletedAt IS NULL'
 
   const rows = await db.query(`
-    SELECT l.*, COALESCE(SUM(p.amount), 0) as paidAmount
+    SELECT l.*, COALESCE(m.name, l.name) as name, COALESCE(SUM(p.amount), 0) as paidAmount
     FROM loans l
+    LEFT JOIN members m ON m.id = l.memberId
     LEFT JOIN loan_payments p ON l.id = p.loanId
     ${whereClause}
-    GROUP BY l.id
+    GROUP BY l.id, m.name
     ORDER BY l.id DESC
     LIMIT ? OFFSET ?
   `).all<LoanRow & { paidAmount?: number }>(limit, offset)
@@ -163,7 +164,8 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
-  // Soft-deleted loans (deletedAt set) must not appear as pencairan / angsuran ledger rows
+  // Soft-deleted loans (deletedAt set) must not appear as pencairan / angsuran ledger rows.
+  // Prefer live members.name so renames show up even if loans.name snapshot is stale.
   const rows = await db.query(`
     SELECT * FROM (
       SELECT
@@ -173,8 +175,9 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
         l.amount as "amount",
         COALESCE(l.approvedAt::text, l.createdAt::text) as "paymentDate",
         'Transfer' as "method",
-        l.name as "borrowerName"
+        COALESCE(m.name, l.name) as "borrowerName"
       FROM loans l
+      LEFT JOIN members m ON m.id = l.memberId
       WHERE l.status IN ('Disetujui', 'Lunas', 'Macet')
         AND l.deletedAt IS NULL
 
@@ -187,9 +190,10 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
         p.amount as "amount",
         p.paymentDate as "paymentDate",
         p.method as "method",
-        l.name as "borrowerName"
+        COALESCE(m.name, l.name) as "borrowerName"
       FROM loan_payments p
       INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
+      LEFT JOIN members m ON m.id = l.memberId
     ) combined
     ORDER BY "paymentDate" DESC
     LIMIT ? OFFSET ?

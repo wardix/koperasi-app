@@ -47,14 +47,15 @@ memberSelfService.get('/loans', async (c) => {
   const memberId = payload.sub;
 
   const loans = await db.query(
-    `SELECT l.id, l.name, l.amount, l.tenor, l.purpose, l.status, l.createdAt,
+    `SELECT l.id, COALESCE(m.name, l.name) AS name, l.amount, l.tenor, l.purpose, l.status, l.createdAt,
             l.interestRate, l.monthlyPayment, l.interestAmount, l.totalAmount,
             l.approvedAt, l.totalInstallments, l.paidInstallments,
             COALESCE(SUM(p.amount), 0) AS paidAmount
      FROM loans l
+     LEFT JOIN members m ON m.id = l.memberId
      LEFT JOIN loan_payments p ON l.id = p.loanId
      WHERE l.memberId = ? AND l.deletedAt IS NULL
-     GROUP BY l.id
+     GROUP BY l.id, m.name
      ORDER BY l.createdAt DESC`
   ).all(memberId);
 
