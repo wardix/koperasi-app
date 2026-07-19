@@ -9,6 +9,22 @@ export function formatRp(value: number | string | undefined | null): string {
   return 'Rp ' + n.toLocaleString('id-ID');
 }
 
+/**
+ * Compact Rupiah (id-ID): e.g. 1_500_000 → "Rp1,5 jt" (not "M").
+ * Suitable for dashboard KPI cards and chart axes.
+ */
+export function formatCompactRp(value: number | string | undefined | null): string {
+  if (value == null || value === '') return 'Rp 0';
+  const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+  if (!Number.isFinite(n)) return 'Rp 0';
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
 export function formatDate(dateString: string | undefined | null): string {
   if (!dateString) return '-';
   const d = new Date(dateString);
