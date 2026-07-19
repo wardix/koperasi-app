@@ -54,12 +54,20 @@ function simulateAnnuity(amount: number, tenorMonths: number, annualRatePercent:
 }
 
 const loanSchema = z.object({
-  selectedMember: z.object({
-    id: z.number(),
-    label: z.string()
-  }, { required_error: 'Pilih anggota terlebih dahulu' }),
-  amount: z.string().refine(val => parseAmountInput(val) > 0, 'Jumlah pinjaman tidak valid'),
-  tenor: z.string().refine(val => (parseInt(val.replace(/\D/g, ''), 10) || 0) > 0, 'Tenor tidak valid'),
+  // Member ids are string UUIDs / text keys (not numbers)
+  selectedMember: z
+    .object({
+      id: z.union([z.string(), z.number()]).transform(String),
+      label: z.string().min(1),
+    })
+    .nullable()
+    .refine((v): v is { id: string; label: string } => v != null && Boolean(v.id), {
+      message: 'Pilih anggota terlebih dahulu',
+    }),
+  amount: z.string().refine((val) => parseAmountInput(val) > 0, 'Jumlah pinjaman tidak valid'),
+  tenor: z
+    .string()
+    .refine((val) => (parseInt(val.replace(/\D/g, ''), 10) || 0) > 0, 'Tenor tidak valid'),
   purpose: z.string().min(3, 'Tujuan pinjaman minimal 3 karakter'),
   loanDate: z.string().min(1, 'Tanggal pinjaman harus diisi'),
 });
@@ -69,11 +77,12 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   const { control, handleSubmit, watch, formState: { errors } } = useForm<LoanForm>({
     resolver: zodResolver(loanSchema),
     defaultValues: {
+      selectedMember: null,
       amount: '',
       tenor: '12',
       purpose: '',
       loanDate: todayIsoDate(),
-    }
+    },
   });
 
   const { data: membersRes } = useApiQuery<PaginatedResponse<MemberRow>>('/api/members?page=1&limit=1000');
@@ -105,9 +114,11 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   );
 
   const onSubmit = (data: LoanForm) => {
+    const member = data.selectedMember;
+    if (!member) return;
     onAdd({
-      memberId: data.selectedMember.id,
-      name: data.selectedMember.label,
+      memberId: String(member.id),
+      name: member.label,
       amount: parseAmountInput(data.amount),
       tenor: parseInt(data.tenor.replace(/\D/g, ''), 10),
       purpose: data.purpose,
@@ -116,6 +127,10 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
     });
     onClose();
   };
+
+  const selectedMemberError =
+    errors.selectedMember?.message ||
+    (errors.selectedMember as { id?: { message?: string } } | undefined)?.id?.message;
 
   return (
     <form id="add-loan-form" onSubmit={handleSubmit(onSubmit)}>
@@ -141,7 +156,11 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   onChange={field.onChange}
                   hasEntriesOnFocus
                 />
-                {errors.selectedMember && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.selectedMember.message}</Text>}
+                {selectedMemberError ? (
+                  <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                    {selectedMemberError}
+                  </Text>
+                ) : null}
               </VStack>
             )}
           />
