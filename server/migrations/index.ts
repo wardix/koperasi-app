@@ -13,6 +13,7 @@ import { createSoftDeleteMigration } from "./0015_soft_delete";
 import { createMigration as createAddMemberLoginMigration } from "./0016_add_member_login";
 import { createMigration as createAddNotificationLogsMigration } from "./0017_add_notification_logs";
 import { createAddExpensesMigration } from "./0018_add_expenses";
+import { createRegenerateLoanSchedulesAnnuityMigration } from "./0019_regenerate_loan_schedules_annuity";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -44,6 +45,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddMemberLoginMigration(db),
     createAddNotificationLogsMigration(db),
     createAddExpensesMigration(db),
+    createRegenerateLoanSchedulesAnnuityMigration(db),
   ];
 }
 
