@@ -33,7 +33,12 @@ const memberSchema = z.object({
   name: z.string().min(3, 'Nama minimal 3 karakter'),
   role: z.string().min(1, 'Jabatan tidak boleh kosong'),
   joinDate: z.string().min(1, 'Tanggal bergabung harus diisi'),
-  deposit: z.string().refine(val => parseAmountInput(val) >= 10000, 'Setoran minimal Rp 10.000'),
+  deposit: z
+    .string()
+    .refine((val) => {
+      const n = parseAmountInput(val);
+      return Number.isFinite(n) && n >= 0;
+    }, 'Setoran awal tidak boleh negatif'),
 });
 type MemberForm = z.infer<typeof memberSchema>;
 
