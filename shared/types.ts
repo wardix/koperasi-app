@@ -1,7 +1,15 @@
 export interface DashboardData {
   activeMembers: string;
   totalSavings: number;
+  /** Outstanding remaining principal (Disetujui + Macet, after payments) */
   totalLoans: number;
+  /**
+   * Original principal of approved/outstanding loans (status Disetujui + Macet).
+   * Distinct from totalLoans which is remaining balance.
+   */
+  approvedLoansAmount: number;
+  /** Count of loans with status Disetujui or Macet */
+  approvedLoansCount: number;
   npl: string;
   roleData: Array<{label: string; value: number; color: string}>;
   purposeData: Array<{label: string; value: number; color: string}>;

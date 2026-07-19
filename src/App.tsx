@@ -155,11 +155,14 @@ const MetricCard = React.memo(function MetricCard({
   value,
   change,
   positive,
+  changeCaption,
 }: {
   label: string;
   value: string;
   change?: string;
   positive?: boolean;
+  /** When set, used instead of default "Bulan Terakhir vs Sebelumnya" under change */
+  changeCaption?: string;
 }) {
   return (
     <Card className="hover-card">
@@ -180,9 +183,14 @@ const MetricCard = React.memo(function MetricCard({
             </HStack>
           )}
         </HStack>
-        {change && (
+        {change && positive === undefined && (
           <Text type="supporting" color="secondary">
-            Bulan Terakhir vs Sebelumnya
+            {change}
+          </Text>
+        )}
+        {change && positive !== undefined && (
+          <Text type="supporting" color="secondary">
+            {changeCaption ?? 'Bulan Terakhir vs Sebelumnya'}
           </Text>
         )}
       </VStack>
@@ -305,8 +313,8 @@ function DashboardSkeleton() {
         <div className="skeleton" style={{ width: '100%', height: '300px', borderRadius: '8px' }}></div>
       </VStack>
 
-      <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
-        {[1, 2, 3, 4].map((i) => (
+      <Grid columns={{minWidth: 240, repeat: 'fit'}} gap={4}>
+        {[1, 2, 3, 4, 5].map((i) => (
           <Card key={i} className="hover-card">
             <VStack gap={2}>
               <div className="skeleton" style={{ width: '60%', height: '20px' }}></div>
@@ -354,7 +362,9 @@ function DashboardSkeleton() {
 // ============= MAIN COMPONENT =============
 
 export default function DashboardTemplate() {
-  const [metrics, setMetrics] = useState<Array<{label: string; value: string}>>([]);
+  const [metrics, setMetrics] = useState<
+    Array<{ label: string; value: string; change?: string; positive?: boolean }>
+  >([]);
   const { data: dashboardData, isLoading, error, refetch: fetchStats } = useApiQuery<DashboardData>('/api/stats');
 
   useEffect(() => {
@@ -366,10 +376,16 @@ export default function DashboardTemplate() {
         maximumFractionDigits: 1
       }).format(val);
       
+      const approvedCount = dashboardData.approvedLoansCount ?? 0;
       setMetrics([
         { label: 'Total Anggota Aktif', value: String(dashboardData.activeMembers) },
         { label: 'Total Simpanan', value: formatCompactRp(dashboardData.totalSavings) },
-        { label: 'Pinjaman Berjalan', value: formatCompactRp(dashboardData.totalLoans) },
+        {
+          label: 'Total Pinjaman Disetujui',
+          value: formatCompactRp(dashboardData.approvedLoansAmount ?? 0),
+          change: approvedCount > 0 ? `${approvedCount} pinjaman` : '0 pinjaman',
+        },
+        { label: 'Pinjaman Berjalan (Sisa)', value: formatCompactRp(dashboardData.totalLoans) },
         { label: 'Kredit Macet (NPL)', value: String(dashboardData.npl) },
       ]);
     } else {
@@ -405,16 +421,9 @@ export default function DashboardTemplate() {
 
             {/* Metric Cards */}
             {metrics.length > 0 ? (
-              <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
-                {[0, 2].map(start => (
-                  <Grid
-                    key={start}
-                    columns={{minWidth: 240, repeat: 'fit'}}
-                    gap={4}>
-                    {metrics.slice(start, start + 2).map(m => (
-                      <MetricCard key={m.label} {...m} />
-                    ))}
-                  </Grid>
+              <Grid columns={{ minWidth: 240, repeat: 'fit' }} gap={4}>
+                {metrics.map((m) => (
+                  <MetricCard key={m.label} {...m} />
                 ))}
               </Grid>
             ) : (
