@@ -94,7 +94,11 @@ export default function MemberPortal() {
 
       if (profileRes.success) setProfile(profileRes.data);
       if (txRes.success) setTransactions(txRes.data || []);
-      if (loansRes.success) setLoans(loansRes.data || []);
+      if (loansRes.success) {
+        setLoans(loansRes.data || []);
+      } else if (loansRes.message) {
+        setError(loansRes.message || 'Gagal memuat data pinjaman');
+      }
       if (!profileRes.success) {
         setError(profileRes.message || 'Sesi berakhir, silakan masuk lagi');
         if (sessionStorage.getItem(PREVIEW_TOKEN_KEY)) {

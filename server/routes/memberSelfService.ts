@@ -41,13 +41,21 @@ memberSelfService.get('/savings/transactions', async (c) => {
   return c.json({ success: true, data: transactions });
 });
 
-// Get active loans
+// Get member loans (paidAmount is not a loans column — sum from loan_payments)
 memberSelfService.get('/loans', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload;
   const memberId = payload.sub;
 
   const loans = await db.query(
-    "SELECT id, name, amount, tenor, purpose, status, createdAt, interestRate, monthlyPayment, interestAmount, totalAmount, approvedAt, totalInstallments, paidInstallments, paidAmount FROM loans WHERE memberId = ? AND deletedAt IS NULL ORDER BY createdAt DESC"
+    `SELECT l.id, l.name, l.amount, l.tenor, l.purpose, l.status, l.createdAt,
+            l.interestRate, l.monthlyPayment, l.interestAmount, l.totalAmount,
+            l.approvedAt, l.totalInstallments, l.paidInstallments,
+            COALESCE(SUM(p.amount), 0) AS paidAmount
+     FROM loans l
+     LEFT JOIN loan_payments p ON l.id = p.loanId
+     WHERE l.memberId = ? AND l.deletedAt IS NULL
+     GROUP BY l.id
+     ORDER BY l.createdAt DESC`
   ).all(memberId);
 
   return c.json({ success: true, data: loans });
