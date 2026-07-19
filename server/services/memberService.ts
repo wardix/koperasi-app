@@ -108,11 +108,19 @@ export async function updateMember(
     throw new ServiceError("Member not found", 404);
   }
 
-  const update = database.prepare(`
-    UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?
-    WHERE id = ?
-  `);
-  await update.run(input.name, input.role, input.status, input.joinDate, id);
+  await database.transaction(async () => {
+    const update = database.prepare(`
+      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?
+      WHERE id = ?
+    `);
+    await update.run(input.name, input.role, input.status, input.joinDate, id);
+
+    // loans.name is a denormalized snapshot used by loan/cashflow ledgers —
+    // keep it aligned when the member is renamed.
+    if (input.name !== oldMember.name) {
+      await database.run(`UPDATE loans SET name = ? WHERE memberId = ?`, [input.name, id]);
+    }
+  })();
 
   return { before: { name: oldMember.name, role: oldMember.role } };
 }
