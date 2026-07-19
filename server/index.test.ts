@@ -1035,6 +1035,102 @@ describe("API Endpoints", () => {
     expect(deleteNonExistentRes.status).toBe(404);
   });
 
+  test("GET /api/v1/portal/loans returns member loans without selecting missing paidAmount column", async () => {
+    // Ensure a member with at least one loan exists
+    const memberId = `portal-loan-m-${Date.now()}`;
+    const loanId = `portal-loan-l-${Date.now()}`;
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, 'Anggota', 'Aktif', '01 Jan 2024', 1000, 0, 0, 1000)`,
+      [memberId, "Portal Loan Member"]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status)
+       VALUES (?, ?, 'Portal Loan Member', 1000000, 6, 'Modal Usaha', 'Menunggu')`,
+      [loanId, memberId]
+    );
+
+    const memberToken = await sign(
+      {
+        sub: memberId,
+        email: memberId,
+        role: "member",
+        name: "Portal Loan Member",
+        exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      },
+      secretKey
+    );
+
+    const res = await server.fetch(
+      new Request("http://localhost/api/v1/portal/loans", {
+        headers: { Authorization: `Bearer ${memberToken}` },
+      })
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThanOrEqual(1);
+    const found = body.data.find((l: { id: string }) => l.id === loanId);
+    expect(found).toBeTruthy();
+    expect(found.amount).toBe(1000000);
+    expect(found.purpose).toBe("Modal Usaha");
+    expect(Number(found.paidAmount)).toBe(0);
+
+    // Cleanup
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("GET /api/v1/portal/profile and savings work for member JWT", async () => {
+    const memberId = `portal-prof-m-${Date.now()}`;
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, 'Anggota', 'Aktif', '01 Jan 2024', 500, 200, 100, 800)`,
+      [memberId, "Portal Profile Member"]
+    );
+    await db.run(
+      `INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+       VALUES (?, ?, 'setor_pokok', 500, 0, 500, CURRENT_TIMESTAMP, 'admin')`,
+      [`tx-${memberId}`, memberId]
+    );
+
+    const memberToken = await sign(
+      {
+        sub: memberId,
+        email: memberId,
+        role: "member",
+        exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      },
+      secretKey
+    );
+
+    const profileRes = await server.fetch(
+      new Request("http://localhost/api/v1/portal/profile", {
+        headers: { Authorization: `Bearer ${memberToken}` },
+      })
+    );
+    expect(profileRes.status).toBe(200);
+    const profileBody = await profileRes.json();
+    expect(profileBody.success).toBe(true);
+    expect(profileBody.data.name).toBe("Portal Profile Member");
+    expect(Number(profileBody.data.totalSavings)).toBe(800);
+
+    const txRes = await server.fetch(
+      new Request("http://localhost/api/v1/portal/savings/transactions", {
+        headers: { Authorization: `Bearer ${memberToken}` },
+      })
+    );
+    expect(txRes.status).toBe(200);
+    const txBody = await txRes.json();
+    expect(txBody.success).toBe(true);
+    expect(Array.isArray(txBody.data)).toBe(true);
+    expect(txBody.data.length).toBeGreaterThanOrEqual(1);
+
+    await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
   afterAll(async () => {
     try {
       // Clean up postgres test database tables.
