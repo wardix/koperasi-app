@@ -47,6 +47,7 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
     activeMembersRes,
     totalSavingsRes,
     totalLoansRes,
+    approvedLoansRes,
     totalMacetRes,
     roleRows,
     purposeRows,
@@ -67,6 +68,13 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
       WHERE l.status IN ('Disetujui', 'Macet')
         AND l.deletedAt IS NULL
     `).get<{ s: number | null }>(),
+    // Original plafon of currently approved loans (Disetujui + Macet)
+    db.query(`
+      SELECT COALESCE(SUM(amount), 0) as s, COUNT(*) as c
+      FROM loans
+      WHERE status IN ('Disetujui', 'Macet')
+        AND deletedAt IS NULL
+    `).get<{ s: number | null; c: number }>(),
     db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet' AND deletedAt IS NULL").get<{ s: number | null }>(),
     db.query("SELECT role, COUNT(*) as count FROM members WHERE deletedAt IS NULL GROUP BY role").all<GroupCount>(),
     db.query("SELECT purpose, COUNT(*) as count FROM loans WHERE deletedAt IS NULL GROUP BY purpose").all<GroupCount>(),
@@ -107,6 +115,8 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
   const activeMembers = toNumber(activeMembersRes?.c);
   const totalSavings = toNumber(totalSavingsRes?.s);
   const totalLoans = toNumber(totalLoansRes?.s);
+  const approvedLoansAmount = toNumber(approvedLoansRes?.s);
+  const approvedLoansCount = toNumber(approvedLoansRes?.c);
   const totalMacet = toNumber(totalMacetRes?.s);
 
   const totalActiveLoansPrincipal = totalLoans + totalMacet;
@@ -190,6 +200,8 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
     activeMembers: String(activeMembers),
     totalSavings,
     totalLoans,
+    approvedLoansAmount,
+    approvedLoansCount,
     npl: nplValue,
     roleData,
     purposeData,

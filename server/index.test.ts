@@ -30,6 +30,11 @@ describe("API Endpoints", () => {
     const body = raw_body.data;
     expect(body).toHaveProperty("activeMembers");
     expect(body).toHaveProperty("totalSavings");
+    expect(body).toHaveProperty("totalLoans");
+    expect(body).toHaveProperty("approvedLoansAmount");
+    expect(body).toHaveProperty("approvedLoansCount");
+    expect(typeof body.approvedLoansAmount).toBe("number");
+    expect(typeof body.approvedLoansCount).toBe("number");
   });
 
   test("GET /api/v1/members returns members array", async () => {
