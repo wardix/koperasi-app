@@ -24,6 +24,8 @@ export type AuditAction =
   | 'update_payment'
   | 'delete_payment'
   | 'update_loan_disbursement'
+  | 'regenerate_loan_schedule'
+  | 'replace_loan_schedule'
   | 'create_expense'
   | 'update_expense'
   | 'delete_expense'

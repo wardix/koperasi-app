@@ -225,25 +225,61 @@ async function generateInstallmentSchedule(
   await writeInstallmentSchedule(database, loan, bungaRatePercent);
 }
 
+export type ScheduleRowInput = {
+  installmentNo: number;
+  dueDate: string;
+  principalAmount: number;
+  interestAmount: number;
+};
+
+function assertEditableApprovedLoan(loan: LoanRow | null): asserts loan is LoanRow {
+  if (!loan || loan.deletedAt) {
+    throw new ServiceError("Loan not found", 404);
+  }
+  if (loan.status !== "Disetujui" && loan.status !== "Lunas" && loan.status !== "Macet") {
+    throw new ServiceError("Jadwal hanya bisa diubah untuk pinjaman yang sudah disetujui", 400);
+  }
+}
+
+export async function getLoanSchedule(
+  database: Db,
+  loanId: string
+): Promise<LoanScheduleRow[]> {
+  const loan = await database.query("SELECT id FROM loans WHERE id = ? AND deletedAt IS NULL").get(loanId);
+  if (!loan) {
+    throw new ServiceError("Loan not found", 404);
+  }
+  return database
+    .query(
+      `SELECT id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status, lateFee, paidAt
+       FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC`
+    )
+    .all<LoanScheduleRow>(loanId);
+}
+
 /**
- * Rebuild schedule for one loan with correct annuity principal/interest split.
+ * Rebuild schedule with annuity formula.
  * Preserves loan_payments and re-allocates them onto the new schedule.
- * Uses snapshot interestRate when present; otherwise current bungaPinjaman setting.
+ * @param options.interestRate — override rate (% p.a.); else uses loan snapshot / global setting
  */
 export async function regenerateLoanInstallmentSchedule(
   database: Db,
-  loanId: string
-): Promise<{ rows: number; monthlyPayment: number }> {
+  loanId: string,
+  options?: { interestRate?: number }
+): Promise<{ rows: number; monthlyPayment: number; interestRate: number; totalAmount: number }> {
   return database.transaction(async () => {
     const loan = await database.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
-    if (!loan) {
-      throw new ServiceError("Loan not found", 404);
-    }
+    assertEditableApprovedLoan(loan);
 
-    const snapRate = loan.interestRate != null ? Number(loan.interestRate) : NaN;
-    const bungaRatePercent = Number.isFinite(snapRate)
-      ? snapRate
-      : await getBungaRatePercent(database);
+    let bungaRatePercent: number;
+    if (options?.interestRate != null && Number.isFinite(options.interestRate)) {
+      bungaRatePercent = Number(options.interestRate);
+    } else {
+      const snapRate = loan.interestRate != null ? Number(loan.interestRate) : NaN;
+      bungaRatePercent = Number.isFinite(snapRate)
+        ? snapRate
+        : await getBungaRatePercent(database);
+    }
 
     // Prefer disbursement/approval date for due-date base
     const baseIso = loan.approvedAt || loan.createdAt;
@@ -261,7 +297,93 @@ export async function regenerateLoanInstallmentSchedule(
 
     await rebuildLoanPaymentAllocations(database, loanId);
 
-    return { rows: schedule.rows.length, monthlyPayment: schedule.monthlyPayment };
+    return {
+      rows: schedule.rows.length,
+      monthlyPayment: schedule.monthlyPayment,
+      interestRate: bungaRatePercent,
+      totalAmount: schedule.totalAmount,
+    };
+  })();
+}
+
+/**
+ * Replace installment schedule with manually provided rows.
+ * Sum of principalAmount must equal loan principal. Re-allocates existing payments.
+ */
+export async function replaceLoanInstallmentSchedule(
+  database: Db,
+  loanId: string,
+  rows: ScheduleRowInput[]
+): Promise<{ rows: number; totalAmount: number; interestAmount: number }> {
+  return database.transaction(async () => {
+    const loan = await database.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
+    assertEditableApprovedLoan(loan);
+
+    if (!rows.length) {
+      throw new ServiceError("Jadwal angsuran tidak boleh kosong", 400);
+    }
+
+    const sorted = [...rows].sort((a, b) => a.installmentNo - b.installmentNo);
+    for (let i = 0; i < sorted.length; i++) {
+      const row = sorted[i];
+      if (row.installmentNo !== i + 1) {
+        throw new ServiceError(`Nomor cicilan harus berurutan 1…${sorted.length}`, 400);
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(row.dueDate)) {
+        throw new ServiceError(`Format tanggal cicilan #${row.installmentNo} harus YYYY-MM-DD`, 400);
+      }
+      if (!Number.isFinite(row.principalAmount) || row.principalAmount < 0) {
+        throw new ServiceError(`Pokok cicilan #${row.installmentNo} tidak valid`, 400);
+      }
+      if (!Number.isFinite(row.interestAmount) || row.interestAmount < 0) {
+        throw new ServiceError(`Biaya admin cicilan #${row.installmentNo} tidak valid`, 400);
+      }
+    }
+
+    const sumPrincipal = sorted.reduce((s, r) => s + Math.round(r.principalAmount), 0);
+    const principal = Math.round(Number(loan.amount));
+    if (sumPrincipal !== principal) {
+      throw new ServiceError(
+        `Jumlah pokok jadwal (${sumPrincipal}) harus sama dengan plafon pinjaman (${principal})`,
+        400
+      );
+    }
+
+    const sumInterest = sorted.reduce((s, r) => s + Math.round(r.interestAmount), 0);
+    const totalAmount = sumPrincipal + sumInterest;
+    const tenorMonths = sorted.length;
+    const monthlyPayment = Math.ceil(totalAmount / tenorMonths);
+
+    await database.run(`DELETE FROM loan_schedules WHERE loanId = ?`, [loanId]);
+
+    for (const row of sorted) {
+      await database.run(
+        `
+        INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
+        VALUES (?, ?, ?, ?, ?, ?, 0, 'Pending')
+      `,
+        [
+          `${loanId}-${row.installmentNo}`,
+          loanId,
+          row.installmentNo,
+          row.dueDate,
+          Math.round(row.principalAmount),
+          Math.round(row.interestAmount),
+        ]
+      );
+    }
+
+    // Keep interestRate snapshot as-is (manual edit may diverge from rate formula)
+    await database.run(
+      `UPDATE loans SET monthlyPayment = ?, totalAmount = ?, interestAmount = ?,
+         scheduleGenerated = TRUE, totalInstallments = ?, tenor = ?
+       WHERE id = ?`,
+      [monthlyPayment, totalAmount, sumInterest, tenorMonths, tenorMonths, loanId]
+    );
+
+    await rebuildLoanPaymentAllocations(database, loanId);
+
+    return { rows: tenorMonths, totalAmount, interestAmount: sumInterest };
   })();
 }
 
