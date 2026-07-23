@@ -132,6 +132,11 @@ export const loanStatusSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
     .optional(),
+  /**
+   * Optional per-loan admin fee / interest rate (% p.a.) used to build installment schedule.
+   * When omitted on approve, falls back to settings.bungaPinjaman.
+   */
+  interestRate: z.number().min(0).max(100).optional(),
 })
 
 export const paymentSchema = z.object({

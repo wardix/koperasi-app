@@ -55,10 +55,14 @@ export class LoansPage {
     return this.page.locator("tr").filter({ hasText: borrowerName });
   }
 
-  async approveLoan(borrowerName: string) {
+  async approveLoan(borrowerName: string, interestRate?: string) {
     const row = this.getRow(borrowerName);
     const button = row.getByRole("button", { name: "Setujui" });
     await clickReactElement(button);
+    if (interestRate != null) {
+      await this.page.getByLabel("Biaya Admin (% per tahun)").fill(interestRate);
+    }
+    await this.page.getByRole("button", { name: "Setujui & Catat Pencairan" }).click();
   }
 
   async rejectLoan(borrowerName: string) {

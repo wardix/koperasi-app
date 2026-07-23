@@ -44,6 +44,9 @@ export interface LoanRow {
   paidAmount?: number;
   interestAmount?: number;
   totalAmount?: number;
+  /** Snapshot admin fee / interest rate (% p.a.) at approval */
+  interestRate?: number | null;
+  monthlyPayment?: number | null;
   /** Application / loan date (ISO) — set from loanDate on create */
   createdAt?: string;
   /** Disbursement / approval timestamp (ISO) */
