@@ -81,25 +81,33 @@ export default function LoansTemplate() {
     }
   }, [loansResponse]);
 
-  const handleUpdateStatus = useCallback((id: string, status: string, approvedDate?: string) => {
-    apiAction.execute(
-      () =>
-        api.put(`/api/loans/${id}/status`, {
-          status,
-          ...(approvedDate ? { approvedDate } : {}),
-        }),
-      {
-        successMsg: 'Status pinjaman berhasil diperbarui',
-        errorMsg: 'Terjadi kesalahan sistem',
-        onSuccess: () => {
-          setLocalLoans((loans) =>
-            loans.map((loan) => (loan.id === id ? { ...loan, status } : loan))
-          );
-          fetchLoans();
-        },
-      }
-    );
-  }, [apiAction, fetchLoans]);
+  const handleUpdateStatus = useCallback(
+    (
+      id: string,
+      status: string,
+      options?: { approvedDate?: string; interestRate?: number }
+    ) => {
+      apiAction.execute(
+        () =>
+          api.put(`/api/loans/${id}/status`, {
+            status,
+            ...(options?.approvedDate ? { approvedDate: options.approvedDate } : {}),
+            ...(options?.interestRate != null ? { interestRate: options.interestRate } : {}),
+          }),
+        {
+          successMsg: 'Status pinjaman berhasil diperbarui',
+          errorMsg: 'Terjadi kesalahan sistem',
+          onSuccess: () => {
+            setLocalLoans((loans) =>
+              loans.map((loan) => (loan.id === id ? { ...loan, status } : loan))
+            );
+            fetchLoans();
+          },
+        }
+      );
+    },
+    [apiAction, fetchLoans]
+  );
 
   const handleApproveLoan = useCallback(
     (loan: LoanRow) => {
@@ -107,8 +115,8 @@ export default function LoansTemplate() {
         <ApproveLoanDialogContent
           loan={loan}
           onClose={() => dialog.hide()}
-          onConfirm={(approvedDate) => {
-            handleUpdateStatus(loan.id, 'Disetujui', approvedDate);
+          onConfirm={({ approvedDate, interestRate }) => {
+            handleUpdateStatus(loan.id, 'Disetujui', { approvedDate, interestRate });
             dialog.hide();
           }}
         />

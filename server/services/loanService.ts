@@ -293,6 +293,11 @@ export async function regenerateAllLoanInstallmentSchedules(
 export type UpdateLoanStatusOptions = {
   /** YYYY-MM-DD disbursement date; defaults to loan createdAt then today */
   approvedDate?: string;
+  /**
+   * Per-loan admin fee / interest (% p.a.). When set on approve, overrides global
+   * bungaPinjaman for schedule generation and is snapshotted on the loan row.
+   */
+  interestRate?: number;
 };
 
 export async function updateLoanStatus(
@@ -330,7 +335,11 @@ export async function updateLoanStatus(
       );
       await stmt.run(status, approvedAt, approvedAt, loanId);
 
-      const bungaRatePercent = await getBungaRatePercent(database);
+      const globalRate = await getBungaRatePercent(database);
+      const bungaRatePercent =
+        options?.interestRate != null && Number.isFinite(options.interestRate)
+          ? Number(options.interestRate)
+          : globalRate;
 
       if (loan && !loan.scheduleGenerated) {
         const loanForSchedule = { ...loan, createdAt: approvedAt, amount: Number(loan.amount) };
