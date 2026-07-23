@@ -6,6 +6,11 @@ import type { MemberRow } from '../db/entities';
 import { loginSchema } from '../schemas';
 import { secretKey, checkRateLimit } from '../middleware';
 import { getClientIp } from '../lib/audit';
+import {
+  accessTokenExpUnix,
+  refreshTokenExpUnix,
+  REFRESH_TOKEN_TTL_SEC,
+} from '../lib/tokenTtl';
 
 const memberAuth = new Hono();
 
@@ -47,7 +52,7 @@ memberAuth.post('/login', async (c) => {
       email: member.email,
       role: 'member', // Member role is distinct from admin RBAC
       name: member.name,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+      exp: accessTokenExpUnix(),
     };
     
     const accessToken = await sign(payload, secretKey);
@@ -56,7 +61,7 @@ memberAuth.post('/login', async (c) => {
       sub: member.id,
       email: member.email,
       role: 'member',
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      exp: refreshTokenExpUnix(),
     };
     const refreshToken = await sign(refreshPayload, secretKey);
 
@@ -64,7 +69,7 @@ memberAuth.post('/login', async (c) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: REFRESH_TOKEN_TTL_SEC,
       path: '/'
     });
 
@@ -105,7 +110,7 @@ memberAuth.post('/refresh', async (c) => {
       email: member.email,
       role: 'member',
       name: member.name,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+      exp: accessTokenExpUnix(),
     };
     const newAccessToken = await sign(payload, secretKey);
 
@@ -113,7 +118,7 @@ memberAuth.post('/refresh', async (c) => {
       sub: member.id,
       email: member.email,
       role: 'member',
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      exp: refreshTokenExpUnix(),
     };
     const newRefreshToken = await sign(refreshPayload, secretKey);
 
@@ -121,7 +126,7 @@ memberAuth.post('/refresh', async (c) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: REFRESH_TOKEN_TTL_SEC,
       path: '/'
     });
 
