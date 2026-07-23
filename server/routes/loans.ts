@@ -4,6 +4,8 @@ import type { LoanPaymentRow, LoanRow } from '../db/entities'
 import {
   loanDisbursementDateSchema,
   loanSchema,
+  loanScheduleRegenerateSchema,
+  loanScheduleReplaceSchema,
   loanStatusSchema,
   paymentSchema,
   paymentUpdateSchema,
@@ -16,7 +18,10 @@ import {
   deleteLoanPayment,
   enrichLoanForList,
   getBungaRatePercent,
+  getLoanSchedule,
   recordLoanPayment,
+  regenerateLoanInstallmentSchedule,
+  replaceLoanInstallmentSchedule,
   updateLoanDisbursementDate,
   updateLoanPayment,
   updateLoanStatus,
@@ -220,6 +225,97 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
       limit
     }
   })
+})
+
+loans.get('/:id/schedule', requirePermission('read:loans'), async (c) => {
+  try {
+    const id = requireRouteParam(c, 'id')
+    const schedule = await getLoanSchedule(db, id)
+    return c.json({ success: true, data: schedule })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+loans.post('/:id/schedule/regenerate', requirePermission('approve:loans'), async (c) => {
+  const body = await c.req.json()
+  const parsed = loanScheduleRegenerateSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  try {
+    const id = requireRouteParam(c, 'id')
+    const result = await regenerateLoanInstallmentSchedule(db, id, {
+      interestRate: parsed.data.interestRate,
+    })
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'regenerate_loan_schedule',
+      entity: 'loans',
+      entityId: id,
+      after: {
+        scheduleRegenerated: true,
+        interestRate: result.interestRate,
+        monthlyPayment: result.monthlyPayment,
+        totalAmount: result.totalAmount,
+        rows: result.rows,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+    return c.json({
+      success: true,
+      message: 'Jadwal angsuran di-generate ulang',
+      data: result,
+    })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+loans.put('/:id/schedule', requirePermission('approve:loans'), async (c) => {
+  const body = await c.req.json()
+  const parsed = loanScheduleReplaceSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  try {
+    const id = requireRouteParam(c, 'id')
+    const result = await replaceLoanInstallmentSchedule(db, id, parsed.data.rows)
+
+    await audit(db, {
+      actor: getActor(c),
+      action: 'replace_loan_schedule',
+      entity: 'loans',
+      entityId: id,
+      after: {
+        scheduleManualReplace: true,
+        rows: result.rows,
+        totalAmount: result.totalAmount,
+        interestAmount: result.interestAmount,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+    return c.json({
+      success: true,
+      message: 'Jadwal angsuran disimpan',
+      data: result,
+    })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
 })
 
 loans.get('/:id/payments', requirePermission('read:loans'), async (c) => {

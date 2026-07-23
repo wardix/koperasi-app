@@ -168,6 +168,27 @@ export const loanDisbursementDateSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
 })
 
+/** Regenerate installment schedule with optional new admin-fee rate (% p.a.). */
+export const loanScheduleRegenerateSchema = z.object({
+  interestRate: z.number().min(0).max(100),
+})
+
+/** Replace full installment schedule (manual edit). */
+export const loanScheduleReplaceSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        installmentNo: z.number().int().positive(),
+        dueDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
+        principalAmount: z.number().int().nonnegative(),
+        interestAmount: z.number().int().nonnegative(),
+      })
+    )
+    .min(1, "Minimal satu baris jadwal"),
+})
+
 // Common passwords blocklist (top 100 most common)
 const COMMON_PASSWORDS = [
   'password', '123456789', 'qwerty123', 'admin123', 'letmein1',

@@ -7,6 +7,7 @@ import {
   deleteLoanPayment,
   recordLoanPayment,
   regenerateLoanInstallmentSchedule,
+  replaceLoanInstallmentSchedule,
   resolveLoanTotalAmount,
   updateLoanDisbursementDate,
   updateLoanPayment,
@@ -316,6 +317,114 @@ describe("loanService", () => {
     expect(Number(schedules[0].principalAmount)).toBeLessThan(Number(schedules[1].principalAmount));
     expect(Number(schedules[0].interestAmount)).toBeGreaterThan(Number(schedules[1].interestAmount));
 
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("regenerateLoanInstallmentSchedule accepts a new interestRate override", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Regen Rate ${memberId}`;
+    const principal = 5_000_000;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, principal, 6, "Test", "Menunggu", "2024-01-01T00:00:00.000Z"]
+    );
+    await updateLoanStatus(db, loanId, "Disetujui", { approvedDate: "2024-01-01", interestRate: 18 });
+
+    const before = await db
+      .query("SELECT monthlyPayment, interestRate FROM loans WHERE id = ?")
+      .get<{ monthlyPayment: number; interestRate: number }>(loanId);
+
+    const result = await regenerateLoanInstallmentSchedule(db, loanId, { interestRate: 10 });
+    expect(result.interestRate).toBe(10);
+
+    const after = await db
+      .query("SELECT monthlyPayment, interestRate FROM loans WHERE id = ?")
+      .get<{ monthlyPayment: number; interestRate: number }>(loanId);
+    expect(Number(after?.interestRate)).toBe(10);
+    expect(Number(after?.monthlyPayment)).not.toBe(Number(before?.monthlyPayment));
+    expect(Number(after?.monthlyPayment)).toBe(calculateLoanInterest(principal, 6, 10).monthlyPayment);
+
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("replaceLoanInstallmentSchedule validates principal sum and keeps payments", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Manual Sched ${memberId}`;
+    const principal = 1_000_000;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, principal, 2, "Test", "Menunggu", "2024-01-01T00:00:00.000Z"]
+    );
+    await updateLoanStatus(db, loanId, "Disetujui", { approvedDate: "2024-01-01", interestRate: 0 });
+
+    await recordLoanPayment(db, loanId, {
+      amount: 500_000,
+      method: "Transfer",
+      paymentDate: "2024-02-01",
+    });
+
+    await expect(
+      replaceLoanInstallmentSchedule(db, loanId, [
+        { installmentNo: 1, dueDate: "2024-02-01", principalAmount: 400_000, interestAmount: 10_000 },
+        { installmentNo: 2, dueDate: "2024-03-01", principalAmount: 400_000, interestAmount: 10_000 },
+      ])
+    ).rejects.toMatchObject({ status: 400 });
+
+    const result = await replaceLoanInstallmentSchedule(db, loanId, [
+      { installmentNo: 1, dueDate: "2099-02-15", principalAmount: 600_000, interestAmount: 50_000 },
+      { installmentNo: 2, dueDate: "2099-03-15", principalAmount: 400_000, interestAmount: 20_000 },
+    ]);
+    expect(result.rows).toBe(2);
+    expect(result.interestAmount).toBe(70_000);
+    expect(result.totalAmount).toBe(1_070_000);
+
+    const rows = await db
+      .query(
+        `SELECT installmentNo, principalAmount, interestAmount, paidAmount, status
+         FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo`
+      )
+      .all<{
+        installmentNo: number;
+        principalAmount: number;
+        interestAmount: number;
+        paidAmount: number;
+        status: string;
+      }>(loanId);
+
+    expect(Number(rows[0].principalAmount)).toBe(600_000);
+    expect(Number(rows[0].interestAmount)).toBe(50_000);
+    // 500k payment allocated to first installment (due 650k)
+    expect(Number(rows[0].paidAmount)).toBe(500_000);
+    expect(rows[0].status).toBe("Pending");
+
+    const loan = await db
+      .query("SELECT totalAmount, interestAmount, totalInstallments FROM loans WHERE id = ?")
+      .get<{ totalAmount: number; interestAmount: number; totalInstallments: number }>(loanId);
+    expect(Number(loan?.totalAmount)).toBe(1_070_000);
+    expect(Number(loan?.interestAmount)).toBe(70_000);
+    expect(Number(loan?.totalInstallments)).toBe(2);
+
+    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
     await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
     await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);

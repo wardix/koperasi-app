@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useMemo} from 'react';
+import {useState, useMemo, useEffect, useCallback} from 'react';
 import {DialogHeader} from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -18,7 +18,7 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {PencilSquareIcon, TrashIcon} from '@heroicons/react/24/outline';
 import {useApiQuery} from '../hooks/useApiQuery';
-import {api} from '../services/api';
+import {api, ApiError} from '../services/api';
 import {useToast} from '@astryxdesign/core/Toast';
 import type {LoanRow} from '../shared/types';
 import {formatAmountInput, formatRp, parseAmountInput} from '../utils/format';
@@ -33,6 +33,26 @@ interface Payment {
   paymentDate: string;
   method: string;
 }
+
+interface ScheduleRow {
+  id: string;
+  installmentNo: number;
+  dueDate: string;
+  principalAmount: number;
+  interestAmount: number;
+  paidAmount: number;
+  status: string;
+}
+
+/** Editable draft row (amounts as formatted strings for inputs). */
+type ScheduleDraft = {
+  installmentNo: number;
+  dueDate: string;
+  principalAmount: string;
+  interestAmount: string;
+  paidAmount: number;
+  status: string;
+};
 
 function todayIsoDate(): string {
   const d = new Date();
@@ -51,10 +71,27 @@ function toIsoDateInput(value: string): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function errMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError && err.message) return err.message;
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+function scheduleToDraft(rows: ScheduleRow[]): ScheduleDraft[] {
+  return rows.map((r) => ({
+    installmentNo: r.installmentNo,
+    dueDate: toIsoDateInput(r.dueDate),
+    principalAmount: formatAmountInput(String(Math.round(Number(r.principalAmount)))),
+    interestAmount: formatAmountInput(String(Math.round(Number(r.interestAmount)))),
+    paidAmount: Number(r.paidAmount || 0),
+    status: r.status,
+  }));
+}
+
 export function LoanDetailDialogContent({
   loan,
   onClose,
-  onUpdate
+  onUpdate,
 }: {
   loan: LoanRow;
   onClose: () => void;
@@ -70,29 +107,66 @@ export function LoanDetailDialogContent({
     toIsoDateInput(loan.approvedAt || loan.createdAt || todayIsoDate())
   );
   const [isEditingDisbursement, setIsEditingDisbursement] = useState(false);
-  const toast = useToast();
-  const { hasPermission } = useAuth();
-  const canManagePayments = hasPermission('create:payments');
-  const canEditDisbursement =
-    hasPermission('approve:loans') &&
-    (loan.status === 'Disetujui' || loan.status === 'Lunas' || loan.status === 'Macet');
+  const [rateInput, setRateInput] = useState(
+    loan.interestRate != null ? String(loan.interestRate) : '18'
+  );
+  const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft[]>([]);
+  const [isEditingSchedule, setIsEditingSchedule] = useState(false);
 
-  const { data: payments, isLoading, refetch } = useApiQuery<Payment[]>(`/api/loans/${loan.id}/payments`);
+  const toast = useToast();
+  const {hasPermission} = useAuth();
+  const canManagePayments = hasPermission('create:payments');
+  const isApproved =
+    loan.status === 'Disetujui' || loan.status === 'Lunas' || loan.status === 'Macet';
+  const canEditDisbursement = hasPermission('approve:loans') && isApproved;
+  const canEditSchedule = hasPermission('approve:loans') && isApproved;
+
+  const {data: payments, isLoading, refetch} = useApiQuery<Payment[]>(
+    `/api/loans/${loan.id}/payments`
+  );
+  const {
+    data: schedule,
+    isLoading: scheduleLoading,
+    refetch: refetchSchedule,
+  } = useApiQuery<ScheduleRow[]>(`/api/loans/${loan.id}/schedule`);
+
+  useEffect(() => {
+    if (schedule && !isEditingSchedule) {
+      setScheduleDraft(scheduleToDraft(schedule));
+    }
+  }, [schedule, isEditingSchedule]);
+
+  useEffect(() => {
+    if (loan.interestRate != null) {
+      setRateInput(String(loan.interestRate));
+    }
+  }, [loan.interestRate]);
 
   const tenorBulan = Number(loan.tenor) || 1;
   const pokok = Number(loan.amount);
-  const bunga = Number(loan.interestAmount || 0);
-  const totalHutang = Number(loan.totalAmount || (pokok + bunga));
+  const biayaAdmin = Number(loan.interestAmount || 0);
+  const totalHutang = Number(loan.totalAmount || pokok + biayaAdmin);
   const angsuranPerBulan = Math.ceil(totalHutang / tenorBulan);
-  
+
   const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
   const remainingDebt = totalHutang - totalPaid;
   const displayDisbursementDate = loan.approvedAt || loan.createdAt;
 
-  const refreshAll = () => {
+  const draftPrincipalSum = useMemo(
+    () => scheduleDraft.reduce((s, r) => s + parseAmountInput(r.principalAmount), 0),
+    [scheduleDraft]
+  );
+  const draftAdminSum = useMemo(
+    () => scheduleDraft.reduce((s, r) => s + parseAmountInput(r.interestAmount), 0),
+    [scheduleDraft]
+  );
+  const principalMismatch = scheduleDraft.length > 0 && draftPrincipalSum !== pokok;
+
+  const refreshAll = useCallback(() => {
     refetch();
+    refetchSchedule();
     onUpdate();
-  };
+  }, [refetch, refetchSchedule, onUpdate]);
 
   const handleSaveDisbursementDate = async () => {
     if (!disbursementDate) return;
@@ -101,20 +175,91 @@ export function LoanDetailDialogContent({
       await api.put(`/api/loans/${loan.id}/disbursement-date`, {
         disbursementDate,
       });
-      toast({ body: 'Tanggal pencairan diperbarui', type: 'info' });
+      toast({body: 'Tanggal pencairan diperbarui', type: 'info'});
       setIsEditingDisbursement(false);
       refreshAll();
-    } catch {
-      toast({ body: 'Gagal mengubah tanggal pencairan', type: 'error' });
+    } catch (err) {
+      toast({body: errMessage(err, 'Gagal mengubah tanggal pencairan'), type: 'error'});
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleRegenerateSchedule = async () => {
+    const rate = Number(String(rateInput).replace(',', '.'));
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+      toast({body: 'Biaya admin harus 0–100 (% per tahun)', type: 'error'});
+      return;
+    }
+    if (
+      !window.confirm(
+        `Generate ulang jadwal angsuran dengan biaya admin ${rate}% p.a.?\n` +
+          'Pembayaran yang sudah ada akan dialokasikan ulang ke jadwal baru.'
+      )
+    ) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await api.post(`/api/loans/${loan.id}/schedule/regenerate`, {interestRate: rate});
+      toast({body: 'Jadwal angsuran di-generate ulang', type: 'info'});
+      setIsEditingSchedule(false);
+      refreshAll();
+    } catch (err) {
+      toast({body: errMessage(err, 'Gagal generate jadwal'), type: 'error'});
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!scheduleDraft.length) {
+      toast({body: 'Jadwal kosong', type: 'error'});
+      return;
+    }
+    if (principalMismatch) {
+      toast({
+        body: `Jumlah pokok jadwal (${formatRp(draftPrincipalSum)}) harus sama dengan plafon (${formatRp(pokok)})`,
+        type: 'error',
+      });
+      return;
+    }
+    if (
+      !window.confirm(
+        'Simpan perubahan jadwal angsuran? Pembayaran yang sudah ada akan dialokasikan ulang.'
+      )
+    ) {
+      return;
+    }
+
+    const rows = scheduleDraft.map((r) => ({
+      installmentNo: r.installmentNo,
+      dueDate: r.dueDate,
+      principalAmount: parseAmountInput(r.principalAmount),
+      interestAmount: parseAmountInput(r.interestAmount),
+    }));
+
+    setIsSubmitting(true);
+    try {
+      await api.put(`/api/loans/${loan.id}/schedule`, {rows});
+      toast({body: 'Jadwal angsuran disimpan', type: 'info'});
+      setIsEditingSchedule(false);
+      refreshAll();
+    } catch (err) {
+      toast({body: errMessage(err, 'Gagal menyimpan jadwal'), type: 'error'});
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const updateDraftRow = (index: number, patch: Partial<ScheduleDraft>) => {
+    setScheduleDraft((prev) => prev.map((row, i) => (i === index ? {...row, ...patch} : row)));
+  };
+
   const handlePay = async () => {
     const amount = parseAmountInput(payAmount);
     if (!amount || amount <= 0 || amount > remainingDebt || !paymentDate) return;
-    
+
     setIsSubmitting(true);
     try {
       await api.post(`/api/loans/${loan.id}/payments`, {
@@ -122,13 +267,13 @@ export function LoanDetailDialogContent({
         method: 'Transfer',
         paymentDate,
       });
-      
+
       toast({body: 'Pembayaran berhasil', type: 'info'});
       setPayAmount('');
       setPaymentDate(todayIsoDate());
       refreshAll();
     } catch (err) {
-      toast({body: 'Gagal melakukan pembayaran', type: 'error'});
+      toast({body: errMessage(err, 'Gagal melakukan pembayaran'), type: 'error'});
     } finally {
       setIsSubmitting(false);
     }
@@ -149,7 +294,6 @@ export function LoanDetailDialogContent({
   const handleSaveEdit = async () => {
     if (!editing) return;
     const amount = parseAmountInput(editAmount);
-    // When editing, max remaining is current remaining + this payment's amount
     const maxAllowed = remainingDebt + Number(editing.amount);
     if (!amount || amount <= 0 || amount > maxAllowed || !editDate) return;
 
@@ -164,14 +308,18 @@ export function LoanDetailDialogContent({
       cancelEdit();
       refreshAll();
     } catch (err) {
-      toast({body: 'Gagal mengubah pembayaran', type: 'error'});
+      toast({body: errMessage(err, 'Gagal mengubah pembayaran'), type: 'error'});
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (payment: Payment) => {
-    if (!window.confirm(`Hapus angsuran ${formatRp(payment.amount)}? Jadwal dan sisa hutang akan dihitung ulang.`)) {
+    if (
+      !window.confirm(
+        `Hapus angsuran ${formatRp(payment.amount)}? Jadwal dan sisa hutang akan dihitung ulang.`
+      )
+    ) {
       return;
     }
     setIsSubmitting(true);
@@ -181,7 +329,7 @@ export function LoanDetailDialogContent({
       if (editing?.id === payment.id) cancelEdit();
       refreshAll();
     } catch (err) {
-      toast({body: 'Gagal menghapus pembayaran', type: 'error'});
+      toast({body: errMessage(err, 'Gagal menghapus pembayaran'), type: 'error'});
     } finally {
       setIsSubmitting(false);
     }
@@ -196,7 +344,9 @@ export function LoanDetailDialogContent({
         renderCell: (item: Payment) => (
           <Text type="body">
             {new Date(item.paymentDate).toLocaleDateString('id-ID', {
-              day: '2-digit', month: 'short', year: 'numeric',
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
             })}
           </Text>
         ),
@@ -264,29 +414,67 @@ export function LoanDetailDialogContent({
         <LayoutContent padding={4}>
           <VStack gap={6}>
             <HStack gap={4}>
-              <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: 'var(--color-background-secondary, #f9fafb)', borderRadius: 8 }}>
-                <Text type="supporting" color="secondary">Pokok</Text>
+              <VStack
+                gap={1}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                  borderRadius: 8,
+                }}
+              >
+                <Text type="supporting" color="secondary">
+                  Pokok
+                </Text>
                 <Heading level={3}>{formatRp(pokok)}</Heading>
               </VStack>
-              <VStack gap={1} style={{ flex: 1, padding: 12, backgroundColor: 'var(--color-background-secondary, #f9fafb)', borderRadius: 8 }}>
-                <Text type="supporting" color="secondary">Total Bunga</Text>
-                <Heading level={3}>{formatRp(bunga)}</Heading>
+              <VStack
+                gap={1}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                  borderRadius: 8,
+                }}
+              >
+                <Text type="supporting" color="secondary">
+                  Total Biaya Admin
+                </Text>
+                <Heading level={3}>{formatRp(biayaAdmin)}</Heading>
               </VStack>
             </HStack>
             <HStack gap={4}>
-              <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: 'var(--color-background-secondary, #f9fafb)', borderRadius: 8 }}>
-                <Text type="supporting" color="secondary">Total Hutang</Text>
+              <VStack
+                gap={1}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                  borderRadius: 8,
+                }}
+              >
+                <Text type="supporting" color="secondary">
+                  Total Hutang
+                </Text>
                 <Heading level={3}>{formatRp(totalHutang)}</Heading>
               </VStack>
-              <VStack gap={1} style={{ flex: 1, padding: 16, backgroundColor: 'var(--color-background-secondary, #f9fafb)', borderRadius: 8 }}>
-                <Text type="supporting" color="secondary">Sisa Hutang</Text>
-                <Heading level={3}>
-                  {formatRp(Math.max(0, remainingDebt))}
-                </Heading>
+              <VStack
+                gap={1}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                  borderRadius: 8,
+                }}
+              >
+                <Text type="supporting" color="secondary">
+                  Sisa Hutang
+                </Text>
+                <Heading level={3}>{formatRp(Math.max(0, remainingDebt))}</Heading>
               </VStack>
             </HStack>
 
-            {(loan.status === 'Disetujui' || loan.status === 'Lunas' || loan.status === 'Macet') && (
+            {isApproved && (
               <VStack
                 gap={3}
                 style={{
@@ -296,9 +484,11 @@ export function LoanDetailDialogContent({
                   backgroundColor: 'var(--color-background-secondary, #f9fafb)',
                 }}
               >
-                <HStack hAlign="space-between" vAlign="center" style={{ width: '100%' }}>
+                <HStack hAlign="space-between" vAlign="center" style={{width: '100%'}}>
                   <VStack gap={1}>
-                    <Text type="body" weight="bold">Tanggal Pencairan</Text>
+                    <Text type="body" weight="bold">
+                      Tanggal Pencairan
+                    </Text>
                     <Text type="supporting" color="secondary">
                       Dipakai di Arus Kas & Transaksi Pinjaman (baris pencairan)
                     </Text>
@@ -357,6 +547,261 @@ export function LoanDetailDialogContent({
               </VStack>
             )}
 
+            {isApproved && (
+              <VStack
+                gap={4}
+                style={{
+                  padding: 'var(--spacing-4)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: '1px solid var(--color-border-primary, #e5e7eb)',
+                }}
+              >
+                <HStack hAlign="space-between" vAlign="center" wrap="wrap" gap={2}>
+                  <VStack gap={1}>
+                    <Heading level={4}>Jadwal Angsuran</Heading>
+                    <Text type="supporting" color="secondary">
+                      Rate saat ini:{' '}
+                      {loan.interestRate != null ? `${loan.interestRate}% p.a.` : '—'} ·{' '}
+                      {schedule?.length ?? 0} cicilan
+                    </Text>
+                  </VStack>
+                  {canEditSchedule && !isEditingSchedule && (
+                    <Button
+                      label="Edit Jadwal"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        if (schedule) setScheduleDraft(scheduleToDraft(schedule));
+                        setIsEditingSchedule(true);
+                      }}
+                      isDisabled={scheduleLoading || !schedule?.length}
+                    />
+                  )}
+                </HStack>
+
+                {canEditSchedule && (
+                  <VStack
+                    gap={3}
+                    style={{
+                      padding: 'var(--spacing-3)',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                    }}
+                  >
+                    <Text type="body" weight="semibold">
+                      Generate ulang dengan rate baru
+                    </Text>
+                    <Text type="supporting" color="secondary">
+                      Mengganti seluruh jadwal pakai rumus anuitas. Pembayaran tetap ada dan
+                      dialokasikan ulang.
+                    </Text>
+                    <HStack gap={3} wrap="wrap" vAlign="end">
+                      <div style={{minWidth: 160, flex: 1}}>
+                        <TextInput
+                          label="Biaya Admin (% p.a.)"
+                          value={rateInput}
+                          onChange={(raw) => setRateInput(raw.replace(/[^\d.,]/g, ''))}
+                          type="text"
+                          placeholder="18"
+                        />
+                      </div>
+                      <Button
+                        label="Generate Ulang"
+                        variant="primary"
+                        onClick={handleRegenerateSchedule}
+                        isDisabled={isSubmitting}
+                      />
+                    </HStack>
+                  </VStack>
+                )}
+
+                {scheduleLoading ? (
+                  <Center style={{height: 80}}>
+                    <Spinner size="md" />
+                  </Center>
+                ) : !scheduleDraft.length ? (
+                  <Text type="supporting" color="secondary">
+                    Belum ada jadwal angsuran.
+                  </Text>
+                ) : isEditingSchedule ? (
+                  <VStack gap={3}>
+                    <Text
+                      type="supporting"
+                      color="secondary"
+                      style={
+                        principalMismatch
+                          ? { color: 'var(--color-text-critical, red)' }
+                          : undefined
+                      }
+                    >
+                      Jumlah pokok semua baris harus = plafon ({formatRp(pokok)}). Saat ini:{' '}
+                      {formatRp(draftPrincipalSum)} · Total biaya admin: {formatRp(draftAdminSum)}
+                    </Text>
+                    <div style={{overflowX: 'auto', width: '100%'}}>
+                      <table
+                        style={{
+                          width: '100%',
+                          borderCollapse: 'collapse',
+                          fontSize: 'var(--font-size-sm, 13px)',
+                        }}
+                      >
+                        <thead>
+                          <tr>
+                            <th style={{textAlign: 'left', padding: '6px 4px'}}>#</th>
+                            <th style={{textAlign: 'left', padding: '6px 4px'}}>Jatuh Tempo</th>
+                            <th style={{textAlign: 'left', padding: '6px 4px'}}>Pokok</th>
+                            <th style={{textAlign: 'left', padding: '6px 4px'}}>Biaya Admin</th>
+                            <th style={{textAlign: 'left', padding: '6px 4px'}}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scheduleDraft.map((row, index) => (
+                            <tr key={row.installmentNo}>
+                              <td style={{padding: '6px 4px'}}>{row.installmentNo}</td>
+                              <td style={{padding: '6px 4px', minWidth: 140}}>
+                                <input
+                                  type="date"
+                                  value={row.dueDate}
+                                  onChange={(e) =>
+                                    updateDraftRow(index, {dueDate: e.target.value})
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: 6,
+                                    border: '1px solid var(--color-border-primary, #ccc)',
+                                  }}
+                                />
+                              </td>
+                              <td style={{padding: '6px 4px', minWidth: 120}}>
+                                <input
+                                  type="text"
+                                  value={row.principalAmount}
+                                  onChange={(e) =>
+                                    updateDraftRow(index, {
+                                      principalAmount: formatAmountInput(e.target.value),
+                                    })
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: 6,
+                                    border: '1px solid var(--color-border-primary, #ccc)',
+                                  }}
+                                />
+                              </td>
+                              <td style={{padding: '6px 4px', minWidth: 120}}>
+                                <input
+                                  type="text"
+                                  value={row.interestAmount}
+                                  onChange={(e) =>
+                                    updateDraftRow(index, {
+                                      interestAmount: formatAmountInput(e.target.value),
+                                    })
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: 6,
+                                    border: '1px solid var(--color-border-primary, #ccc)',
+                                  }}
+                                />
+                              </td>
+                              <td style={{padding: '6px 4px'}}>
+                                <Text type="supporting">
+                                  {row.status === 'Paid'
+                                    ? 'Lunas'
+                                    : row.status === 'Late'
+                                      ? 'Terlambat'
+                                      : 'Belum'}
+                                </Text>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <HStack gap={2} hAlign="end">
+                      <Button
+                        label="Batal"
+                        variant="secondary"
+                        onClick={() => {
+                          if (schedule) setScheduleDraft(scheduleToDraft(schedule));
+                          setIsEditingSchedule(false);
+                        }}
+                        isDisabled={isSubmitting}
+                      />
+                      <Button
+                        label="Simpan Jadwal"
+                        variant="primary"
+                        onClick={handleSaveSchedule}
+                        isDisabled={isSubmitting || principalMismatch}
+                      />
+                    </HStack>
+                  </VStack>
+                ) : (
+                  <div style={{overflowX: 'auto', width: '100%'}}>
+                    <table
+                      style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        fontSize: 'var(--font-size-sm, 13px)',
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th style={{textAlign: 'left', padding: '8px 4px'}}>#</th>
+                          <th style={{textAlign: 'left', padding: '8px 4px'}}>Jatuh Tempo</th>
+                          <th style={{textAlign: 'right', padding: '8px 4px'}}>Pokok</th>
+                          <th style={{textAlign: 'right', padding: '8px 4px'}}>Biaya Admin</th>
+                          <th style={{textAlign: 'right', padding: '8px 4px'}}>Tagihan</th>
+                          <th style={{textAlign: 'left', padding: '8px 4px'}}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scheduleDraft.map((row) => {
+                          const p = parseAmountInput(row.principalAmount);
+                          const i = parseAmountInput(row.interestAmount);
+                          return (
+                            <tr
+                              key={row.installmentNo}
+                              style={{
+                                borderTop: '1px solid var(--color-border-primary, #eee)',
+                              }}
+                            >
+                              <td style={{padding: '8px 4px'}}>{row.installmentNo}</td>
+                              <td style={{padding: '8px 4px'}}>
+                                {new Date(row.dueDate + 'T00:00:00').toLocaleDateString(
+                                  'id-ID',
+                                  {day: '2-digit', month: 'short', year: 'numeric'}
+                                )}
+                              </td>
+                              <td style={{padding: '8px 4px', textAlign: 'right'}}>
+                                {formatRp(p)}
+                              </td>
+                              <td style={{padding: '8px 4px', textAlign: 'right'}}>
+                                {formatRp(i)}
+                              </td>
+                              <td style={{padding: '8px 4px', textAlign: 'right'}}>
+                                {formatRp(p + i)}
+                              </td>
+                              <td style={{padding: '8px 4px'}}>
+                                {row.status === 'Paid'
+                                  ? 'Lunas'
+                                  : row.status === 'Late'
+                                    ? 'Terlambat'
+                                    : 'Belum'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </VStack>
+            )}
+
             {remainingDebt > 0 && canManagePayments && (
               <VStack gap={4}>
                 <Heading level={4}>Bayar Angsuran</Heading>
@@ -384,7 +829,12 @@ export function LoanDetailDialogContent({
                     <Button
                       label="Bayar"
                       onClick={handlePay}
-                      disabled={!payAmount || parseAmountInput(payAmount) <= 0 || !paymentDate || isSubmitting}
+                      disabled={
+                        !payAmount ||
+                        parseAmountInput(payAmount) <= 0 ||
+                        !paymentDate ||
+                        isSubmitting
+                      }
                     />
                   </HStack>
                 </VStack>
@@ -403,7 +853,8 @@ export function LoanDetailDialogContent({
               >
                 <Heading level={4}>Ubah Angsuran</Heading>
                 <Text type="supporting" color="secondary">
-                  Ubah nominal atau tanggal. Alokasi jadwal dan sisa hutang dihitung ulang otomatis.
+                  Ubah nominal atau tanggal. Alokasi jadwal dan sisa hutang dihitung ulang
+                  otomatis.
                 </Text>
                 <TextInput
                   label="Nominal (Rp)"
@@ -419,7 +870,12 @@ export function LoanDetailDialogContent({
                   isRequired
                 />
                 <HStack gap={2} hAlign="end">
-                  <Button label="Batal" variant="secondary" onClick={cancelEdit} isDisabled={isSubmitting} />
+                  <Button
+                    label="Batal"
+                    variant="secondary"
+                    onClick={cancelEdit}
+                    isDisabled={isSubmitting}
+                  />
                   <Button
                     label="Simpan Perubahan"
                     variant="primary"
@@ -438,7 +894,9 @@ export function LoanDetailDialogContent({
             <VStack gap={4}>
               <Heading level={4}>Riwayat Pembayaran</Heading>
               {isLoading ? (
-                <Center style={{height: 100}}><Spinner size="lg" /></Center>
+                <Center style={{height: 100}}>
+                  <Spinner size="lg" />
+                </Center>
               ) : payments && payments.length > 0 ? (
                 <Table<Payment>
                   data={payments}
@@ -448,7 +906,9 @@ export function LoanDetailDialogContent({
                   dividers="rows"
                 />
               ) : (
-                <Text type="supporting" color="secondary">Belum ada riwayat pembayaran.</Text>
+                <Text type="supporting" color="secondary">
+                  Belum ada riwayat pembayaran.
+                </Text>
               )}
             </VStack>
           </VStack>
