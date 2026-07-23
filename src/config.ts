@@ -52,15 +52,23 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   if (res.status === 401 && !isAuthRefreshPath && !isAuthLoginPath && !isPublicApiPath(path)) {
     const refreshRes = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
-      credentials: 'include'
+      credentials: 'include',
     });
     if (refreshRes.ok) {
       const data = await refreshRes.json();
-      if (data.success && data.token) {
-        localStorage.setItem('token', data.token);
+      // API shape: { success, data: { token } } (also accept legacy top-level token)
+      const newToken =
+        (data?.data && typeof data.data.token === 'string' && data.data.token) ||
+        (typeof data?.token === 'string' && data.token) ||
+        null;
+      if (data.success && newToken) {
+        localStorage.setItem('token', newToken);
         // Retry original request with new token
-        headers['Authorization'] = `Bearer ${data.token}`;
-        res = await fetch(apiUrl(path), { ...options, headers });
+        const retryHeaders = {
+          ...headers,
+          Authorization: `Bearer ${newToken}`,
+        };
+        res = await fetch(apiUrl(path), { ...options, headers: retryHeaders });
       } else {
         clearSessionAndRedirectToLogin();
       }

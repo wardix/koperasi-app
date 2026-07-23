@@ -8,6 +8,12 @@ import { secretKey, checkRateLimit, rateLimitLogin } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
 import { generateSecret, verifyToken, generateRecoveryCodes, totpUrl } from '../lib/totp'
 import { getClientIp } from '../lib/audit'
+import {
+  accessTokenExpUnix,
+  refreshTokenExpUnix,
+  ACCESS_TOKEN_TTL_SEC,
+  REFRESH_TOKEN_TTL_SEC,
+} from '../lib/tokenTtl'
 
 const auth = new Hono()
 
@@ -73,7 +79,7 @@ auth.post('/login', async (c) => {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+      exp: accessTokenExpUnix(),
       jti: accessJti // Unique ID for token blacklist by jti
     }
     const accessToken = await sign(payload, secretKey)
@@ -82,7 +88,7 @@ auth.post('/login', async (c) => {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      exp: refreshTokenExpUnix(),
       jti: refreshJti // Unique ID for refresh token tracking/revocation
     }
     const refreshToken = await sign(refreshPayload, secretKey)
@@ -91,11 +97,19 @@ auth.post('/login', async (c) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: REFRESH_TOKEN_TTL_SEC,
       path: '/'
     })
 
-    return c.json({ success: true, message: 'Login successful', data: { token: accessToken, role: admin.role } })
+    return c.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        token: accessToken,
+        role: admin.role,
+        expiresIn: ACCESS_TOKEN_TTL_SEC,
+      },
+    })
   } catch (error) {
     throw error
   }
@@ -168,7 +182,7 @@ auth.post('/google', async (c) => {
       sub: admin.id,
       email: admin.email || googleUser.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+      exp: accessTokenExpUnix(),
       jti: accessJti // Unique ID for token blacklist by jti
     };
     const accessToken = await sign(payload, secretKey);
@@ -177,7 +191,7 @@ auth.post('/google', async (c) => {
       sub: admin.id,
       email: admin.email || googleUser.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
+      exp: refreshTokenExpUnix(),
       jti: refreshJti // Unique ID for refresh token tracking/revocation
     };
     const refreshToken = await sign(refreshPayload, secretKey);
@@ -186,7 +200,7 @@ auth.post('/google', async (c) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: REFRESH_TOKEN_TTL_SEC,
       path: '/'
     });
 
@@ -196,7 +210,8 @@ auth.post('/google', async (c) => {
         token: accessToken,
         role: admin.role,
         name: googleUser.name,
-        avatar: googleUser.picture
+        avatar: googleUser.picture,
+        expiresIn: ACCESS_TOKEN_TTL_SEC,
       }
     });
   } catch (error) {
@@ -250,7 +265,9 @@ auth.post('/refresh', async (c) => {
 
     // Blacklist old refresh token immediately (rotation) when jti is present
     if (refreshJti) {
-      const oldRefreshExpires = decodedRefresh.payload?.exp ? (decodedRefresh.payload.exp as number) * 1000 : Date.now() + 60 * 60 * 24 * 7 * 1000;
+      const oldRefreshExpires = decodedRefresh.payload?.exp
+        ? (decodedRefresh.payload.exp as number) * 1000
+        : Date.now() + REFRESH_TOKEN_TTL_SEC * 1000;
       await db.run(
         "INSERT INTO refresh_token_blacklist (jti_token, admin_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (jti_token) DO UPDATE SET revoked_at = CURRENT_TIMESTAMP",
         [refreshJti, adminId, oldRefreshExpires]
@@ -265,7 +282,7 @@ auth.post('/refresh', async (c) => {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+      exp: accessTokenExpUnix(),
       jti: newAccessJti
     }
     const newAccessToken = await sign(newPayload, secretKey)
@@ -274,7 +291,7 @@ auth.post('/refresh', async (c) => {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      exp: refreshTokenExpUnix(),
       jti: newRefreshJti
     }
     const newRefreshToken = await sign(newRefreshPayload, secretKey)
@@ -284,11 +301,14 @@ auth.post('/refresh', async (c) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: REFRESH_TOKEN_TTL_SEC,
       path: '/'
     })
 
-    return c.json({ success: true, data: { token: newAccessToken } })
+    return c.json({
+      success: true,
+      data: { token: newAccessToken, expiresIn: ACCESS_TOKEN_TTL_SEC },
+    })
   } catch (err) {
     console.error('Refresh error:', err);
     return c.json({ success: false, message: 'Invalid or expired refresh token' }, 401)
