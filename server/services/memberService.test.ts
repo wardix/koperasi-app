@@ -121,6 +121,59 @@ describe("memberService", () => {
     await db.run("DELETE FROM members WHERE id = ?", [id]);
   });
 
+  test("createMember can set portal email and password in one step", async () => {
+    const suffix = crypto.randomUUID().slice(0, 8);
+    const email = `portal.create.${suffix}@example.com`;
+    const { id, hasPortalAccess } = await createMember(
+      db,
+      {
+        name: `Portal Create ${suffix}`,
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "2026-01-01",
+        simpananPokok: 0,
+        simpananWajib: 0,
+        simpananSukarela: 0,
+        email,
+        password: "password123",
+      },
+      "portal-create-test"
+    );
+
+    expect(hasPortalAccess).toBe(true);
+    const row = await db
+      .query("SELECT email, password FROM members WHERE id = ?")
+      .get<{ email: string; password: string }>(id);
+    expect(row?.email).toBe(email);
+    expect(row?.password).toBeTruthy();
+    expect(row?.password).not.toBe("password123");
+    expect(await Bun.password.verify("password123", row!.password)).toBe(true);
+
+    await db.run("DELETE FROM members WHERE id = ?", [id]);
+  });
+
+  test("createMember rejects password without email", async () => {
+    await expect(
+      createMember(
+        db,
+        {
+          name: "No Email Portal",
+          role: "Anggota",
+          status: "Aktif",
+          joinDate: "2026-01-01",
+          simpananPokok: 0,
+          simpananWajib: 0,
+          simpananSukarela: 0,
+          password: "password123",
+        },
+        "portal-create-test"
+      )
+    ).rejects.toMatchObject({
+      message: "Email portal wajib diisi jika password diisi",
+      status: 400,
+    });
+  });
+
   test("updateMember renames denormalized loans.name for that member", async () => {
     const memberId = crypto.randomUUID();
     const loanId = crypto.randomUUID();

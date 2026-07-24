@@ -53,6 +53,44 @@ export const memberSchema = z.object({
   totalSavings: z.number().nonnegative().optional(),
 })
 
+/**
+ * Create member: base fields + optional portal credentials.
+ * - email alone → can use Google SSO later
+ * - email + password → full portal login
+ * - password without email → rejected
+ */
+export const memberCreateSchema = memberSchema
+  .extend({
+    email: z
+      .union([z.string(), z.null(), z.undefined()])
+      .transform((v) => {
+        if (v == null) return null;
+        const t = String(v).trim().toLowerCase();
+        return t.length === 0 ? null : t;
+      })
+      .refine((v) => v === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+        message: "Format email tidak valid",
+      })
+      .optional()
+      .default(null),
+    password: z
+      .union([z.string(), z.null(), z.undefined()])
+      .transform((v) => {
+        if (v == null) return null;
+        const t = String(v);
+        return t.length === 0 ? null : t;
+      })
+      .refine((v) => v === null || v.length >= 8, {
+        message: "Password minimal 8 karakter",
+      })
+      .optional()
+      .default(null),
+  })
+  .refine((v) => !(v.password && !v.email), {
+    message: "Email portal wajib diisi jika password diisi",
+    path: ["email"],
+  });
+
 /** Admin sets portal login for a member (email + optional new password). */
 export const memberPortalAccessSchema = z
   .object({
