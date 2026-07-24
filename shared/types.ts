@@ -23,6 +23,10 @@ export interface MemberRow {
   role: 'Anggota' | 'Ketua' | 'Bendahara' | 'Sekretaris' | 'Admin' | string;
   status: 'Aktif' | 'Pasif' | string;
   joinDate: string;
+  /** Nomor Induk Kependudukan (16 digit), optional */
+  nik?: string | null;
+  /** Nomor telepon / HP, optional */
+  phone?: string | null;
   simpananPokok: number;
   simpananWajib: number;
   simpananSukarela: number;

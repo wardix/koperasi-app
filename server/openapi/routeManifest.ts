@@ -15,6 +15,10 @@ export const OPENAPI_ROUTE_MANIFEST: RouteEntry[] = [
   // Auth (canonical prefix /api/v1/auth)
   { method: "POST", path: "/auth/login", tag: "auth" },
   { method: "POST", path: "/auth/google", tag: "auth" },
+  { method: "POST", path: "/member-auth/login", tag: "member-auth" },
+  { method: "POST", path: "/member-auth/google", tag: "member-auth" },
+  { method: "POST", path: "/member-auth/refresh", tag: "member-auth" },
+  { method: "POST", path: "/member-auth/logout", tag: "member-auth" },
   { method: "POST", path: "/auth/refresh", tag: "auth" },
   { method: "POST", path: "/auth/logout", tag: "auth" },
   { method: "GET", path: "/auth/verify", tag: "auth" },

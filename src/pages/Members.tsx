@@ -73,6 +73,8 @@ const roleValues = [
 
 const fieldDefs = [
   {key: 'name', type: 'string', label: 'Nama'},
+  {key: 'nik', type: 'string', label: 'NIK'},
+  {key: 'phone', type: 'string', label: 'Telepon'},
   {key: 'role', type: 'enum', label: 'Jabatan', enumValues: roleValues},
   {key: 'status', type: 'enum', label: 'Status', enumValues: statusValues},
   {key: 'joinDate', type: 'string', label: 'Tanggal Bergabung'},
@@ -170,7 +172,18 @@ export default function MembersTemplate() {
         onClose={() => dialog.hide()}
         onEdit={(data) => {
           apiAction.execute(
-            () => api.put(`/api/members/${member.id}`, data),
+            () =>
+              api.put(`/api/members/${member.id}`, {
+                name: data.name,
+                role: data.role,
+                status: data.status,
+                joinDate: data.joinDate,
+                nik: data.nik ?? null,
+                phone: data.phone ?? null,
+                simpananPokok: data.simpananPokok,
+                simpananWajib: data.simpananWajib,
+                simpananSukarela: data.simpananSukarela,
+              }),
             {
               successMsg: 'Anggota berhasil diubah',
               errorMsg: 'Gagal mengubah anggota',
@@ -245,6 +258,26 @@ export default function MembersTemplate() {
             </Text>
           </VStack>
         </HStack>
+      ),
+    },
+    {
+      key: 'nik',
+      header: 'NIK',
+      width: pixel(150),
+      renderCell: (item: MemberRow) => (
+        <Text type="body" color={item.nik ? undefined : 'secondary'}>
+          {item.nik || '—'}
+        </Text>
+      ),
+    },
+    {
+      key: 'phone',
+      header: 'Telepon',
+      width: pixel(130),
+      renderCell: (item: MemberRow) => (
+        <Text type="body" color={item.phone ? undefined : 'secondary'}>
+          {item.phone || '—'}
+        </Text>
       ),
     },
     {
@@ -400,6 +433,8 @@ export default function MembersTemplate() {
                     }
                     const columns = [
                       { header: 'Nama', key: 'name' },
+                      { header: 'NIK', key: 'nik' },
+                      { header: 'Telepon', key: 'phone' },
                       { header: 'Jabatan', key: 'role' },
                       { header: 'Status', key: 'status' },
                       { header: 'Tanggal Gabung', key: 'joinDate' },
@@ -422,6 +457,8 @@ export default function MembersTemplate() {
                     }
                     const columns = [
                       { header: 'Nama', key: 'name' },
+                      { header: 'NIK', key: 'nik' },
+                      { header: 'Telepon', key: 'phone' },
                       { header: 'Status', key: 'status' },
                       { header: 'Tanggal Gabung', key: 'joinDate' },
                       { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },

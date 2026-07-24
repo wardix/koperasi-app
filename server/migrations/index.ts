@@ -14,6 +14,8 @@ import { createMigration as createAddMemberLoginMigration } from "./0016_add_mem
 import { createMigration as createAddNotificationLogsMigration } from "./0017_add_notification_logs";
 import { createAddExpensesMigration } from "./0018_add_expenses";
 import { createRegenerateLoanSchedulesAnnuityMigration } from "./0019_regenerate_loan_schedules_annuity";
+import { createAddMemberNikMigration } from "./0020_add_member_nik";
+import { createAddMemberPhoneMigration } from "./0021_add_member_phone";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -46,6 +48,8 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddNotificationLogsMigration(db),
     createAddExpensesMigration(db),
     createRegenerateLoanSchedulesAnnuityMigration(db),
+    createAddMemberNikMigration(db),
+    createAddMemberPhoneMigration(db),
   ];
 }
 

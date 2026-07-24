@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
@@ -14,6 +14,35 @@ import { Badge } from '@astryxdesign/core/Badge';
 const PREVIEW_TOKEN_KEY = 'memberPreviewToken';
 const PREVIEW_NAME_KEY = 'memberPreviewName';
 const PREVIEW_RETURN_KEY = 'memberPreviewReturn';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
+// Google Identity Services (loaded via index.html)
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            auto_select?: boolean;
+          }) => void;
+          renderButton: (
+            element: HTMLElement | null,
+            options: {
+              theme?: 'outline' | 'filled_blue' | 'filled_black';
+              size?: 'large' | 'medium' | 'small';
+              width?: string | number;
+              text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+              shape?: 'rectangular' | 'pill' | 'circle' | 'square';
+              locale?: string;
+            }
+          ) => void;
+        };
+      };
+    };
+  }
+}
 
 function readPortalToken(): string | null {
   return sessionStorage.getItem(PREVIEW_TOKEN_KEY) || localStorage.getItem('memberToken');
@@ -51,6 +80,7 @@ export default function MemberPortal() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -138,6 +168,16 @@ export default function MemberPortal() {
     }
   };
 
+  const completeMemberLogin = useCallback(
+    (token: string) => {
+      clearPreviewSession();
+      localStorage.setItem('memberToken', token);
+      setMemberToken(token);
+      setError('');
+    },
+    [clearPreviewSession]
+  );
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -152,8 +192,7 @@ export default function MemberPortal() {
       }).then((r) => r.json());
 
       if (res.success) {
-        localStorage.setItem('memberToken', res.data.token);
-        setMemberToken(res.data.token);
+        completeMemberLogin(res.data.token);
       } else {
         setError(res.message || 'Login gagal');
       }
@@ -163,6 +202,75 @@ export default function MemberPortal() {
       setLoading(false);
     }
   };
+
+  const handleGoogleCredential = useCallback(
+    async (response: { credential: string }) => {
+      setLoading(true);
+      setError('');
+      try {
+        clearPreviewSession();
+        const res = await fetch('/api/v1/member-auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ credential: response.credential }),
+        }).then((r) => r.json());
+
+        if (res.success && res.data?.token) {
+          completeMemberLogin(res.data.token);
+        } else {
+          setError(
+            res.message ||
+              'Email Google tidak terdaftar sebagai akses portal. Hubungi pengurus.'
+          );
+        }
+      } catch {
+        setError('Terjadi kesalahan jaringan');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [clearPreviewSession, completeMemberLogin]
+  );
+
+  // Render Google Sign-In when showing the login form
+  useEffect(() => {
+    if (memberToken || !GOOGLE_CLIENT_ID) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 40;
+
+    const tryRender = () => {
+      if (cancelled) return;
+      if (!window.google?.accounts?.id || !googleBtnRef.current) {
+        attempts += 1;
+        if (attempts < maxAttempts) {
+          window.setTimeout(tryRender, 100);
+        }
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+      });
+      googleBtnRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: 'outline',
+        size: 'large',
+        width: '100%',
+        text: 'signin_with',
+        shape: 'rectangular',
+        locale: 'id',
+      });
+    };
+
+    tryRender();
+    return () => {
+      cancelled = true;
+    };
+  }, [memberToken, handleGoogleCredential]);
 
   const handleLogout = () => {
     if (isPreview || sessionStorage.getItem(PREVIEW_TOKEN_KEY)) {
@@ -263,6 +371,45 @@ export default function MemberPortal() {
                 {error}
               </Text>
             ) : null}
+
+            {GOOGLE_CLIENT_ID ? (
+              <VStack gap={3}>
+                <div
+                  ref={googleBtnRef}
+                  style={{
+                    width: '100%',
+                    minHeight: 44,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    opacity: loading ? 0.6 : 1,
+                    pointerEvents: loading ? 'none' : 'auto',
+                  }}
+                />
+                <Text type="supporting" color="secondary" align="center">
+                  Email Google harus sama dengan email portal yang didaftarkan pengurus.
+                </Text>
+                <HStack gap={2} vAlign="center" style={{ width: '100%' }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: 'var(--color-border-primary, #e5e7eb)',
+                    }}
+                  />
+                  <Text type="supporting" color="secondary">
+                    atau
+                  </Text>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: 'var(--color-border-primary, #e5e7eb)',
+                    }}
+                  />
+                </HStack>
+              </VStack>
+            ) : null}
+
             <form
               onSubmit={handleLogin}
               style={{ display: 'flex', flexDirection: 'column', gap: 16 }}

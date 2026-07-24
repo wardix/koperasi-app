@@ -4,11 +4,49 @@ import xss from 'xss'
 /** Wrap xss so Zod transform only receives the string value. */
 const sanitize = (value: string) => xss(value)
 
+/** Optional NIK: empty → null; otherwise exactly 16 digits. */
+const nikField = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => {
+    if (v == null) return null;
+    const digits = String(v).replace(/\D/g, "");
+    return digits.length === 0 ? null : digits;
+  })
+  .refine((v) => v === null || /^\d{16}$/.test(v), {
+    message: "NIK harus 16 digit angka",
+  });
+
+/**
+ * Optional phone: empty → null.
+ * Allows leading +, spaces/dashes stripped; keeps digits (and single leading +).
+ * Length: 8–15 digits (common mobile range, incl. country code without +).
+ */
+const phoneField = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => {
+    if (v == null) return null;
+    let s = String(v).trim();
+    if (!s) return null;
+    const hasPlus = s.startsWith("+");
+    const digits = s.replace(/\D/g, "");
+    if (!digits) return null;
+    return hasPlus ? `+${digits}` : digits;
+  })
+  .refine((v) => {
+    if (v === null) return true;
+    const digits = v.replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15;
+  }, {
+    message: "Nomor telepon harus 8–15 digit (boleh diawali +)",
+  });
+
 export const memberSchema = z.object({
   name: z.string().min(1, "Name is required").transform(sanitize),
   role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
   status: z.enum(["Aktif", "Pasif"]),
   joinDate: z.string().min(1, "Join date is required").transform(sanitize),
+  nik: nikField.optional().default(null),
+  phone: phoneField.optional().default(null),
   simpananPokok: z.number().nonnegative().default(0),
   simpananWajib: z.number().nonnegative().default(0),
   simpananSukarela: z.number().nonnegative().default(0),

@@ -33,6 +33,10 @@ export const memberRowSchema = z.object({
   simpananWajib: num.default(0),
   simpananSukarela: num.default(0),
   totalSavings: num,
+  /** Nomor Induk Kependudukan (16 digit), optional */
+  nik: strNull,
+  /** Nomor telepon / HP, optional */
+  phone: strNull,
   email: strNull,
   password: strNull,
   deletedAt: strNull,

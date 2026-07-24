@@ -23,7 +23,7 @@ members.get('/', requirePermission('read:members'), async (c) => {
   // Never return password hashes to the client
   const rows = await db.query(`
     SELECT
-      id, name, role, status, joinDate,
+      id, name, role, status, joinDate, nik, phone,
       simpananPokok, simpananWajib, simpananSukarela, totalSavings,
       email,
       CASE WHEN password IS NOT NULL AND password <> '' THEN TRUE ELSE FALSE END AS "hasPortalAccess"
@@ -90,6 +90,8 @@ members.post('/', requirePermission('create:members'), async (c) => {
         role: parsed.data.role,
         status: parsed.data.status,
         joinDate: parsed.data.joinDate,
+        nik: parsed.data.nik ?? null,
+        phone: parsed.data.phone ?? null,
       },
       ip: getClientIp(c),
     })
@@ -121,7 +123,12 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
       entity: 'members',
       entityId: id,
       before,
-      after: { name: parsed.data.name, role: parsed.data.role },
+      after: {
+        name: parsed.data.name,
+        role: parsed.data.role,
+        nik: parsed.data.nik ?? null,
+        phone: parsed.data.phone ?? null,
+      },
       ip: getClientIp(c),
     })
 

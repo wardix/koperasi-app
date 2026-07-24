@@ -15,6 +15,8 @@ servers:
 tags:
   - name: auth
     description: Autentikasi dan sesi
+  - name: member-auth
+    description: Autentikasi portal anggota (email/password atau Google SSO)
   - name: members
     description: Manajemen anggota dan simpanan per anggota
   - name: loans
@@ -98,6 +100,15 @@ components:
           type: string
           enum: [Aktif, Pasif]
         joinDate: { type: string }
+        nik:
+          type: string
+          nullable: true
+          description: Nomor Induk Kependudukan (16 digit, opsional, unik)
+          pattern: '^\d{16}$'
+        phone:
+          type: string
+          nullable: true
+          description: Nomor telepon/HP (opsional, 8–15 digit, boleh diawali +)
         simpananPokok: { type: number, minimum: 0, default: 0 }
         simpananWajib: { type: number, minimum: 0, default: 0 }
         simpananSukarela: { type: number, minimum: 0, default: 0 }
@@ -326,6 +337,68 @@ paths:
           $ref: '#/components/responses/DataResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /member-auth/login:
+    post:
+      tags: [member-auth]
+      summary: Login portal anggota (email/ID + password)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /member-auth/google:
+    post:
+      tags: [member-auth]
+      summary: Login portal anggota via Google SSO (match members.email)
+      description: |
+        Tidak auto-register. Email Google yang terverifikasi harus cocok
+        (case-insensitive) dengan `members.email` yang sudah diisi admin.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /member-auth/refresh:
+    post:
+      tags: [member-auth]
+      summary: Refresh access token anggota (cookie memberRefreshToken)
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /member-auth/logout:
+    post:
+      tags: [member-auth]
+      summary: Logout portal anggota
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
   /members:
     get:
       tags: [members]
@@ -606,6 +679,81 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoanDisbursementDateInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /loans/{id}/schedule:
+    get:
+      tags: [loans]
+      summary: Jadwal angsuran pinjaman
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [loans]
+      summary: Ganti jadwal angsuran (manual)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    required: [installmentNo, dueDate, principalAmount, interestAmount]
+                    properties:
+                      installmentNo: { type: integer }
+                      dueDate: { type: string, format: date }
+                      principalAmount: { type: integer }
+                      interestAmount: { type: integer }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /loans/{id}/schedule/regenerate:
+    post:
+      tags: [loans]
+      summary: Generate ulang jadwal angsuran dengan rate baru
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [interestRate]
+              properties:
+                interestRate:
+                  type: number
+                  minimum: 0
+                  maximum: 100
       responses:
         '200':
           $ref: '#/components/responses/DataResponse'

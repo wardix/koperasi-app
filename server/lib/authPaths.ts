@@ -7,6 +7,7 @@ export const PUBLIC_AUTH_PATHS = [
   `${AUTH_API_PREFIX}/refresh`,
   `${AUTH_API_PREFIX}/google`,
   `/api/v1/member-auth/login`,
+  `/api/v1/member-auth/google`,
   `/api/v1/member-auth/logout`,
   `/api/v1/member-auth/refresh`,
   `/api/v1/cron/due-dates`,
