@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { sign, verify } from 'hono/jwt';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import db from '../db';
@@ -6,13 +7,51 @@ import type { MemberRow } from '../db/entities';
 import { loginSchema } from '../schemas';
 import { secretKey, checkRateLimit } from '../middleware';
 import { getClientIp } from '../lib/audit';
+import { verifyGoogleToken } from '../google-auth';
 import {
   accessTokenExpUnix,
   refreshTokenExpUnix,
   REFRESH_TOKEN_TTL_SEC,
+  ACCESS_TOKEN_TTL_SEC,
 } from '../lib/tokenTtl';
 
 const memberAuth = new Hono();
+
+async function issueMemberSession(c: Context, member: MemberRow) {
+  const payload = {
+    sub: member.id,
+    email: member.email,
+    role: 'member' as const,
+    name: member.name,
+    exp: accessTokenExpUnix(),
+  };
+
+  const accessToken = await sign(payload, secretKey);
+
+  const refreshPayload = {
+    sub: member.id,
+    email: member.email,
+    role: 'member' as const,
+    exp: refreshTokenExpUnix(),
+  };
+  const refreshToken = await sign(refreshPayload, secretKey);
+
+  setCookie(c, 'memberRefreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Strict',
+    maxAge: REFRESH_TOKEN_TTL_SEC,
+    path: '/',
+  });
+
+  return {
+    token: accessToken,
+    role: 'member' as const,
+    memberId: member.id,
+    name: member.name,
+    expiresIn: ACCESS_TOKEN_TTL_SEC,
+  };
+}
 
 memberAuth.post('/login', async (c) => {
   const ip = getClientIp(c);
@@ -47,36 +86,77 @@ memberAuth.post('/login', async (c) => {
       return c.json({ success: false, message: 'Akun anggota tidak aktif.' }, 403);
     }
 
-    const payload = {
-      sub: member.id,
-      email: member.email,
-      role: 'member', // Member role is distinct from admin RBAC
-      name: member.name,
-      exp: accessTokenExpUnix(),
-    };
-    
-    const accessToken = await sign(payload, secretKey);
-
-    const refreshPayload = {
-      sub: member.id,
-      email: member.email,
-      role: 'member',
-      exp: refreshTokenExpUnix(),
-    };
-    const refreshToken = await sign(refreshPayload, secretKey);
-
-    setCookie(c, 'memberRefreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
-      maxAge: REFRESH_TOKEN_TTL_SEC,
-      path: '/'
-    });
-
-    return c.json({ success: true, message: 'Login successful', data: { token: accessToken, role: 'member', memberId: member.id, name: member.name } });
+    const data = await issueMemberSession(c, member);
+    return c.json({ success: true, message: 'Login successful', data });
   } catch (error) {
     console.error('Member login error:', error);
     return c.json({ success: false, message: 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * Member Google SSO: match verified Google email to members.email (case-insensitive).
+ * No auto-register. Member must already have email set via portal-access.
+ * Password is not required for Google login.
+ */
+memberAuth.post('/google', async (c) => {
+  const ssoIp = getClientIp(c);
+
+  if (!(await checkRateLimit(`member-sso:${ssoIp}`, 5, 15 * 60 * 1000))) {
+    return c.json({ success: false, message: 'Too many SSO attempts. Please try again later.' }, 429);
+  }
+
+  try {
+    const body = await c.req.json();
+    const credential = body?.credential as string | undefined;
+    if (!credential) {
+      return c.json({ success: false, message: 'Missing Google credential' }, 400);
+    }
+
+    const googleUser = await verifyGoogleToken(credential);
+    if (!googleUser) {
+      return c.json({ success: false, message: 'Invalid Google token' }, 401);
+    }
+
+    const email = googleUser.email.trim().toLowerCase();
+    const member = await db
+      .query(
+        `SELECT * FROM members
+         WHERE deletedAt IS NULL
+           AND email IS NOT NULL
+           AND lower(email) = ?
+         LIMIT 1`
+      )
+      .get<MemberRow>(email);
+
+    if (!member) {
+      return c.json(
+        {
+          success: false,
+          message:
+            'Email Google tidak terdaftar sebagai akses portal. Hubungi pengurus koperasi.',
+        },
+        403
+      );
+    }
+
+    if (member.status !== 'Aktif') {
+      return c.json({ success: false, message: 'Akun anggota tidak aktif.' }, 403);
+    }
+
+    const data = await issueMemberSession(c, member);
+    return c.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        ...data,
+        // surface Google display name only as extra metadata (JWT uses member.name)
+        googleName: googleUser.name,
+      },
+    });
+  } catch (error) {
+    console.error('Member Google SSO error:', error);
+    return c.json({ success: false, message: 'Authentication failed' }, 500);
   }
 });
 

@@ -7,12 +7,41 @@ export type CreateMemberInput = {
   role: string;
   status: string;
   joinDate: string;
+  /** Optional 16-digit NIK; null/undefined = not set */
+  nik?: string | null;
+  /** Optional phone / mobile number */
+  phone?: string | null;
   simpananPokok: number;
   simpananWajib: number;
   simpananSukarela: number;
 };
 
-export type UpdateMemberInput = Pick<CreateMemberInput, "name" | "role" | "status" | "joinDate">;
+export type UpdateMemberInput = Pick<
+  CreateMemberInput,
+  "name" | "role" | "status" | "joinDate" | "nik" | "phone"
+>;
+
+function normalizeNik(nik: string | null | undefined): string | null {
+  if (nik == null || nik === "") return null;
+  const digits = String(nik).replace(/\D/g, "");
+  return digits.length === 0 ? null : digits;
+}
+
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (phone == null || phone === "") return null;
+  const trimmed = String(phone).trim();
+  if (!trimmed) return null;
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return null;
+  return hasPlus ? `+${digits}` : digits;
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; message?: string };
+  const msg = e?.message || (err instanceof Error ? err.message : String(err));
+  return e?.code === "23505" || /unique|duplicate key/i.test(msg);
+}
 
 async function recordInitialSavingsTransactions(
   database: Db,
@@ -71,26 +100,58 @@ export async function createMember(
 ): Promise<{ id: string }> {
   const totalSavings = input.simpananPokok + input.simpananWajib + input.simpananSukarela;
   const id = crypto.randomUUID();
+  const nik = normalizeNik(input.nik);
+  const phone = normalizePhone(input.phone);
+
+  if (nik && !/^\d{16}$/.test(nik)) {
+    throw new ServiceError("NIK harus 16 digit angka", 400);
+  }
+  if (phone) {
+    const digitCount = phone.replace(/\D/g, "").length;
+    if (digitCount < 8 || digitCount > 15) {
+      throw new ServiceError("Nomor telepon harus 8–15 digit", 400);
+    }
+  }
+
+  if (nik) {
+    const clash = await database
+      .query(
+        `SELECT id FROM members WHERE nik = ? AND deletedAt IS NULL LIMIT 1`
+      )
+      .get<{ id: string }>(nik);
+    if (clash) {
+      throw new ServiceError("NIK sudah terdaftar pada anggota lain", 409);
+    }
+  }
 
   const insert = database.prepare(`
-    INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO members (id, name, role, status, joinDate, nik, phone, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  await database.transaction(async () => {
-    await insert.run(
-      id,
-      input.name,
-      input.role,
-      input.status,
-      input.joinDate,
-      input.simpananPokok,
-      input.simpananWajib,
-      input.simpananSukarela,
-      totalSavings
-    );
-    await recordInitialSavingsTransactions(database, id, input, createdBy);
-  })();
+  try {
+    await database.transaction(async () => {
+      await insert.run(
+        id,
+        input.name,
+        input.role,
+        input.status,
+        input.joinDate,
+        nik,
+        phone,
+        input.simpananPokok,
+        input.simpananWajib,
+        input.simpananSukarela,
+        totalSavings
+      );
+      await recordInitialSavingsTransactions(database, id, input, createdBy);
+    })();
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new ServiceError("NIK sudah terdaftar pada anggota lain", 409);
+    }
+    throw err;
+  }
 
   return { id };
 }
@@ -99,30 +160,67 @@ export async function updateMember(
   database: Db,
   id: string,
   input: UpdateMemberInput
-): Promise<{ before: Pick<MemberRow, "name" | "role"> }> {
+): Promise<{ before: Pick<MemberRow, "name" | "role" | "nik" | "phone"> }> {
   const oldMember = await database
-    .query("SELECT id, name, role, status, joinDate FROM members WHERE id = ?")
-    .get<Pick<MemberRow, "id" | "name" | "role" | "status" | "joinDate">>(id);
+    .query("SELECT id, name, role, status, joinDate, nik, phone FROM members WHERE id = ?")
+    .get<Pick<MemberRow, "id" | "name" | "role" | "status" | "joinDate" | "nik" | "phone">>(id);
 
   if (!oldMember) {
     throw new ServiceError("Member not found", 404);
   }
 
-  await database.transaction(async () => {
-    const update = database.prepare(`
-      UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?
-      WHERE id = ?
-    `);
-    await update.run(input.name, input.role, input.status, input.joinDate, id);
-
-    // loans.name is a denormalized snapshot used by loan/cashflow ledgers —
-    // keep it aligned when the member is renamed.
-    if (input.name !== oldMember.name) {
-      await database.run(`UPDATE loans SET name = ? WHERE memberId = ?`, [input.name, id]);
+  const nik = normalizeNik(input.nik);
+  const phone = normalizePhone(input.phone);
+  if (nik && !/^\d{16}$/.test(nik)) {
+    throw new ServiceError("NIK harus 16 digit angka", 400);
+  }
+  if (phone) {
+    const digitCount = phone.replace(/\D/g, "").length;
+    if (digitCount < 8 || digitCount > 15) {
+      throw new ServiceError("Nomor telepon harus 8–15 digit", 400);
     }
-  })();
+  }
 
-  return { before: { name: oldMember.name, role: oldMember.role } };
+  if (nik) {
+    const clash = await database
+      .query(
+        `SELECT id FROM members WHERE nik = ? AND id != ? AND deletedAt IS NULL LIMIT 1`
+      )
+      .get<{ id: string }>(nik, id);
+    if (clash) {
+      throw new ServiceError("NIK sudah terdaftar pada anggota lain", 409);
+    }
+  }
+
+  try {
+    await database.transaction(async () => {
+      const update = database.prepare(`
+        UPDATE members SET name = ?, role = ?, status = ?, joinDate = ?, nik = ?, phone = ?
+        WHERE id = ?
+      `);
+      await update.run(input.name, input.role, input.status, input.joinDate, nik, phone, id);
+
+      // loans.name is a denormalized snapshot used by loan/cashflow ledgers —
+      // keep it aligned when the member is renamed.
+      if (input.name !== oldMember.name) {
+        await database.run(`UPDATE loans SET name = ? WHERE memberId = ?`, [input.name, id]);
+      }
+    })();
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new ServiceError("NIK sudah terdaftar pada anggota lain", 409);
+    }
+    throw err;
+  }
+
+  return {
+    before: {
+      name: oldMember.name,
+      role: oldMember.role,
+      nik: oldMember.nik,
+      phone: oldMember.phone,
+    },
+  };
 }
 
 export type PortalAccessInput = {

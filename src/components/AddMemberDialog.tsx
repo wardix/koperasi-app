@@ -31,6 +31,26 @@ function formatJoinDate(isoDate: string): string {
 
 const memberSchema = z.object({
   name: z.string().min(3, 'Nama minimal 3 karakter'),
+  nik: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ''))
+    .refine((v) => v === '' || /^\d{16}$/.test(v), {
+      message: 'NIK harus 16 digit angka (atau kosongkan)',
+    }),
+  phone: z
+    .string()
+    .transform((v) => {
+      const t = v.trim();
+      if (!t) return '';
+      const hasPlus = t.startsWith('+');
+      const digits = t.replace(/\D/g, '');
+      return hasPlus ? `+${digits}` : digits;
+    })
+    .refine((v) => {
+      if (!v) return true;
+      const digits = v.replace(/\D/g, '');
+      return digits.length >= 8 && digits.length <= 15;
+    }, { message: 'Nomor telepon 8–15 digit (atau kosongkan)' }),
   role: z.string().min(1, 'Jabatan tidak boleh kosong'),
   joinDate: z.string().min(1, 'Tanggal bergabung harus diisi'),
   deposit: z
@@ -47,6 +67,8 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
     resolver: zodResolver(memberSchema),
     defaultValues: {
       name: '',
+      nik: '',
+      phone: '',
       role: 'Anggota',
       joinDate: todayISO(),
       deposit: formatAmountInput('500000'),
@@ -56,6 +78,8 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
   const onSubmit = (data: MemberForm) => {
     onAdd({
       name: data.name,
+      nik: data.nik || null,
+      phone: data.phone || null,
       role: data.role,
       status: 'Aktif',
       joinDate: formatJoinDate(data.joinDate),
@@ -91,6 +115,65 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       placeholder="Contoh: Budi Santoso"
                     />
                     {errors.name && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.name.message}</Text>}
+                  </VStack>
+                )}
+              />
+              <Controller
+                name="nik"
+                control={control}
+                render={({ field }) => (
+                  <VStack gap={1}>
+                    <TextInput
+                      label="NIK"
+                      value={field.value}
+                      onChange={(raw) => field.onChange(raw.replace(/\D/g, '').slice(0, 16))}
+                      placeholder="16 digit NIK (opsional)"
+                      description="Nomor Induk Kependudukan — unik per anggota"
+                      type="text"
+                    />
+                    {errors.nik && (
+                      <Text
+                        type="supporting"
+                        color="error"
+                        style={{ color: 'var(--color-text-critical, red)' }}
+                      >
+                        {errors.nik.message}
+                      </Text>
+                    )}
+                  </VStack>
+                )}
+              />
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <VStack gap={1}>
+                    <TextInput
+                      label="Nomor Telepon"
+                      value={field.value}
+                      onChange={(raw) => {
+                        // keep + and digits only while typing
+                        let s = raw.replace(/[^\d+]/g, '');
+                        if (s.includes('+')) {
+                          s = '+' + s.replace(/\+/g, '').replace(/\D/g, '');
+                        } else {
+                          s = s.replace(/\D/g, '');
+                        }
+                        field.onChange(s.slice(0, 16));
+                      }}
+                      placeholder="Contoh: 081234567890"
+                      description="Opsional — 8–15 digit, boleh diawali +"
+                      type="text"
+                    />
+                    {errors.phone && (
+                      <Text
+                        type="supporting"
+                        color="error"
+                        style={{ color: 'var(--color-text-critical, red)' }}
+                      >
+                        {errors.phone.message}
+                      </Text>
+                    )}
                   </VStack>
                 )}
               />

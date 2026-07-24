@@ -876,6 +876,98 @@ describe("API Endpoints", () => {
     }
   });
 
+  test("POST /api/v1/member-auth/google matches members.email (no auto-register)", async () => {
+    const originalFetch = globalThis.fetch;
+    const memberId = `m-sso-${Date.now()}`;
+    const memberEmail = `member.sso.${Date.now()}@example.com`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, email)
+       VALUES (?, ?, 'Anggota', 'Aktif', '2026-01-01', 0, 0, 0, 0, ?)`,
+      [memberId, "SSO Member", memberEmail]
+    );
+
+    try {
+      globalThis.fetch = async (input: string | Request | URL, init?: RequestInit) => {
+        const urlStr = input.toString();
+        if (urlStr.includes("oauth2.googleapis.com/tokeninfo")) {
+          return new Response(
+            JSON.stringify({
+              aud: "mock-member-client-id",
+              email_verified: "true",
+              email: memberEmail.toUpperCase(), // case-insensitive match
+              name: "Google Name",
+              picture: "https://example.com/a.jpg",
+              sub: "google-member-sub-1",
+            }),
+            { status: 200 }
+          );
+        }
+        return originalFetch(input, init);
+      };
+
+      const oldClientId = process.env.GOOGLE_CLIENT_ID;
+      process.env.GOOGLE_CLIENT_ID = "mock-member-client-id";
+
+      const missing = await server.fetch(
+        new Request("http://localhost/api/v1/member-auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        })
+      );
+      expect(missing.status).toBe(400);
+
+      const ok = await server.fetch(
+        new Request("http://localhost/api/v1/member-auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential: "mock-token" }),
+        })
+      );
+      expect(ok.status).toBe(200);
+      const okBody = await ok.json();
+      expect(okBody.success).toBe(true);
+      expect(okBody.data.token).toBeTruthy();
+      expect(okBody.data.role).toBe("member");
+      expect(okBody.data.memberId).toBe(memberId);
+
+      // Unknown email → 403, no auto-register
+      globalThis.fetch = async (input: string | Request | URL, init?: RequestInit) => {
+        const urlStr = input.toString();
+        if (urlStr.includes("oauth2.googleapis.com/tokeninfo")) {
+          return new Response(
+            JSON.stringify({
+              aud: "mock-member-client-id",
+              email_verified: true,
+              email: "unknown.person@example.com",
+              name: "Unknown",
+              sub: "google-unknown",
+            }),
+            { status: 200 }
+          );
+        }
+        return originalFetch(input, init);
+      };
+
+      const denied = await server.fetch(
+        new Request("http://localhost/api/v1/member-auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential: "mock-token-2" }),
+        })
+      );
+      expect(denied.status).toBe(403);
+      const deniedBody = await denied.json();
+      expect(deniedBody.success).toBe(false);
+
+      process.env.GOOGLE_CLIENT_ID = oldClientId;
+    } finally {
+      globalThis.fetch = originalFetch;
+      await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    }
+  });
+
   test("Roles & Access Management: Admins CRUD protection and functions", async () => {
     const viewerToken = await sign({ email: "viewer@example.com", role: "viewer", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
     const superadminToken = token;

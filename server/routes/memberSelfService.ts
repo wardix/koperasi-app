@@ -19,7 +19,7 @@ memberSelfService.get('/profile', async (c) => {
   const memberId = payload.sub;
 
   const member = await db.query(
-    "SELECT id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?"
+    "SELECT id, name, role, status, joinDate, nik, phone, simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?"
   ).get(memberId);
 
   if (!member) {

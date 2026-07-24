@@ -48,6 +48,79 @@ describe("memberService", () => {
     ).rejects.toBeInstanceOf(ServiceError);
   });
 
+  test("createMember stores optional NIK and rejects duplicates", async () => {
+    const nik = "3201010101010001";
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+
+    const { id: idA } = await createMember(
+      db,
+      {
+        name: `NIK Member A ${a}`,
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "2026-01-01",
+        nik,
+        simpananPokok: 0,
+        simpananWajib: 0,
+        simpananSukarela: 0,
+      },
+      "nik-test"
+    );
+
+    const row = await db
+      .query("SELECT nik FROM members WHERE id = ?")
+      .get<{ nik: string }>(idA);
+    expect(row?.nik).toBe(nik);
+
+    await expect(
+      createMember(
+        db,
+        {
+          name: `NIK Member B ${b}`,
+          role: "Anggota",
+          status: "Aktif",
+          joinDate: "2026-01-01",
+          nik,
+          simpananPokok: 0,
+          simpananWajib: 0,
+          simpananSukarela: 0,
+        },
+        "nik-test"
+      )
+    ).rejects.toMatchObject({
+      message: "NIK sudah terdaftar pada anggota lain",
+      status: 409,
+    });
+
+    await db.run("DELETE FROM members WHERE id = ?", [idA]);
+  });
+
+  test("createMember stores optional phone number", async () => {
+    const idHint = crypto.randomUUID();
+    const { id } = await createMember(
+      db,
+      {
+        name: `Phone Member ${idHint}`,
+        role: "Anggota",
+        status: "Aktif",
+        joinDate: "2026-01-01",
+        phone: "+62 812-3456-7890",
+        simpananPokok: 0,
+        simpananWajib: 0,
+        simpananSukarela: 0,
+      },
+      "phone-test"
+    );
+
+    const row = await db
+      .query("SELECT phone FROM members WHERE id = ?")
+      .get<{ phone: string }>(id);
+    expect(row?.phone).toBe("+6281234567890");
+
+    await db.run("DELETE FROM members WHERE id = ?", [id]);
+  });
+
   test("updateMember renames denormalized loans.name for that member", async () => {
     const memberId = crypto.randomUUID();
     const loanId = crypto.randomUUID();

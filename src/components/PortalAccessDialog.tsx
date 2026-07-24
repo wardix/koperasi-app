@@ -63,8 +63,8 @@ export function PortalAccessDialogContent({
       <VStack gap={1}>
         <Heading level={3}>Akses Portal Anggota</Heading>
         <Text type="supporting" color="secondary">
-          Aktifkan login di /portal untuk {member.name}. Anggota dapat melihat simpanan, pinjaman, dan
-          jadwal angsuran sendiri.
+          Aktifkan login di /portal untuk {member.name}. Anggota dapat masuk dengan password atau
+          Google (email Google harus sama dengan email portal di bawah).
         </Text>
         {member.hasPortalAccess && (
           <Text type="supporting" color="secondary">
