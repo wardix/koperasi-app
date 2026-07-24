@@ -68,6 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('role')
     setIsAuthenticated(false)
     setRole('viewer')
+    // Always land on admin login after logout (not member portal)
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login'
+    }
   }, [])
 
   const isAdmin = role === 'admin' || role === 'superadmin'

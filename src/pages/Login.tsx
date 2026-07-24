@@ -314,12 +314,14 @@ export default function LoginTwoColumn() {
                   </StackItem>
 
                   {!isSuccess && (
-                    <Text type="supporting" color="secondary">
-                      Belum memiliki akun?{' '}
-                      <Link href="#" type="supporting">
-                        Daftar
-                      </Link>
-                    </Text>
+                    <VStack gap={2}>
+                      <Text type="supporting" color="secondary">
+                        Anggota koperasi?{' '}
+                        <Link href="/portal" type="supporting">
+                          Login portal anggota
+                        </Link>
+                      </Text>
+                    </VStack>
                   )}
                 </VStack>
               </Section>
