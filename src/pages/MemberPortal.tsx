@@ -441,6 +441,20 @@ export default function MemberPortal() {
                 isDisabled={loading}
               />
             </form>
+
+            <Text type="supporting" color="secondary" align="center">
+              Pengurus koperasi?{' '}
+              <a
+                href="/login"
+                style={{
+                  color: 'var(--color-text-primary, #0171E3)',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                }}
+              >
+                Login pengurus
+              </a>
+            </Text>
           </VStack>
         </Card>
       </div>

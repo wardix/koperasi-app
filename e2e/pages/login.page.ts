@@ -17,7 +17,8 @@ export class LoginPage {
   }
 
   async goto() {
-    await this.page.goto("/");
+    // Admin login lives at /login; `/` redirects unauthenticated users to /portal
+    await this.page.goto("/login");
   }
 
   async login(email: string, password: string) {
