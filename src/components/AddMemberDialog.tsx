@@ -11,12 +11,12 @@ import {
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Text} from '@astryxdesign/core/Text';
+import {Heading} from '@astryxdesign/core/Text';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import type { MemberRow } from '../shared/types';
 import {formatAmountInput, parseAmountInput} from '../utils/format';
 
 function todayISO() {
@@ -29,42 +29,96 @@ function formatJoinDate(isoDate: string): string {
   return d.toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'});
 }
 
-const memberSchema = z.object({
-  name: z.string().min(3, 'Nama minimal 3 karakter'),
-  nik: z
-    .string()
-    .transform((v) => v.replace(/\D/g, ''))
-    .refine((v) => v === '' || /^\d{16}$/.test(v), {
-      message: 'NIK harus 16 digit angka (atau kosongkan)',
-    }),
-  phone: z
-    .string()
-    .transform((v) => {
-      const t = v.trim();
-      if (!t) return '';
-      const hasPlus = t.startsWith('+');
-      const digits = t.replace(/\D/g, '');
-      return hasPlus ? `+${digits}` : digits;
-    })
-    .refine((v) => {
-      if (!v) return true;
-      const digits = v.replace(/\D/g, '');
-      return digits.length >= 8 && digits.length <= 15;
-    }, { message: 'Nomor telepon 8–15 digit (atau kosongkan)' }),
-  role: z.string().min(1, 'Jabatan tidak boleh kosong'),
-  joinDate: z.string().min(1, 'Tanggal bergabung harus diisi'),
-  deposit: z
-    .string()
-    .refine((val) => {
-      const n = parseAmountInput(val);
-      return Number.isFinite(n) && n >= 0;
-    }, 'Setoran awal tidak boleh negatif'),
-});
-type MemberForm = z.infer<typeof memberSchema>;
+const memberFormSchema = z
+  .object({
+    name: z.string().min(3, 'Nama minimal 3 karakter'),
+    nik: z
+      .string()
+      .transform((v) => v.replace(/\D/g, ''))
+      .refine((v) => v === '' || /^\d{16}$/.test(v), {
+        message: 'NIK harus 16 digit angka (atau kosongkan)',
+      }),
+    phone: z
+      .string()
+      .transform((v) => {
+        const t = v.trim();
+        if (!t) return '';
+        const hasPlus = t.startsWith('+');
+        const digits = t.replace(/\D/g, '');
+        return hasPlus ? `+${digits}` : digits;
+      })
+      .refine((v) => {
+        if (!v) return true;
+        const digits = v.replace(/\D/g, '');
+        return digits.length >= 8 && digits.length <= 15;
+      }, { message: 'Nomor telepon 8–15 digit (atau kosongkan)' }),
+    role: z.string().min(1, 'Jabatan tidak boleh kosong'),
+    joinDate: z.string().min(1, 'Tanggal bergabung harus diisi'),
+    deposit: z
+      .string()
+      .refine((val) => {
+        const n = parseAmountInput(val);
+        return Number.isFinite(n) && n >= 0;
+      }, 'Setoran awal tidak boleh negatif'),
+    email: z
+      .string()
+      .transform((v) => v.trim().toLowerCase())
+      .refine((v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+        message: 'Format email tidak valid',
+      }),
+    password: z.string(),
+    passwordConfirm: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password && data.password.length > 0 && data.password.length < 8) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['password'],
+        message: 'Password minimal 8 karakter',
+      });
+    }
+    if (data.password && data.password !== data.passwordConfirm) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['passwordConfirm'],
+        message: 'Konfirmasi password tidak cocok',
+      });
+    }
+    if (data.password && data.password.length > 0 && !data.email) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['email'],
+        message: 'Email portal wajib diisi jika password diisi',
+      });
+    }
+  });
 
-export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, onAdd: (m: Omit<MemberRow, 'id' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>) => void}) {
+type MemberForm = z.infer<typeof memberFormSchema>;
+
+/** Payload sent to POST /api/members */
+export type CreateMemberPayload = {
+  name: string;
+  role: string;
+  status: string;
+  joinDate: string;
+  nik?: string | null;
+  phone?: string | null;
+  simpananPokok: number;
+  simpananWajib: number;
+  simpananSukarela: number;
+  email?: string | null;
+  password?: string | null;
+};
+
+export function AddMemberDialogContent({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (m: CreateMemberPayload) => void;
+}) {
   const { control, handleSubmit, formState: { errors } } = useForm<MemberForm>({
-    resolver: zodResolver(memberSchema),
+    resolver: zodResolver(memberFormSchema),
     defaultValues: {
       name: '',
       nik: '',
@@ -72,7 +126,10 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       role: 'Anggota',
       joinDate: todayISO(),
       deposit: formatAmountInput('500000'),
-    }
+      email: '',
+      password: '',
+      passwordConfirm: '',
+    },
   });
 
   const onSubmit = (data: MemberForm) => {
@@ -86,6 +143,8 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       simpananPokok: parseAmountInput(data.deposit),
       simpananWajib: 0,
       simpananSukarela: 0,
+      email: data.email || null,
+      password: data.password || null,
     });
     onClose();
   };
@@ -95,7 +154,7 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
       header={
         <DialogHeader
           title="Tambah Anggota Baru"
-          subtitle="Masukkan data pendaftaran anggota koperasi"
+          subtitle="Data keanggotaan dan (opsional) akses portal"
           onOpenChange={() => onClose()}
         />
       }
@@ -114,7 +173,11 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       onChange={field.onChange}
                       placeholder="Contoh: Budi Santoso"
                     />
-                    {errors.name && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.name.message}</Text>}
+                    {errors.name && (
+                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        {errors.name.message}
+                      </Text>
+                    )}
                   </VStack>
                 )}
               />
@@ -132,11 +195,7 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       type="text"
                     />
                     {errors.nik && (
-                      <Text
-                        type="supporting"
-                        color="error"
-                        style={{ color: 'var(--color-text-critical, red)' }}
-                      >
+                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
                         {errors.nik.message}
                       </Text>
                     )}
@@ -152,7 +211,6 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       label="Nomor Telepon"
                       value={field.value}
                       onChange={(raw) => {
-                        // keep + and digits only while typing
                         let s = raw.replace(/[^\d+]/g, '');
                         if (s.includes('+')) {
                           s = '+' + s.replace(/\+/g, '').replace(/\D/g, '');
@@ -166,11 +224,7 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       type="text"
                     />
                     {errors.phone && (
-                      <Text
-                        type="supporting"
-                        color="error"
-                        style={{ color: 'var(--color-text-critical, red)' }}
-                      >
+                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
                         {errors.phone.message}
                       </Text>
                     )}
@@ -188,7 +242,11 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       onChange={field.onChange}
                       placeholder="Contoh: Anggota, Pengurus"
                     />
-                    {errors.role && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.role.message}</Text>}
+                    {errors.role && (
+                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        {errors.role.message}
+                      </Text>
+                    )}
                   </VStack>
                 )}
               />
@@ -203,7 +261,11 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       onChange={field.onChange}
                       type="date"
                     />
-                    {errors.joinDate && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.joinDate.message}</Text>}
+                    {errors.joinDate && (
+                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        {errors.joinDate.message}
+                      </Text>
+                    )}
                   </VStack>
                 )}
               />
@@ -220,10 +282,93 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
                       placeholder="Contoh: 500.000"
                       description="Pemisah ribuan ditambahkan otomatis"
                     />
-                    {errors.deposit && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.deposit.message}</Text>}
+                    {errors.deposit && (
+                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        {errors.deposit.message}
+                      </Text>
+                    )}
                   </VStack>
                 )}
               />
+
+              <VStack
+                gap={3}
+                style={{
+                  padding: 'var(--spacing-3)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: '1px solid var(--color-border-primary, #e5e7eb)',
+                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                }}
+              >
+                <VStack gap={1}>
+                  <Heading level={4}>Akses portal (opsional)</Heading>
+                  <Text type="supporting" color="secondary">
+                    Isi agar anggota bisa login di /portal. Email saja cukup untuk Google SSO;
+                    isi password jika ingin login email/ID + sandi.
+                  </Text>
+                </VStack>
+                <Controller
+                  name="email"
+                  control={control}
+                  render={({ field }) => (
+                    <VStack gap={1}>
+                      <TextInput
+                        label="Email Portal"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="anggota@email.com"
+                        type="email"
+                        description="Harus sama dengan email Google jika login dengan Google"
+                      />
+                      {errors.email && (
+                        <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                          {errors.email.message}
+                        </Text>
+                      )}
+                    </VStack>
+                  )}
+                />
+                <Controller
+                  name="password"
+                  control={control}
+                  render={({ field }) => (
+                    <VStack gap={1}>
+                      <TextInput
+                        label="Password Portal"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Minimal 8 karakter (opsional)"
+                        type="password"
+                      />
+                      {errors.password && (
+                        <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                          {errors.password.message}
+                        </Text>
+                      )}
+                    </VStack>
+                  )}
+                />
+                <Controller
+                  name="passwordConfirm"
+                  control={control}
+                  render={({ field }) => (
+                    <VStack gap={1}>
+                      <TextInput
+                        label="Konfirmasi Password"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Ulangi password jika diisi"
+                        type="password"
+                      />
+                      {errors.passwordConfirm && (
+                        <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                          {errors.passwordConfirm.message}
+                        </Text>
+                      )}
+                    </VStack>
+                  )}
+                />
+              </VStack>
             </VStack>
           </form>
         </LayoutContent>
@@ -239,4 +384,3 @@ export function AddMemberDialogContent({onClose, onAdd}: {onClose: () => void, o
     />
   );
 }
-

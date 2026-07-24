@@ -2,7 +2,12 @@ import { Hono } from 'hono'
 import { sign } from 'hono/jwt'
 import db from '../db'
 import type { MemberRow, TransactionRow } from '../db/entities'
-import { memberPortalAccessSchema, memberSchema, savingsSchema } from '../schemas'
+import {
+  memberCreateSchema,
+  memberPortalAccessSchema,
+  memberSchema,
+  savingsSchema,
+} from '../schemas'
 import { requirePermission, secretKey } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import { createMember, deleteMember, setMemberPortalAccess, updateMember } from '../services/memberService'
@@ -71,14 +76,14 @@ members.delete('/:id', requirePermission('delete:members'), async (c) => {
 
 members.post('/', requirePermission('create:members'), async (c) => {
   const body = await c.req.json()
-  const parsed = memberSchema.safeParse(body)
+  const parsed = memberCreateSchema.safeParse(body)
 
   if (!parsed.success) {
     return c.json({ success: false, errors: parsed.error.format() }, 400)
   }
 
   try {
-    const { id } = await createMember(db, parsed.data, getActor(c))
+    const { id, hasPortalAccess } = await createMember(db, parsed.data, getActor(c))
 
     await audit(db, {
       actor: getActor(c),
@@ -92,12 +97,21 @@ members.post('/', requirePermission('create:members'), async (c) => {
         joinDate: parsed.data.joinDate,
         nik: parsed.data.nik ?? null,
         phone: parsed.data.phone ?? null,
+        email: parsed.data.email ?? null,
+        hasPortalAccess,
       },
       ip: getClientIp(c),
     })
 
     clearStatsCache()
-    return c.json({ success: true, message: 'Member created successfully', id }, 201)
+    return c.json({
+      success: true,
+      message: hasPortalAccess
+        ? 'Anggota berhasil ditambahkan dan akses portal diaktifkan'
+        : 'Member created successfully',
+      id,
+      data: { id, hasPortalAccess, email: parsed.data.email ?? null },
+    }, 201)
   } catch (err) {
     const response = mapServiceError(c, err)
     if (response) return response

@@ -109,6 +109,17 @@ components:
           type: string
           nullable: true
           description: Nomor telepon/HP (opsional, 8–15 digit, boleh diawali +)
+        email:
+          type: string
+          nullable: true
+          description: |
+            Email portal (opsional, hanya pada POST create).
+            Jika diisi, anggota bisa login Google SSO (match email) dan/atau password.
+        password:
+          type: string
+          nullable: true
+          minLength: 8
+          description: Password portal (opsional pada create; wajib email jika diisi)
         simpananPokok: { type: number, minimum: 0, default: 0 }
         simpananWajib: { type: number, minimum: 0, default: 0 }
         simpananSukarela: { type: number, minimum: 0, default: 0 }

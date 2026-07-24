@@ -14,6 +14,10 @@ export type CreateMemberInput = {
   simpananPokok: number;
   simpananWajib: number;
   simpananSukarela: number;
+  /** Optional portal email (enables Google SSO match and/or password login) */
+  email?: string | null;
+  /** Optional portal password (requires email); hashed before store */
+  password?: string | null;
 };
 
 export type UpdateMemberInput = Pick<
@@ -97,11 +101,19 @@ export async function createMember(
   database: Db,
   input: CreateMemberInput,
   createdBy: string
-): Promise<{ id: string }> {
+): Promise<{ id: string; hasPortalAccess: boolean }> {
   const totalSavings = input.simpananPokok + input.simpananWajib + input.simpananSukarela;
   const id = crypto.randomUUID();
   const nik = normalizeNik(input.nik);
   const phone = normalizePhone(input.phone);
+  const email =
+    input.email != null && String(input.email).trim() !== ""
+      ? String(input.email).trim().toLowerCase()
+      : null;
+  const password =
+    input.password != null && String(input.password).length > 0
+      ? String(input.password)
+      : null;
 
   if (nik && !/^\d{16}$/.test(nik)) {
     throw new ServiceError("NIK harus 16 digit angka", 400);
@@ -111,6 +123,12 @@ export async function createMember(
     if (digitCount < 8 || digitCount > 15) {
       throw new ServiceError("Nomor telepon harus 8–15 digit", 400);
     }
+  }
+  if (password && !email) {
+    throw new ServiceError("Email portal wajib diisi jika password diisi", 400);
+  }
+  if (password && password.length < 8) {
+    throw new ServiceError("Password minimal 8 karakter", 400);
   }
 
   if (nik) {
@@ -124,10 +142,23 @@ export async function createMember(
     }
   }
 
+  if (email) {
+    const emailClash = await database
+      .query(
+        `SELECT id FROM members WHERE lower(email) = ? AND deletedAt IS NULL LIMIT 1`
+      )
+      .get<{ id: string }>(email);
+    if (emailClash) {
+      throw new ServiceError("Email sudah dipakai anggota lain", 409);
+    }
+  }
+
   const insert = database.prepare(`
     INSERT INTO members (id, name, role, status, joinDate, nik, phone, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+
+  let hasPortalAccess = false;
 
   try {
     await database.transaction(async () => {
@@ -145,15 +176,24 @@ export async function createMember(
         totalSavings
       );
       await recordInitialSavingsTransactions(database, id, input, createdBy);
+
+      if (email || password) {
+        const portal = await setMemberPortalAccess(database, id, {
+          email: email ?? undefined,
+          password: password ?? undefined,
+        });
+        hasPortalAccess = portal.after.hasPassword || !!portal.after.email;
+      }
     })();
   } catch (err) {
+    if (err instanceof ServiceError) throw err;
     if (isUniqueViolation(err)) {
-      throw new ServiceError("NIK sudah terdaftar pada anggota lain", 409);
+      throw new ServiceError("NIK atau email sudah terdaftar pada anggota lain", 409);
     }
     throw err;
   }
 
-  return { id };
+  return { id, hasPortalAccess };
 }
 
 export async function updateMember(
