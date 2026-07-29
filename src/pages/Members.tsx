@@ -23,8 +23,8 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Avatar} from '@astryxdesign/core/Avatar';
 import {Badge} from '@astryxdesign/core/Badge';
-import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
-import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
+import {TextInput} from '@astryxdesign/core/TextInput';
+import {Selector} from '@astryxdesign/core/Selector';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {
@@ -57,50 +57,59 @@ import {DataStateView} from '../components/DataStateView';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
 
-
-
-const statusValues = [
+const statusOptions = [
+  {value: '', label: 'Semua Status'},
   {value: 'Aktif', label: 'Aktif'},
   {value: 'Pasif', label: 'Pasif'},
 ];
 
-const roleValues = [
+const roleOptions = [
+  {value: '', label: 'Semua Jabatan'},
   {value: 'Anggota', label: 'Anggota'},
   {value: 'Ketua', label: 'Ketua'},
   {value: 'Bendahara', label: 'Bendahara'},
   {value: 'Sekretaris', label: 'Sekretaris'},
 ];
 
-const fieldDefs = [
-  {key: 'name', type: 'string', label: 'Nama'},
-  {key: 'nik', type: 'string', label: 'NIK'},
-  {key: 'phone', type: 'string', label: 'Telepon'},
-  {key: 'role', type: 'enum', label: 'Jabatan', enumValues: roleValues},
-  {key: 'status', type: 'enum', label: 'Status', enumValues: statusValues},
-  {key: 'joinDate', type: 'string', label: 'Tanggal Bergabung'},
-] as const;
-
 export default function MembersTemplate() {
-  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
-  const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Anggota');
   const dialog = useA11yDialog({purpose: 'form', width: 480});
   const toast = useToast();
   const { hasPermission } = useAuth();
   const apiAction = useApiAction();
   const navigate = useNavigate();
   
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  const { data: membersResponse, isLoading, error, refetch: fetchMembers } = useApiQuery<PaginatedResponse<MemberRow>>(`/api/members?page=${page}&limit=${limit}`);
-  
-  const [members, setMembers] = useState<MemberRow[]>([]);
-  
+  // Debounce search query
   useEffect(() => {
-    if (membersResponse?.data) {
-      setMembers(membersResponse.data);
-    }
-  }, [membersResponse]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, roleFilter]);
+
+  const queryParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (debouncedSearch) queryParams.set('search', debouncedSearch);
+  if (statusFilter) queryParams.set('status', statusFilter);
+  if (roleFilter) queryParams.set('role', roleFilter);
+
+  const { data: membersResponse, isLoading, error, refetch: fetchMembers } = useApiQuery<PaginatedResponse<MemberRow>>(`/api/members?${queryParams.toString()}`);
+  
+  const members = membersResponse?.data || [];
 
   const handleDelete = useCallback((member: MemberRow) => {
     dialog.show(
@@ -382,10 +391,6 @@ export default function MembersTemplate() {
     },
   ], [hasPermission, handleEditMember, handlePreviewPortal, handlePortalAccess, handleUpdateSavings, handleShowHistory, handleDelete]);
 
-  const filtered = useMemo(() => {
-    return applyFilters(filters, members);
-  }, [filters, applyFilters, members]);
-
   const handleAddMember = useCallback(() => {
     dialog.show(
       <AddMemberDialogContent
@@ -415,11 +420,6 @@ export default function MembersTemplate() {
             <StackItem size="fill">
               <Heading level={1}>Data Anggota</Heading>
             </StackItem>
-            <IconButton
-              label="Filter"
-              icon={<Icon icon={FunnelIcon} size="sm" />}
-              variant="ghost"
-            />
             {hasPermission('export:reports') && (
               <>
                 <IconButton
@@ -483,18 +483,32 @@ export default function MembersTemplate() {
       content={
         <LayoutContent padding={3}>
           <DataStateView isLoading={isLoading} error={error} onRetry={fetchMembers} errorTitle="Gagal Memuat Data Anggota">
-          <VStack gap={4}>
-            <PowerSearch
-              config={config}
-              filters={filters}
-              onChange={newFilters => {
-                setFilters([...newFilters]);
-              }}
-              placeholder="Cari anggota..."
-              resultCount={filtered.length}
-            />
+            <VStack gap={4}>
+              <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
+              <StackItem size="fill">
+                <TextInput
+                  placeholder="Cari nama, NIK, atau no. telepon..."
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                />
+              </StackItem>
+              <StackItem style={{ width: '160px' }}>
+                <Selector
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={statusOptions}
+                />
+              </StackItem>
+              <StackItem style={{ width: '180px' }}>
+                <Selector
+                  value={roleFilter}
+                  onChange={setRoleFilter}
+                  options={roleOptions}
+                />
+              </StackItem>
+            </HStack>
             <Table<MemberRow>
-              data={filtered}
+              data={members}
               columns={columns}
               idKey="id"
               density="balanced"
