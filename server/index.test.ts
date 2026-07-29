@@ -49,6 +49,18 @@ describe("API Endpoints", () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
+  test("GET /api/v1/members supports search, status, and role filters", async () => {
+    const req = new Request("http://localhost/api/v1/members?search=nonexistent_query_xyz&status=Aktif&role=Anggota", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    const raw_body = await res.json();
+    expect(raw_body.success).toBe(true);
+    expect(raw_body.data.data).toEqual([]);
+    expect(raw_body.data.total).toBe(0);
+  });
+
   test("GET /api/v1/loans returns loans array", async () => {
     const req = new Request("http://localhost/api/v1/loans", {
       headers: { Authorization: `Bearer ${token}` }

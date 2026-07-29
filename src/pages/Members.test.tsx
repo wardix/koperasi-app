@@ -1,14 +1,17 @@
 import { expect, test, describe, afterEach, spyOn } from "bun:test";
 import { render, cleanup } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import Members from "./Members";
 import { AuthProvider } from "../contexts/AuthContext";
 import * as apiModule from "../services/api";
 
 function renderMembers() {
   render(
-    <AuthProvider>
-      <Members />
-    </AuthProvider>
+    <MemoryRouter>
+      <AuthProvider>
+        <Members />
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 
