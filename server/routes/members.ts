@@ -22,8 +22,34 @@ members.get('/', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
   const includeArchived = c.req.query('includeArchived') === 'true'
+  const search = c.req.query('search')?.trim() || ''
+  const status = c.req.query('status')?.trim() || ''
+  const role = c.req.query('role')?.trim() || ''
 
-  const whereClause = includeArchived ? '' : 'WHERE deletedAt IS NULL'
+  const conditions: string[] = []
+  const params: unknown[] = []
+
+  if (!includeArchived) {
+    conditions.push('deletedAt IS NULL')
+  }
+
+  if (search) {
+    conditions.push('(LOWER(name) LIKE ? OR LOWER(nik) LIKE ? OR phone LIKE ?)')
+    const pattern = `%${search.toLowerCase()}%`
+    params.push(pattern, pattern, `%${search}%`)
+  }
+
+  if (status) {
+    conditions.push('status = ?')
+    params.push(status)
+  }
+
+  if (role) {
+    conditions.push('role = ?')
+    params.push(role)
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
   // Never return password hashes to the client
   const rows = await db.query(`
@@ -36,14 +62,15 @@ members.get('/', requirePermission('read:members'), async (c) => {
     ${whereClause}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
-  `).all<MemberRow>(limit, offset)
-  const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number }>()
+  `).all<MemberRow>(...params, limit, offset)
+
+  const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number | string }>(...params)
 
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: totalRes?.count ?? 0,
+      total: Number(totalRes?.count ?? 0),
       page,
       limit
     }
