@@ -109,10 +109,17 @@ export function ImportSavingsDialogContent({
     try {
       const res = await apiFetch('/api/v1/members?unpaidPokokOnly=true&all=true');
       const json = await res.json();
-      const unpaidMembers: Array<{ name: string; nik?: string | null }> =
-        json.success && Array.isArray(json.data?.data)
-          ? json.data.data
-          : membersWithoutPokok;
+      
+      let unpaidMembers: Array<{ name: string; nik?: string | null }> = [];
+      if (json?.data?.data && Array.isArray(json.data.data)) {
+        unpaidMembers = json.data.data;
+      } else if (json?.data && Array.isArray(json.data)) {
+        unpaidMembers = json.data;
+      } else if (Array.isArray(json)) {
+        unpaidMembers = json;
+      } else {
+        unpaidMembers = membersWithoutPokok;
+      }
 
       downloadSavingsCsvTemplate(unpaidMembers);
     } catch (err) {
