@@ -871,6 +871,16 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/PaginatedList'
+  /savings/template-csv:
+    get:
+      tags: [savings]
+      summary: Download template CSV untuk anggota simpanan pokok Rp 0
+      responses:
+        '200':
+          description: Berkas file CSV
+          content:
+            text/csv:
+              schema: { type: string }
   /savings/batch-import:
     post:
       tags: [savings]
