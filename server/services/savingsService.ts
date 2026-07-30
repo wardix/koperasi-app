@@ -120,3 +120,76 @@ export async function updateMemberSavings(
     },
   };
 }
+
+export type BatchSavingsImportItem = {
+  memberId?: string;
+  nik?: string;
+  savingsType: SavingsType;
+  amount: number;
+  transactionDate?: string;
+};
+
+export type BatchSavingsImportResult = {
+  processedCount: number;
+  failedCount: number;
+  errors: Array<{ index: number; identifier: string; message: string }>;
+};
+
+export async function batchImportSavings(
+  database: Db,
+  items: BatchSavingsImportItem[],
+  createdBy: string
+): Promise<BatchSavingsImportResult> {
+  let processedCount = 0;
+  const errors: Array<{ index: number; identifier: string; message: string }> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const identifier = item.memberId || item.nik || `Baris #${i + 1}`;
+
+    if (!item.amount || item.amount <= 0) {
+      errors.push({ index: i, identifier, message: "Nominal setoran harus lebih besar dari 0" });
+      continue;
+    }
+
+    let member: { id: string } | null = null;
+    if (item.memberId) {
+      member = await database
+        .query("SELECT id FROM members WHERE id = ? AND deletedAt IS NULL")
+        .get<{ id: string }>(item.memberId);
+    } else if (item.nik) {
+      const cleanNik = String(item.nik).replace(/\D/g, "");
+      member = await database
+        .query("SELECT id FROM members WHERE nik = ? AND deletedAt IS NULL")
+        .get<{ id: string }>(cleanNik);
+    }
+
+    if (!member) {
+      errors.push({ index: i, identifier, message: "Anggota tidak ditemukan" });
+      continue;
+    }
+
+    try {
+      await updateMemberSavings(
+        database,
+        member.id,
+        {
+          additionalSavings: item.amount,
+          savingsType: item.savingsType || "pokok",
+          transactionDate: item.transactionDate,
+        },
+        createdBy
+      );
+      processedCount++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses simpanan";
+      errors.push({ index: i, identifier, message: msg });
+    }
+  }
+
+  return {
+    processedCount,
+    failedCount: errors.length,
+    errors,
+  };
+}

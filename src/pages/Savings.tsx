@@ -15,10 +15,15 @@ import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch'
 import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {Table, proportional} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
+import {Button} from '@astryxdesign/core/Button';
+import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
+import {useA11yDialog} from '../hooks/useA11yDialog';
+import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
+import {usePermissions} from '../hooks/usePermissions';
 
 import type {SavingsTransactionRow, PaginatedResponse} from '../shared/types';
 
@@ -37,6 +42,8 @@ const fieldDefs = [
 ] as const;
 
 export default function SavingsTemplate() {
+  const dialog = useA11yDialog({purpose: 'form', width: 600});
+  const {hasPermission} = usePermissions();
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Simpanan');
   
@@ -137,48 +144,66 @@ export default function SavingsTemplate() {
   ], []);
 
   return (
-    <Layout
-      height="auto"
-      header={
-        <LayoutHeader hasDivider>
-          <HStack gap={2} vAlign="center">
-            <StackItem size="fill">
-              <Heading level={1}>Riwayat Transaksi Simpanan</Heading>
-            </StackItem>
-          </HStack>
-        </LayoutHeader>
-      }
-      content={
-        <LayoutContent padding={3}>
-          <DataStateView isLoading={isLoading} error={error} onRetry={fetchTransactions} errorTitle="Gagal Memuat Riwayat Transaksi">
-            <VStack gap={4}>
-              <PowerSearch
-                config={config}
-                filters={filters}
-                onChange={newFilters => {
-                  setFilters([...newFilters]);
-                }}
-                placeholder="Cari transaksi..."
-                resultCount={filtered.length}
-              />
-              <Table<SavingsTransactionRow>
-                data={filtered}
-                columns={columns}
-                idKey="id"
-                density="balanced"
-                dividers="rows"
-                hasHover
-              />
-              <Pagination
-                page={transactionsResponse?.page || 1}
-                limit={transactionsResponse?.limit || limit}
-                total={transactionsResponse?.total || 0}
-                onPageChange={setPage}
-              />
-            </VStack>
-          </DataStateView>
-        </LayoutContent>
-      }
-    />
+    <>
+      <Layout
+        height="auto"
+        header={
+          <LayoutHeader hasDivider>
+            <HStack gap={2} vAlign="center">
+              <StackItem size="fill">
+                <Heading level={1}>Riwayat Transaksi Simpanan</Heading>
+              </StackItem>
+              {hasPermission('update:savings') && (
+                <Button
+                  label="Import CSV Simpanan"
+                  variant="secondary"
+                  icon={ArrowDownTrayIcon}
+                  onClick={() => {
+                    dialog.show(
+                      <ImportSavingsDialogContent
+                        onClose={() => dialog.hide()}
+                        onSuccess={() => fetchTransactions()}
+                      />
+                    );
+                  }}
+                />
+              )}
+            </HStack>
+          </LayoutHeader>
+        }
+        content={
+          <LayoutContent padding={3}>
+            <DataStateView isLoading={isLoading} error={error} onRetry={fetchTransactions} errorTitle="Gagal Memuat Riwayat Transaksi">
+              <VStack gap={4}>
+                <PowerSearch
+                  config={config}
+                  filters={filters}
+                  onChange={newFilters => {
+                    setFilters([...newFilters]);
+                  }}
+                  placeholder="Cari transaksi..."
+                  resultCount={filtered.length}
+                />
+                <Table<SavingsTransactionRow>
+                  data={filtered}
+                  columns={columns}
+                  idKey="id"
+                  density="balanced"
+                  dividers="rows"
+                  hasHover
+                />
+                <Pagination
+                  page={transactionsResponse?.page || 1}
+                  limit={transactionsResponse?.limit || limit}
+                  total={transactionsResponse?.total || 0}
+                  onPageChange={setPage}
+                />
+              </VStack>
+            </DataStateView>
+          </LayoutContent>
+        }
+      />
+      {dialog.element}
+    </>
   );
 }

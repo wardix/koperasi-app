@@ -3,7 +3,10 @@ import db from '../db'
 import type { TransactionRow } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { SAVINGS_TRANSACTION_TYPES } from '../schemas'
+import { SAVINGS_TRANSACTION_TYPES, batchSavingsImportSchema } from '../schemas'
+import { batchImportSavings } from '../services/savingsService'
+import { audit, getActor, getClientIp } from '../lib/audit'
+import { clearStatsCache } from './stats'
 
 const savings = new Hono()
 
@@ -34,6 +37,33 @@ savings.get('/transactions', requirePermission('read:members'), async (c) => {
       page,
       limit
     }
+  })
+})
+
+savings.post('/batch-import', requirePermission('update:savings'), async (c) => {
+  const body = await c.req.json()
+  const parsed = batchSavingsImportSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const result = await batchImportSavings(db, parsed.data.items, getActor(c))
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'update_savings',
+    entity: 'members',
+    after: { batchImportCount: result.processedCount, failedCount: result.failedCount },
+    ip: getClientIp(c),
+  })
+
+  clearStatsCache()
+
+  return c.json({
+    success: true,
+    message: `Berhasil mengimpor ${result.processedCount} data simpanan`,
+    data: result,
   })
 })
 
