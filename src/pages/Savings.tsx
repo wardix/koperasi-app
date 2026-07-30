@@ -16,6 +16,7 @@ import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {Table, proportional} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {Button} from '@astryxdesign/core/Button';
+import {Icon} from '@astryxdesign/core/Icon';
 import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {formatRp} from '../utils/format';
@@ -157,7 +158,7 @@ export default function SavingsTemplate() {
                 <Button
                   label="Import CSV Simpanan"
                   variant="secondary"
-                  icon={ArrowDownTrayIcon}
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
                   onClick={() => {
                     dialog.show(
                       <ImportSavingsDialogContent
