@@ -23,7 +23,7 @@ import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
-import {usePermissions} from '../hooks/usePermissions';
+import {useAuth} from '../hooks/useAuth';
 
 import type {SavingsTransactionRow, PaginatedResponse} from '../shared/types';
 
@@ -43,7 +43,7 @@ const fieldDefs = [
 
 export default function SavingsTemplate() {
   const dialog = useA11yDialog({purpose: 'form', width: 600});
-  const {hasPermission} = usePermissions();
+  const {hasPermission} = useAuth();
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Simpanan');
   
