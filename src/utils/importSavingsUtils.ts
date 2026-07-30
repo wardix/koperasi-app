@@ -82,14 +82,18 @@ export async function parseSavingsCsvFile(file: File): Promise<ParsedSavingsImpo
   const headerLine = lines[0];
   const delimiter = headerLine.includes(';') ? ';' : ',';
   const headers = parseCsvLine(headerLine, delimiter).map((h) =>
-    h.toLowerCase().trim().replace(/[^a-z0-9_]/g, '')
+    h.toLowerCase().trim().replace(/[^a-z0-9]/g, '')
   );
 
-  const nikIdx = headers.findIndex((h) => h === 'nik');
+  const nikIdx = headers.findIndex((h) => h === 'nik' || h === 'id' || h === 'nikanggota');
   const namaIdx = headers.findIndex((h) => h === 'nama' || h === 'namaanggota' || h === 'name');
-  const jenisIdx = headers.findIndex((h) => h === 'jenissimpanan' || h === 'jenis' || h === 'type');
-  const nominalIdx = headers.findIndex((h) => h === 'nominal' || h === 'setoran' || h === 'amount');
-  const tanggalIdx = headers.findIndex((h) => h === 'tanggal' || h === 'date');
+  const jenisIdx = headers.findIndex((h) =>
+    h === 'jenissimpanan' || h === 'tipesimpanan' || h === 'jenis' || h === 'tipe' || h === 'type'
+  );
+  const nominalIdx = headers.findIndex((h) =>
+    h === 'nominal' || h === 'setoran' || h === 'amount' || h === 'jumlah' || h === 'total'
+  );
+  const tanggalIdx = headers.findIndex((h) => h === 'tanggal' || h === 'date' || h === 'tgl');
 
   if (nikIdx === -1) {
     throw new Error('Header "nik" tidak ditemukan pada file CSV.');
