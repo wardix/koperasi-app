@@ -49,7 +49,14 @@ members.get('/', requirePermission('read:members'), async (c) => {
     params.push(role)
   }
 
+  if (c.req.query('unpaidPokokOnly') === 'true') {
+    conditions.push('simpananPokok = 0')
+  }
+
+  const fetchAll = c.req.query('all') === 'true'
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limitClause = fetchAll ? '' : 'LIMIT ? OFFSET ?'
+  const queryParams = fetchAll ? params : [...params, limit, offset]
 
   // Never return password hashes to the client
   const rows = await db.query(`
@@ -60,9 +67,9 @@ members.get('/', requirePermission('read:members'), async (c) => {
       CASE WHEN password IS NOT NULL AND password <> '' THEN TRUE ELSE FALSE END AS "hasPortalAccess"
     FROM members
     ${whereClause}
-    ORDER BY id DESC
-    LIMIT ? OFFSET ?
-  `).all<MemberRow>(...params, limit, offset)
+    ORDER BY name ASC, id DESC
+    ${limitClause}
+  `).all<MemberRow>(...queryParams)
 
   const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number | string }>(...params)
 
@@ -71,8 +78,8 @@ members.get('/', requirePermission('read:members'), async (c) => {
     data: {
       data: rows,
       total: Number(totalRes?.count ?? 0),
-      page,
-      limit
+      page: fetchAll ? 1 : page,
+      limit: fetchAll ? rows.length : limit
     }
   })
 })
