@@ -40,6 +40,32 @@ savings.get('/transactions', requirePermission('read:members'), async (c) => {
   })
 })
 
+savings.get('/template-csv', requirePermission('read:members'), async (c) => {
+  const unpaidMembers = await db.query(`
+    SELECT nik, name FROM members
+    WHERE simpananPokok = 0 AND deletedAt IS NULL
+    ORDER BY name ASC
+  `).all<{ nik: string | null; name: string }>()
+
+  const today = new Date().toISOString().split('T')[0]
+  const lines = ['nik,nama,jenis_simpanan,nominal,tanggal']
+
+  if (unpaidMembers.length > 0) {
+    for (const m of unpaidMembers) {
+      const safeName = m.name.includes(',') ? `"${m.name.replace(/"/g, '""')}"` : m.name
+      lines.push(`${m.nik || ''},${safeName},pokok,500000,${today}`)
+    }
+  } else {
+    lines.push(`3171012345670001,Budi Santoso,pokok,500000,${today}`)
+    lines.push(`3171012345670002,Siti Rahma,pokok,500000,${today}`)
+  }
+
+  const csvText = '\uFEFF' + lines.join('\r\n')
+  c.header('Content-Type', 'text/csv; charset=utf-8')
+  c.header('Content-Disposition', `attachment; filename="Template_Import_Simpanan_${today}.csv"`)
+  return c.text(csvText)
+})
+
 savings.post('/batch-import', requirePermission('update:savings'), async (c) => {
   const body = await c.req.json()
   const parsed = batchSavingsImportSchema.safeParse(body)

@@ -50,6 +50,7 @@ export const OPENAPI_ROUTE_MANIFEST: RouteEntry[] = [
 
   // Savings
   { method: "GET", path: "/savings/transactions", tag: "savings" },
+  { method: "GET", path: "/savings/template-csv", tag: "savings" },
   { method: "POST", path: "/savings/batch-import", tag: "savings" },
 
   // SHU

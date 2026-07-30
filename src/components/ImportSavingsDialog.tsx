@@ -17,7 +17,8 @@ import {
   ParsedSavingsImportRow,
 } from '../utils/importSavingsUtils';
 import { formatRp } from '../utils/format';
-import { apiFetch } from '../config';
+import { useApiQuery } from '../hooks/useApiQuery';
+import { apiFetch, apiUrl } from '../config';
 
 interface ImportSavingsDialogContentProps {
   onClose: () => void;
@@ -36,6 +37,22 @@ export function ImportSavingsDialogContent({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resultMsg, setResultMsg] = useState<string | null>(null);
+
+  // Pre-fetch all unpaid members on mount so CSV generation is 100% synchronous on click
+  const { data: unpaidApiRes } = useApiQuery<any>('/api/v1/members?unpaidPokokOnly=true&all=true');
+
+  const allUnpaidMembers = useMemo(() => {
+    if (unpaidApiRes?.data?.data && Array.isArray(unpaidApiRes.data.data)) {
+      return unpaidApiRes.data.data;
+    }
+    if (unpaidApiRes?.data && Array.isArray(unpaidApiRes.data)) {
+      return unpaidApiRes.data;
+    }
+    if (Array.isArray(unpaidApiRes)) {
+      return unpaidApiRes;
+    }
+    return membersWithoutPokok;
+  }, [unpaidApiRes, membersWithoutPokok]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -102,34 +119,6 @@ export function ImportSavingsDialogContent({
     }
   }, [validRows, onSuccess, onClose]);
 
-  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
-
-  const handleDownloadUnpaidTemplate = useCallback(async () => {
-    setIsDownloadingTemplate(true);
-    try {
-      const res = await apiFetch('/api/v1/members?unpaidPokokOnly=true&all=true');
-      const json = await res.json();
-      
-      let unpaidMembers: Array<{ name: string; nik?: string | null }> = [];
-      if (json?.data?.data && Array.isArray(json.data.data)) {
-        unpaidMembers = json.data.data;
-      } else if (json?.data && Array.isArray(json.data)) {
-        unpaidMembers = json.data;
-      } else if (Array.isArray(json)) {
-        unpaidMembers = json;
-      } else {
-        unpaidMembers = membersWithoutPokok;
-      }
-
-      downloadSavingsCsvTemplate(unpaidMembers);
-    } catch (err) {
-      console.error('Failed to fetch unpaid members:', err);
-      downloadSavingsCsvTemplate(membersWithoutPokok);
-    } finally {
-      setIsDownloadingTemplate(false);
-    }
-  }, [membersWithoutPokok]);
-
   return (
     <Layout
       header={
@@ -160,25 +149,25 @@ export function ImportSavingsDialogContent({
               <HStack gap={2}>
                 <Button
                   type="button"
-                  label={isDownloadingTemplate ? 'Mengunduh...' : 'Template CSV (Semua Anggota Simpanan Rp 0)'}
+                  label="Template CSV (Anggota Simpanan Rp 0)"
                   variant="secondary"
-                  disabled={isDownloadingTemplate}
-                  onClick={(e: any) => {
-                    e?.preventDefault?.();
-                    e?.stopPropagation?.();
-                    handleDownloadUnpaidTemplate();
+                  onClick={() => {
+                    downloadSavingsCsvTemplate(allUnpaidMembers);
                   }}
                 />
-                <Button
-                  type="button"
-                  label="Template CSV Contoh"
-                  variant="tertiary"
-                  onClick={(e: any) => {
-                    e?.preventDefault?.();
-                    e?.stopPropagation?.();
-                    downloadSavingsCsvTemplate();
-                  }}
-                />
+                <a
+                  href={apiUrl('/api/v1/savings/template-csv')}
+                  download={`Template_Import_Simpanan_${new Date().toISOString().split('T')[0]}.csv`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Button
+                    type="button"
+                    label="Unduh Langsung (Server)"
+                    variant="tertiary"
+                  />
+                </a>
               </HStack>
             </VStack>
 
