@@ -102,6 +102,27 @@ export function ImportSavingsDialogContent({
     }
   }, [validRows, onSuccess, onClose]);
 
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+
+  const handleDownloadUnpaidTemplate = useCallback(async () => {
+    setIsDownloadingTemplate(true);
+    try {
+      const res = await apiFetch('/api/v1/members?unpaidPokokOnly=true&all=true');
+      const json = await res.json();
+      const unpaidMembers: Array<{ name: string; nik?: string | null }> =
+        json.success && Array.isArray(json.data?.data)
+          ? json.data.data
+          : membersWithoutPokok;
+
+      downloadSavingsCsvTemplate(unpaidMembers);
+    } catch (err) {
+      console.error('Failed to fetch unpaid members:', err);
+      downloadSavingsCsvTemplate(membersWithoutPokok);
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  }, [membersWithoutPokok]);
+
   return (
     <Layout
       header={
@@ -127,22 +148,20 @@ export function ImportSavingsDialogContent({
               <Heading level={4}>1. Unduh Template CSV</Heading>
               <Text type="supporting" color="secondary">
                 Format kolom CSV: <code>nik, nama, jenis_simpanan, nominal, tanggal</code>.
-                {membersWithoutPokok.length > 0 &&
-                  ` Terdapat ${membersWithoutPokok.length} anggota yang simpanan pokoknya masih Rp 0.`}
+                Unduh template berisi seluruh anggota koperasi di database yang simpanan pokoknya masih Rp 0.
               </Text>
               <HStack gap={2}>
-                {membersWithoutPokok.length > 0 && (
-                  <Button
-                    type="button"
-                    label="Template CSV (Anggota Simpanan Rp 0)"
-                    variant="secondary"
-                    onClick={(e: any) => {
-                      e?.preventDefault?.();
-                      e?.stopPropagation?.();
-                      downloadSavingsCsvTemplate(membersWithoutPokok);
-                    }}
-                  />
-                )}
+                <Button
+                  type="button"
+                  label={isDownloadingTemplate ? 'Mengunduh...' : 'Template CSV (Semua Anggota Simpanan Rp 0)'}
+                  variant="secondary"
+                  disabled={isDownloadingTemplate}
+                  onClick={(e: any) => {
+                    e?.preventDefault?.();
+                    e?.stopPropagation?.();
+                    handleDownloadUnpaidTemplate();
+                  }}
+                />
                 <Button
                   type="button"
                   label="Template CSV Contoh"
