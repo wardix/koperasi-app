@@ -138,6 +138,23 @@ export const savingsSchema = z.object({
     .optional(),
 })
 
+export const batchSavingsImportItemSchema = z.object({
+  memberId: z.string().optional(),
+  nik: z.string().optional(),
+  savingsType: z.enum(["pokok", "wajib", "sukarela"]).default("pokok"),
+  amount: z.number().positive("Nominal setoran harus lebih dari 0"),
+  transactionDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional(),
+}).refine((v) => !!v.memberId || !!v.nik, {
+  message: "memberId atau nik wajib diisi",
+});
+
+export const batchSavingsImportSchema = z.object({
+  items: z.array(batchSavingsImportItemSchema).min(1, "Minimal 1 data simpanan untuk diimport"),
+});
+
 // Schema for transaction type validation
 export const transactionTypeSchema = z.enum(SAVINGS_TRANSACTION_TYPES);
 

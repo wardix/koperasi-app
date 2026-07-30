@@ -54,6 +54,7 @@ import {formatRp} from '../utils/format';
 import {exportToExcel, exportToPDF} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
+import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
 
@@ -410,6 +411,17 @@ export default function MembersTemplate() {
     );
   }, [dialog, apiAction, fetchMembers]);
 
+  const handleImportSavings = useCallback(() => {
+    const membersWithoutPokok = members.filter((m) => Number(m.simpananPokok ?? 0) === 0);
+    dialog.show(
+      <ImportSavingsDialogContent
+        onClose={() => dialog.hide()}
+        onSuccess={() => fetchMembers()}
+        membersWithoutPokok={membersWithoutPokok}
+      />
+    );
+  }, [dialog, members, fetchMembers]);
+
   return (
     <>
     <Layout
@@ -469,6 +481,14 @@ export default function MembersTemplate() {
                   }}
                 />
               </>
+            )}
+            {hasPermission('update:savings') && (
+              <Button
+                label="Import Simpanan (CSV)"
+                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                variant="secondary"
+                onClick={handleImportSavings}
+              />
             )}
             {hasPermission('create:members') && (
               <Button

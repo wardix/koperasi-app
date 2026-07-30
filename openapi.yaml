@@ -871,6 +871,36 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/PaginatedList'
+  /savings/batch-import:
+    post:
+      tags: [savings]
+      summary: Batch import mutasi simpanan dari file Excel/CSV
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [amount]
+                    properties:
+                      memberId: { type: string }
+                      nik: { type: string }
+                      savingsType: { type: string, enum: [pokok, wajib, sukarela] }
+                      amount: { type: number }
+                      transactionDate: { type: string }
+      responses:
+        '200':
+          description: Hasil batch import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiDataEnvelope'
   /shu:
     get:
       tags: [shu]
