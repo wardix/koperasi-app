@@ -16,38 +16,45 @@ export interface ParsedSavingsImportRow {
 export function downloadSavingsCsvTemplate(
   membersToInclude?: Array<{ name: string; nik?: string | null; simpananPokok?: number }>
 ) {
-  const today = new Date().toISOString().split('T')[0];
+  try {
+    const today = new Date().toISOString().split('T')[0];
 
-  const header = 'nik,nama,jenis_simpanan,nominal,tanggal';
-  const lines: string[] = [header];
+    const header = 'nik,nama,jenis_simpanan,nominal,tanggal';
+    const lines: string[] = [header];
 
-  if (membersToInclude && membersToInclude.length > 0) {
-    membersToInclude.forEach((m) => {
-      if (m.nik) {
-        // Escape name if it contains commas
+    if (membersToInclude && membersToInclude.length > 0) {
+      membersToInclude.forEach((m) => {
+        const nikVal = m.nik || '';
         const safeName = m.name.includes(',') ? `"${m.name}"` : m.name;
-        lines.push(`${m.nik},${safeName},pokok,500000,${today}`);
+        lines.push(`${nikVal},${safeName},pokok,500000,${today}`);
+      });
+    }
+
+    // Fallback sample rows if no members passed
+    if (lines.length === 1) {
+      lines.push(`3171012345670001,Budi Santoso,pokok,500000,${today}`);
+      lines.push(`3171012345670002,Siti Rahma,pokok,500000,${today}`);
+    }
+
+    const csvContent = lines.join('\r\n');
+    // Add UTF-8 BOM so Excel opens Indonesian characters and numbers cleanly
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Template_Import_Simpanan_${today}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
       }
-    });
+      URL.revokeObjectURL(url);
+    }, 200);
+  } catch (err) {
+    console.error('Failed to download CSV template:', err);
   }
-
-  // Fallback sample rows if no members passed or no members have NIK
-  if (lines.length === 1) {
-    lines.push(`3171012345670001,Budi Santoso,pokok,500000,${today}`);
-    lines.push(`3171012345670002,Siti Rahma,pokok,500000,${today}`);
-  }
-
-  const csvContent = lines.join('\r\n');
-  // Add UTF-8 BOM so Excel opens Indonesian characters and numbers cleanly
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `Template_Import_Simpanan_NIK_${today}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
 
 /**

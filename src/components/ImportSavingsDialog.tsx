@@ -133,15 +133,25 @@ export function ImportSavingsDialogContent({
               <HStack gap={2}>
                 {membersWithoutPokok.length > 0 && (
                   <Button
+                    type="button"
                     label="Template CSV (Anggota Simpanan Rp 0)"
                     variant="secondary"
-                    onClick={() => downloadSavingsCsvTemplate(membersWithoutPokok)}
+                    onClick={(e: any) => {
+                      e?.preventDefault?.();
+                      e?.stopPropagation?.();
+                      downloadSavingsCsvTemplate(membersWithoutPokok);
+                    }}
                   />
                 )}
                 <Button
+                  type="button"
                   label="Template CSV Contoh"
                   variant="tertiary"
-                  onClick={() => downloadSavingsCsvTemplate()}
+                  onClick={(e: any) => {
+                    e?.preventDefault?.();
+                    e?.stopPropagation?.();
+                    downloadSavingsCsvTemplate();
+                  }}
                 />
               </HStack>
             </VStack>
