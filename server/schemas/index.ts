@@ -40,6 +40,9 @@ const phoneField = z
     message: "Nomor telepon harus 8–15 digit (boleh diawali +)",
   });
 
+const defaultSimpananPokokEnv = process.env.DEFAULT_SIMPANAN_POKOK || process.env.VITE_DEFAULT_SIMPANAN_POKOK;
+const defaultSimpananPokok = defaultSimpananPokokEnv ? Number(defaultSimpananPokokEnv) : 0;
+
 export const memberSchema = z.object({
   name: z.string().min(1, "Name is required").transform(sanitize),
   role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
@@ -47,7 +50,7 @@ export const memberSchema = z.object({
   joinDate: z.string().min(1, "Join date is required").transform(sanitize),
   nik: nikField.optional().default(null),
   phone: phoneField.optional().default(null),
-  simpananPokok: z.number().nonnegative().default(0),
+  simpananPokok: z.number().nonnegative().default(Number.isFinite(defaultSimpananPokok) ? defaultSimpananPokok : 0),
   simpananWajib: z.number().nonnegative().default(0),
   simpananSukarela: z.number().nonnegative().default(0),
   totalSavings: z.number().nonnegative().optional(),
