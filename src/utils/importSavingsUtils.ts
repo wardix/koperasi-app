@@ -25,7 +25,8 @@ export function downloadSavingsCsvTemplate(
     if (membersToInclude && membersToInclude.length > 0) {
       membersToInclude.forEach((m) => {
         const nikVal = m.nik || '';
-        const safeName = m.name.includes(',') ? `"${m.name}"` : m.name;
+        const nameVal = m.name || '';
+        const safeName = nameVal.includes(',') ? `"${nameVal.replace(/"/g, '""')}"` : nameVal;
         lines.push(`${nikVal},${safeName},pokok,500000,${today}`);
       });
     }
@@ -37,21 +38,30 @@ export function downloadSavingsCsvTemplate(
     }
 
     const csvContent = lines.join('\r\n');
-    // Add UTF-8 BOM so Excel opens Indonesian characters and numbers cleanly
+    const filename = `Template_Import_Simpanan_${today}.csv`;
+
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Template_Import_Simpanan_${today}.csv`;
+    link.download = filename;
     link.style.display = 'none';
     document.body.appendChild(link);
-    link.click();
+
+    // Dispatch explicit mouse click event (bypasses silent click block after async API fetches)
+    const event = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    });
+    link.dispatchEvent(event);
+
     setTimeout(() => {
       if (document.body.contains(link)) {
         document.body.removeChild(link);
       }
       URL.revokeObjectURL(url);
-    }, 200);
+    }, 500);
   } catch (err) {
     console.error('Failed to download CSV template:', err);
   }
