@@ -117,6 +117,11 @@ export function AddMemberDialogContent({
   onClose: () => void;
   onAdd: (m: CreateMemberPayload) => void;
 }) {
+  const defaultSimpananPokokEnv = import.meta.env.VITE_DEFAULT_SIMPANAN_POKOK;
+  const initialDepositStr = defaultSimpananPokokEnv !== undefined && defaultSimpananPokokEnv !== ''
+    ? defaultSimpananPokokEnv
+    : '0';
+
   const { control, handleSubmit, formState: { errors } } = useForm<MemberForm>({
     resolver: zodResolver(memberFormSchema),
     defaultValues: {
@@ -125,7 +130,7 @@ export function AddMemberDialogContent({
       phone: '',
       role: 'Anggota',
       joinDate: todayISO(),
-      deposit: formatAmountInput('500000'),
+      deposit: formatAmountInput(initialDepositStr),
       email: '',
       password: '',
       passwordConfirm: '',
