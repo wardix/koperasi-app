@@ -169,6 +169,9 @@ export function ImportSavingsDialogContent({
                             link.download = `Template_Import_Simpanan_${new Date().toISOString().split('T')[0]}.xlsx`;
                             link.style.display = 'none';
                             
+                            // Prevent click event from bubbling up to the button
+                            link.addEventListener('click', (ev) => ev.stopPropagation());
+                            
                             btn.appendChild(link);
                             link.click();
                             
