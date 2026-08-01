@@ -1,8 +1,20 @@
+/**
+ * Global styles untuk Sistem Informasi Koperasi
+ *
+ * Catatan Design System:
+ * - Sebagian besar styling ditangani oleh Astryx Design System (CSS variables dari @astryxdesign/theme-neutral)
+ * - CSS variables lama di bawah (--text, --bg, --border, dll) adalah sisa template Vite
+ *   dan HANYA digunakan oleh App.css (yang saat ini tidak di-import di mana pun).
+ * - Variables yang masih aktif digunakan di file ini: --border (untuk #root dan .skeleton)
+ * - Untuk warna semantic baru, gunakan tokens dari src/design/tokens.ts
+ */
+
 :root {
+  /* Legacy vars — dipertahankan untuk kompatibilitas App.css (tidak aktif diimport) */
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
-  --border: #e5e4e7;
+  --border: #e5e4e7; /* Masih digunakan: #root border, .skeleton */
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
   --accent-bg: rgba(170, 59, 255, 0.1);

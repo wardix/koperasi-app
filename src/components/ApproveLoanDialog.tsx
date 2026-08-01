@@ -137,7 +137,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
           isRequired
         />
         {rateError ? (
-          <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>
+          <Text type="supporting" color="critical">
             {rateError}
           </Text>
         ) : null}
