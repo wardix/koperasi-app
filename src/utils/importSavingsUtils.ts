@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx';
+
 export interface ParsedSavingsImportRow {
   nik: string;
   memberName?: string;
@@ -10,51 +12,37 @@ export interface ParsedSavingsImportRow {
 
 /**
  * Downloads a clean CSV template for batch savings import based on NIK.
- * If membersToInclude is provided (e.g. members with simpananPokok == 0),
- * pre-fills their NIK and Name for quick editing.
+ * If membersToInclude is provided, pre-fills their NIK and Name for quick editing.
  */
 export function downloadSavingsCsvTemplate(
   membersToInclude?: Array<{ name: string; nik?: string | null; simpananPokok?: number }>
 ) {
   try {
     const today = new Date().toISOString().split('T')[0];
-
-    const header = 'nik,nama,jenis_simpanan,nominal,tanggal';
-    const lines: string[] = [header];
-
+    const filename = `Template_Import_Simpanan_${today}.csv`;
+    
+    const data: any[] = [];
+    
     if (membersToInclude && membersToInclude.length > 0) {
       membersToInclude.forEach((m) => {
-        const nikVal = m.nik || '';
-        const nameVal = m.name || '';
-        const safeName = nameVal.includes(',') ? `"${nameVal.replace(/"/g, '""')}"` : nameVal;
-        lines.push(`${nikVal},${safeName},wajib,50000,${today}`);
+        data.push({
+          nik: m.nik || '',
+          nama: m.name || '',
+          jenis_simpanan: 'wajib',
+          nominal: 50000,
+          tanggal: today
+        });
       });
+    } else {
+      data.push({ nik: '3171012345670001', nama: 'Budi Santoso', jenis_simpanan: 'wajib', nominal: 50000, tanggal: today });
+      data.push({ nik: '3171012345670002', nama: 'Siti Rahma', jenis_simpanan: 'wajib', nominal: 50000, tanggal: today });
     }
 
-    // Fallback sample rows if no members passed
-    if (lines.length === 1) {
-      lines.push(`3171012345670001,Budi Santoso,wajib,50000,${today}`);
-      lines.push(`3171012345670002,Siti Rahma,wajib,50000,${today}`);
-    }
-
-    const csvContent = lines.join('\r\n');
-    const filename = `Template_Import_Simpanan_${today}.csv`;
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-
-    setTimeout(() => {
-      if (document.body.contains(link)) {
-        document.body.removeChild(link);
-      }
-      URL.revokeObjectURL(url);
-    }, 500);
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+    
+    XLSX.writeFile(workbook, filename, { bookType: 'csv' });
   } catch (err) {
     console.error('Failed to download CSV template:', err);
   }
