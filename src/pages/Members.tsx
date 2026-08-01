@@ -51,7 +51,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {useApiAction} from '../hooks/useApiAction';
 import {formatRp} from '../utils/format';
-import {exportToExcel, exportToPDF} from '../utils/exportUtils';
+import {exportToExcel} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
@@ -433,54 +433,47 @@ export default function MembersTemplate() {
               <Heading level={1}>Data Anggota</Heading>
             </StackItem>
             {hasPermission('export:reports') && (
-              <>
-                <IconButton
-                  label="Unduh"
-                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                  variant="ghost"
-                  onClick={() => {
-                    if (members.length === 0) {
-                      toast.show({ type: 'error', message: 'Data kosong' });
-                      return;
+              <IconButton
+                label="Unduh"
+                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                variant="ghost"
+                onClick={() => {
+                  if (members.length === 0) {
+                    toast.show({ type: 'error', message: 'Data kosong' });
+                    return;
+                  }
+                  
+                  const exportParams = new URLSearchParams();
+                  exportParams.set('all', 'true');
+                  if (debouncedSearch) exportParams.set('search', debouncedSearch);
+                  if (statusFilter) exportParams.set('status', statusFilter);
+                  if (roleFilter) exportParams.set('role', roleFilter);
+
+                  apiAction.execute(
+                    () => api.get<PaginatedResponse<MemberRow>>(`/api/members?${exportParams.toString()}`),
+                    {
+                      successMsg: 'Data Excel berhasil diunduh',
+                      errorMsg: 'Gagal menyiapkan data unduhan',
+                      onSuccess: (res) => {
+                        const allMembers = res.data || [];
+                        const columns = [
+                          { header: 'Nama', key: 'name' },
+                          { header: 'NIK', key: 'nik' },
+                          { header: 'Telepon', key: 'phone' },
+                          { header: 'Jabatan', key: 'role' },
+                          { header: 'Status', key: 'status' },
+                          { header: 'Tanggal Gabung', key: 'joinDate' },
+                          { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
+                          { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
+                          { header: 'Simpanan Sukarela', key: 'simpananSukarela', render: (item: any) => formatRp(item.simpananSukarela) },
+                          { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
+                        ];
+                        exportToExcel(allMembers, columns, `Data_Anggota_${new Date().toISOString().slice(0,10)}`);
+                      }
                     }
-                    const columns = [
-                      { header: 'Nama', key: 'name' },
-                      { header: 'NIK', key: 'nik' },
-                      { header: 'Telepon', key: 'phone' },
-                      { header: 'Jabatan', key: 'role' },
-                      { header: 'Status', key: 'status' },
-                      { header: 'Tanggal Gabung', key: 'joinDate' },
-                      { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
-                      { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
-                      { header: 'Simpanan Sukarela', key: 'simpananSukarela', render: (item: any) => formatRp(item.simpananSukarela) },
-                      { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
-                    ];
-                    exportToExcel(members, columns, `Data_Anggota_${new Date().toISOString().slice(0,10)}`);
-                  }}
-                />
-                <IconButton
-                  label="Cetak PDF"
-                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                  variant="ghost"
-                  onClick={() => {
-                    if (members.length === 0) {
-                      toast.show({ type: 'error', message: 'Data kosong' });
-                      return;
-                    }
-                    const columns = [
-                      { header: 'Nama', key: 'name' },
-                      { header: 'NIK', key: 'nik' },
-                      { header: 'Telepon', key: 'phone' },
-                      { header: 'Status', key: 'status' },
-                      { header: 'Tanggal Gabung', key: 'joinDate' },
-                      { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
-                      { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
-                      { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
-                    ];
-                    exportToPDF(members, columns, `Laporan_Anggota_${new Date().toISOString().slice(0,10)}`, 'DAFTAR ANGGOTA KOPERASI');
-                  }}
-                />
-              </>
+                  );
+                }}
+              />
             )}
             {hasPermission('update:savings') && (
               <Button
