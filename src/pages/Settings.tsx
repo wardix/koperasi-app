@@ -34,6 +34,9 @@ import {CheckboxInput} from '@astryxdesign/core/CheckboxInput';
 import {Typeahead} from '@astryxdesign/core/Typeahead';
 import {MagnifyingGlassIcon} from '@heroicons/react/24/outline';
 import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
+import {ProfileSettings} from '../components/settings/ProfileSettings';
+import {ParameterSettings} from '../components/settings/ParameterSettings';
+import {TwoFactorSettings} from '../components/settings/TwoFactorSettings';
 
 const NAV_ITEMS = [
   'Profil Koperasi',
@@ -257,68 +260,31 @@ export default function SettingsTemplate() {
               </VStack>
             )}
             
-            <Grid columns={{minWidth: 320}} gap={10}>
-              <VStack gap={1}>
-                <Heading level={3}>Informasi Koperasi</Heading>
-                <Text type="supporting" color="secondary">
-                  Perbarui detail dan identitas koperasi Anda.
-                </Text>
-              </VStack>
-              <VStack gap={4}>
-                <TextInput label="Nama Koperasi" value={koperasiName} onChange={setKoperasiName} disabled={!hasPermission('update:settings')} />
-                <TextInput label="Alamat Lengkap" value={alamat} onChange={setAlamat} disabled={!hasPermission('update:settings')} />
-                <Grid columns={2} gap={4}>
-                  <TextInput label="No. Telepon" value={telepon} onChange={setTelepon} disabled={!hasPermission('update:settings')} />
-                  <TextInput label="Email Resmi" type="email" value={email} onChange={setEmail} disabled={!hasPermission('update:settings')} />
-                </Grid>
-                {hasPermission('update:settings') && (
-                  <HStack hAlign="start">
-                    <Button label="Simpan Perubahan" variant="primary" onClick={saveSettings} />
-                  </HStack>
-                )}
-              </VStack>
-            </Grid>
+            <ProfileSettings
+              koperasiName={koperasiName}
+              alamat={alamat}
+              telepon={telepon}
+              email={email}
+              canUpdate={hasPermission('update:settings')}
+              onKoperasiNameChange={setKoperasiName}
+              onAlamatChange={setAlamat}
+              onTeleponChange={setTelepon}
+              onEmailChange={setEmail}
+              onSave={saveSettings}
+            />
 
             <Divider />
 
-            <Grid columns={{minWidth: 320}} gap={10}>
-              <VStack gap={1}>
-                <Heading level={3}>Parameter Bunga</Heading>
-                <Text type="supporting" color="secondary">
-                  Atur besaran persentase bunga untuk pinjaman, simpanan, dan denda.
-                </Text>
-              </VStack>
-              <VStack gap={4}>
-                <Grid columns={3} gap={4}>
-                  <TextInput 
-                    label="Bunga Pinjaman (% per Tahun)" 
-                    type="number" 
-                    value={bungaPinjaman} 
-                    onChange={setBungaPinjaman}
-                    disabled={!hasPermission('update:settings')} 
-                  />
-                  <TextInput 
-                    label="Bunga Simpanan (%)" 
-                    type="number" 
-                    value={bungaSimpanan} 
-                    onChange={setBungaSimpanan}
-                    disabled={!hasPermission('update:settings')} 
-                  />
-                  <TextInput 
-                    label="Denda Keterlambatan (%)" 
-                    type="number" 
-                    value={denda} 
-                    onChange={setDenda}
-                    disabled={!hasPermission('update:settings')} 
-                  />
-                </Grid>
-                {hasPermission('update:settings') && (
-                  <HStack>
-                    <Button label="Simpan Parameter" variant="primary" onClick={saveSettings} />
-                  </HStack>
-                )}
-              </VStack>
-            </Grid>
+            <ParameterSettings
+              bungaPinjaman={bungaPinjaman}
+              bungaSimpanan={bungaSimpanan}
+              denda={denda}
+              canUpdate={hasPermission('update:settings')}
+              onBungaPinjamanChange={setBungaPinjaman}
+              onBungaSimpananChange={setBungaSimpanan}
+              onDendaChange={setDenda}
+              onSave={saveSettings}
+            />
 
             <Divider />
 
@@ -344,182 +310,21 @@ export default function SettingsTemplate() {
                   onChange={setSelfRegister}
                   disabled={!hasPermission('update:settings')}
                 />
-                <VStack gap={3}>
-                  <HStack justify="space-between">
-                    <div>
-                      <Text type="body" fontWeight="600">Otentikasi Dua Langkah (2FA)</Text>
-                      <Text type="supporting" color="secondary">
-                        Tambahkan lapisan keamanan ekstra pada akun Anda.
-                      </Text>
-                    </div>
-                    {twoFactorEnabled ? (
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '9999px',
-                        backgroundColor: 'var(--color-success-500)',
-                        color: 'white',
-                        fontSize: '12px',
-                        fontWeight: 600
-                      }}>
-                        Aktif
-                      </span>
-                    ) : (
-                      <Button
-                        label="Aktifkan"
-                        variant="secondary"
-                        onClick={handleEnable2Fa}
-                        size="sm"
-                      />
-                    )}
-                  </HStack>
-
-                  {twoFactorEnabled && (
-                    <VStack gap={2} style={{ paddingLeft: '4px' }}>
-                      <Text type="supporting">
-                        2FA telah diaktifkan untuk akun Anda. Gunakan aplikasi autentikator (Google Authenticator, Authy, dll.) untuk mendapatkan kode verifikasi saat login.
-                      </Text>
-                      <HStack gap={3}>
-                        <Button
-                          label="Regenerasi Kode Pemulihan"
-                          variant="secondary"
-                          size="sm"
-                          onClick={handleRegenerateRecoveryCodes}
-                        />
-                        <Button
-                          label="Nonaktifkan 2FA"
-                          variant="danger"
-                          size="sm"
-                          onClick={handleDisable2Fa}
-                        />
-                      </HStack>
-                    </VStack>
-                  )}
-
-                  {/* Enable 2FA Modal */}
-                  {showEnableModal && (step === 'setup' || step === 'verify') && (
-                    <div style={{
-                      position: 'fixed',
-                      inset: 0,
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 1000
-                    }}>
-                      <div style={{
-                        backgroundColor: 'white',
-                        borderRadius: '12px',
-                        padding: '32px',
-                        maxWidth: '480px',
-                        width: '90%',
-                        maxHeight: '90vh',
-                        overflow: 'auto'
-                      }}>
-                        <Heading level={3} style={{ marginTop: 0 }}>
-                          {step === 'setup' ? 'Aktifkan 2FA' : 'Verifikasi 2FA'}
-                        </Heading>
-
-                        {step === 'setup' && (
-                          <>
-                            <Text type="body" style={{ marginBottom: '16px' }}>
-                              Scan QR code di bawah ini dengan aplikasi autentikator Anda, atau masukkan kunci manual:
-                            </Text>
-
-                            {/* QR Code placeholder - in production, use a QR code library */}
-                            {totpUri && (
-                              <div style={{
-                                backgroundColor: 'f8f9fa',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '8px',
-                                padding: '24px',
-                                textAlign: 'center',
-                                marginBottom: '16px'
-                              }}>
-                                <div style={{ fontSize: '14px', color: 'var(--color-text-secondary, #718096)', marginBottom: '8px' }}>
-                                  QR Code untuk scan dengan autentikator
-                                </div>
-                                <div style={{ fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all', color: 'var(--color-text-secondary, #4a5568)' }}>
-                                  {totpUri}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Recovery codes */}
-                            {recoveryCodes && recoveryCodes.length > 0 && (
-                              <div style={{
-                                backgroundColor: 'fffbeb',
-                                border: '1px solid var(--color-warning-500)',
-                                borderRadius: '8px',
-                                padding: '16px',
-                                marginBottom: '16px'
-                              }}>
-                                <Text type="body" fontWeight="600" style={{ color: 'var(--color-text-primary, #92400e)', marginBottom: '8px' }}>
-                                  Kode Pemulihan (simpan dengan aman!)
-                                </Text>
-                                <pre style={{
-                                  fontFamily: 'monospace',
-                                  fontSize: '12px',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                                  padding: '12px',
-                                  borderRadius: '4px',
-                                  overflow: 'auto',
-                                  maxHeight: '200px'
-                                }}>
-{recoveryCodes.join('\n')}
-                                </pre>
-                              </div>
-                            )}
-
-                            <Button
-                              label="Saya Sudah Memindai QR Code"
-                              variant="primary"
-                              fullWidth
-                              onClick={() => setStep('verify')}
-                            />
-                          </>
-                        )}
-
-                        {step === 'verify' && (
-                          <>
-                            <Text type="body" style={{ marginBottom: '16px' }}>
-                              Masukkan kode 6 digit dari aplikasi autentikator Anda:
-                            </Text>
-                            <TextInput
-                              label="Kode Verifikasi"
-                              placeholder="000000"
-                              value={verifyToken}
-                              onChange={setVerifyToken}
-                              maxLength={6}
-                              style={{ marginBottom: '16px' }}
-                            />
-                            <HStack gap={3}>
-                              <Button
-                                label="Kembali"
-                                variant="secondary"
-                                onClick={() => setStep('setup')}
-                              />
-                              <Button
-                                label="Verifikasi"
-                                variant="primary"
-                                fullWidth
-                                onClick={handleVerify2Fa}
-                              />
-                            </HStack>
-                          </>
-                        )}
-
-                        <div style={{ marginTop: '16px', textAlign: 'center' }}>
-                          <Button
-                            label="Batal"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setShowEnableModal(false); setStep('setup'); }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </VStack>
+                <TwoFactorSettings
+                  twoFactorEnabled={twoFactorEnabled}
+                  showEnableModal={showEnableModal}
+                  step={step}
+                  totpUri={totpUri}
+                  recoveryCodes={recoveryCodes}
+                  verifyToken={verifyToken}
+                  onEnable={handleEnable2Fa}
+                  onDisable={handleDisable2Fa}
+                  onRegenerateCodes={handleRegenerateRecoveryCodes}
+                  onVerify={handleVerify2Fa}
+                  onSetStep={setStep}
+                  onVerifyTokenChange={setVerifyToken}
+                  onCloseModal={() => { setShowEnableModal(false); setStep('setup'); }}
+                />
                 <CheckboxInput
                   label="Registrasi Otomatis via Google SSO"
                   description="Mendaftarkan secara otomatis akun Google baru dengan role Viewer."
