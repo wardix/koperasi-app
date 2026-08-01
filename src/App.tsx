@@ -49,13 +49,9 @@ import {StopIcon} from '@heroicons/react/24/solid';
 // ============= DATA & INTERFACES =============
 
 import type {DashboardData} from '../shared/types';
+import { chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps } from './design/chartTheme';
 
 // ============= CHART COMPONENTS =============
-
-const chartColors = {
-  simpanan: 'var(--color-data-categorical-blue, #0171E3)',
-  pinjaman: 'var(--color-data-categorical-orange, #EB6E00)',
-};
 
 function ChartLegendItem({color, label}: {color: string; label: string}) {
   return (
@@ -79,13 +75,13 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
           <CartesianGrid
             horizontal
             vertical={false}
-            stroke="var(--color-border, rgba(5, 54, 89, 0.1))"
+            {...getThemedGridProps()}
           />
           <XAxis
             dataKey="label"
             tick={{
               fontSize: 'var(--font-size-sm, 12px)',
-              fill: 'var(--color-text-secondary, #4E606F)',
+              ...getThemedAxisProps().tick,
             }}
             axisLine={false}
             tickLine={false}
@@ -94,7 +90,7 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
             tickFormatter={(v) => formatCompactRp(v)}
             tick={{
               fontSize: 'var(--font-size-sm, 12px)',
-              fill: 'var(--color-text-secondary, #4E606F)',
+              ...getThemedAxisProps().tick,
             }}
             axisLine={false}
             tickLine={false}
@@ -102,7 +98,8 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
           />
           <Tooltip
             formatter={(value: number) => [formatCompactRp(value), '']}
-            cursor={{stroke: 'var(--color-border, rgba(5, 54, 89, 0.1))'}}
+            cursor={{stroke: chartColors.grid}}
+            {...getThemedTooltipProps()}
           />
           <Line
             type="monotone"
@@ -138,7 +135,7 @@ function Sparkline({data}: {data: number[]}) {
         <Line
           type="linear"
           dataKey="v"
-          stroke="var(--color-data-categorical-blue, #0171E3)"
+          stroke={chartColors.simpanan}
           strokeWidth={1.5}
           dot={false}
           isAnimationActive={false}

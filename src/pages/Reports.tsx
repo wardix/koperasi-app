@@ -17,7 +17,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {formatRp} from '../utils/format';
 import {DataStateView} from '../components/DataStateView';
-
+import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
 import type {ReportData} from '../shared/types';
 
 type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'interest_income' | 'ar_summary' | 'savings_member' | 'cashflow_statement';
@@ -544,11 +544,11 @@ export default function ReportsTemplate() {
                                 data={monthlyInterestRes}
                                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                               >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="monthName" />
-                                <YAxis tickFormatter={(tick) => `Rp ${(tick / 1000).toLocaleString('id-ID')}k`} />
-                                <RechartsTooltip formatter={(value: any) => formatRp(value)} />
-                                <Bar dataKey="interestIncome" fill="var(--color-success-500)" radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
+                                <CartesianGrid {...getThemedGridProps()} />
+                                <XAxis dataKey="monthName" {...getThemedAxisProps()} />
+                                <YAxis tickFormatter={(tick) => `Rp ${(tick / 1000).toLocaleString('id-ID')}k`} {...getThemedAxisProps()} />
+                                <RechartsTooltip formatter={(value: any) => formatRp(value)} {...getThemedTooltipProps()} />
+                                <Bar dataKey="interestIncome" fill={chartColors.success} radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
                               </BarChart>
                             </ResponsiveContainer>
                           </div>

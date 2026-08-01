@@ -63,11 +63,11 @@ export default function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasPermission, logout } = useAuth();
-  const { mode, resolvedMode, setMode } = useThemeMode();
+  const { mode, setMode } = useThemeMode();
   const { data: settings, refetch: refetchSettings } = useApiQuery<SettingsData>('/api/settings');
 
   const path = location.pathname;
-  const isDark = resolvedMode === 'dark';
+  const isDark = mode === 'dark';
   const koperasiName = settings?.koperasiName?.trim() || DEFAULT_KOPERASI_NAME;
 
   React.useEffect(() => {

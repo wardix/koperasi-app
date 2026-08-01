@@ -15,6 +15,26 @@ Aplikasi web full-stack untuk manajemen koperasi: pencatatan simpanan, pengajuan
 - Kalkulasi & alokasi SHU
 - Cashflow, NPL, laporan, peran admin, pengaturan
 
+## Design System
+
+Aplikasi ini menggunakan **Astryx Design System** by Meta dengan custom theme.
+
+### Key Files
+- `src/design/tokens.ts` - Semantic color tokens
+- `src/design/theme.ts` - Koperasi custom theme
+- `src/design/chartTheme.ts` - Chart theming utilities
+
+### Documentation
+- [Component Library](docs/COMPONENTS.md)
+- [Design Tokens](docs/DESIGN_TOKENS.md)
+- [Common Patterns](docs/PATTERNS.md)
+
+### Adding New Components
+1. Use Astryx components as base
+2. Reference semantic tokens from `design/tokens.ts`
+3. Follow patterns in `docs/PATTERNS.md`
+4. Document in `docs/COMPONENTS.md` if reusable
+
 ## Prasyarat
 
 - **Bun** (runtime & package manager)

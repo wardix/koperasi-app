@@ -44,9 +44,11 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import {useA11yDialog} from '../hooks/useA11yDialog';
-import {AddLoanDialogContent} from '../components/AddLoanDialog';
-import {ApproveLoanDialogContent} from '../components/ApproveLoanDialog';
-import {LoanDetailDialogContent} from '../components/LoanDetailDialog';
+import { lazy, Suspense } from 'react';
+
+const AddLoanDialogContent = lazy(() => import('../components/AddLoanDialog').then(m => ({ default: m.AddLoanDialogContent })));
+const ApproveLoanDialogContent = lazy(() => import('../components/ApproveLoanDialog').then(m => ({ default: m.ApproveLoanDialogContent })));
+const LoanDetailDialogContent = lazy(() => import('../components/LoanDetailDialog').then(m => ({ default: m.LoanDetailDialogContent })));
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';
 
@@ -112,14 +114,16 @@ export default function LoansTemplate() {
   const handleApproveLoan = useCallback(
     (loan: LoanRow) => {
       dialog.show(
-        <ApproveLoanDialogContent
-          loan={loan}
-          onClose={() => dialog.hide()}
-          onConfirm={({ approvedDate, interestRate }) => {
-            handleUpdateStatus(loan.id, 'Disetujui', { approvedDate, interestRate });
-            dialog.hide();
-          }}
-        />
+        <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+          <ApproveLoanDialogContent
+            loan={loan}
+            onClose={() => dialog.hide()}
+            onConfirm={({ approvedDate, interestRate }) => {
+              handleUpdateStatus(loan.id, 'Disetujui', { approvedDate, interestRate });
+              dialog.hide();
+            }}
+          />
+        </Suspense>
       );
     },
     [dialog, handleUpdateStatus]
@@ -131,20 +135,22 @@ export default function LoansTemplate() {
 
   const handleAddLoan = useCallback(() => {
     dialog.show(
-      <AddLoanDialogContent
-        onClose={() => dialog.hide()}
-        onAdd={(newLoan) => {
-          apiAction.execute(
-            () => api.post('/api/loans', newLoan),
-            {
-              successMsg: 'Pinjaman berhasil diajukan',
-              errorMsg: 'Terjadi kesalahan sistem',
-              onSuccess: () => fetchLoans(),
-              onFinally: () => dialog.hide()
-            }
-          );
-        }}
-      />
+      <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+        <AddLoanDialogContent
+          onClose={() => dialog.hide()}
+          onAdd={(newLoan) => {
+            apiAction.execute(
+              () => api.post('/api/loans', newLoan),
+              {
+                successMsg: 'Pinjaman berhasil diajukan',
+                errorMsg: 'Terjadi kesalahan sistem',
+                onSuccess: () => fetchLoans(),
+                onFinally: () => dialog.hide()
+              }
+            );
+          }}
+        />
+      </Suspense>
     );
   }, [dialog, apiAction, fetchLoans]);
 
@@ -249,11 +255,13 @@ export default function LoansTemplate() {
                 size="sm" 
                 onClick={() => {
                   dialog.show(
-                    <LoanDetailDialogContent 
-                      loan={item} 
-                      onClose={() => dialog.hide()} 
-                      onUpdate={() => fetchLoans()} 
-                    />
+                    <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+                      <LoanDetailDialogContent 
+                        loan={item} 
+                        onClose={() => dialog.hide()} 
+                        onUpdate={() => fetchLoans()} 
+                      />
+                    </Suspense>
                   );
                 }} 
               />

@@ -2,11 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 
 interface ThemeContextType {
   mode: ThemeMode;
-  resolvedMode: 'light' | 'dark';
   setMode: (mode: ThemeMode) => void;
 }
 
@@ -15,39 +14,14 @@ const ThemeContext = createContext<ThemeContextType | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('theme-mode');
-    return (saved as ThemeMode) || 'system';
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
-  const [resolvedMode, setResolvedMode] = useState<'light' | 'dark'>('light');
-
   useEffect(() => {
-    const updateTheme = () => {
-      let currentResolved: 'light' | 'dark' = 'light';
-      if (mode === 'system') {
-        currentResolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      } else {
-        currentResolved = mode;
-      }
-      
-      setResolvedMode(currentResolved);
-
-      if (currentResolved === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.add('light');
-        document.documentElement.classList.remove('dark');
-      }
-    };
-
-    updateTheme();
-
-    if (mode === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const listener = () => updateTheme();
-      mediaQuery.addEventListener('change', listener);
-      return () => mediaQuery.removeEventListener('change', listener);
-    }
+    const className = mode === 'dark' ? 'dark' : 'light';
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(className);
   }, [mode]);
 
   const setMode = (newMode: ThemeMode) => {
@@ -56,7 +30,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ mode, resolvedMode, setMode }}>
+    <ThemeContext.Provider value={{ mode, setMode }}>
       {children}
     </ThemeContext.Provider>
   );
