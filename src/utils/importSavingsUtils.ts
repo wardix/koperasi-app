@@ -11,90 +11,57 @@ export interface ParsedSavingsImportRow {
 }
 
 /**
- * Downloads a clean CSV template for batch savings import based on NIK.
- * If membersToInclude is provided, pre-fills their NIK and Name for quick editing.
+ * Parses an Excel or CSV file containing columns: nik, nama, jenis_simpanan, nominal, tanggal.
+ * Handles different column namings gracefully.
  */
-export function downloadSavingsCsvTemplate(
-  membersToInclude?: Array<{ name: string; nik?: string | null; simpananPokok?: number }>
-) {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const filename = `Template_Import_Simpanan_${today}.csv`;
-    
-    const data: any[] = [];
-    
-    if (membersToInclude && membersToInclude.length > 0) {
-      membersToInclude.forEach((m) => {
-        data.push({
-          nik: m.nik || '',
-          nama: m.name || '',
-          jenis_simpanan: 'wajib',
-          nominal: 50000,
-          tanggal: today
-        });
-      });
-    } else {
-      data.push({ nik: '3171012345670001', nama: 'Budi Santoso', jenis_simpanan: 'wajib', nominal: 50000, tanggal: today });
-      data.push({ nik: '3171012345670002', nama: 'Siti Rahma', jenis_simpanan: 'wajib', nominal: 50000, tanggal: today });
-    }
+export async function parseSavingsImportFile(file: File): Promise<ParsedSavingsImportRow[]> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  
+  // Get raw JSON
+  const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
-    
-    XLSX.writeFile(workbook, filename, { bookType: 'csv' });
-  } catch (err) {
-    console.error('Failed to download CSV template:', err);
-  }
-}
-
-/**
- * Parses a CSV file containing columns: nik, nama, jenis_simpanan, nominal, tanggal.
- * Supports both comma (,) and semicolon (;) delimiters.
- */
-export async function parseSavingsCsvFile(file: File): Promise<ParsedSavingsImportRow[]> {
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-
-  if (lines.length < 2) {
-    throw new Error('File CSV kosong atau tidak memiliki data.');
+  if (rows.length === 0) {
+    throw new Error('File kosong atau tidak memiliki data.');
   }
 
-  const headerLine = lines[0];
-  const delimiter = headerLine.includes(';') ? ';' : ',';
-  const headers = parseCsvLine(headerLine, delimiter).map((h) =>
-    h.toLowerCase().trim().replace(/[^a-z0-9]/g, '')
-  );
+  // Get headers (keys of first row) lowercased and cleaned
+  const firstRowKeys = Object.keys(rows[0] || {});
+  
+  const findKey = (possibleNames: string[]) => {
+    return firstRowKeys.find(k => {
+      const cleanK = k.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+      return possibleNames.includes(cleanK);
+    });
+  };
 
-  const nikIdx = headers.findIndex((h) => h === 'nik' || h === 'id' || h === 'nikanggota');
-  const namaIdx = headers.findIndex((h) => h === 'nama' || h === 'namaanggota' || h === 'name');
-  const jenisIdx = headers.findIndex((h) =>
-    h === 'jenissimpanan' || h === 'tipesimpanan' || h === 'jenis' || h === 'tipe' || h === 'type'
-  );
-  const nominalIdx = headers.findIndex((h) =>
-    h === 'nominal' || h === 'setoran' || h === 'amount' || h === 'jumlah' || h === 'total'
-  );
-  const tanggalIdx = headers.findIndex((h) => h === 'tanggal' || h === 'date' || h === 'tgl');
+  const nikKey = findKey(['nik', 'id', 'nikanggota']);
+  const namaKey = findKey(['nama', 'namaanggota', 'name']);
+  const jenisKey = findKey(['jenissimpanan', 'tipesimpanan', 'jenis', 'tipe', 'type']);
+  const nominalKey = findKey(['nominal', 'setoran', 'amount', 'jumlah', 'total']);
+  const tanggalKey = findKey(['tanggal', 'date', 'tgl']);
 
-  if (nikIdx === -1) {
-    throw new Error('Header "nik" tidak ditemukan pada file CSV.');
+  if (!nikKey) {
+    throw new Error('Header "nik" tidak ditemukan pada file.');
   }
-  if (nominalIdx === -1) {
-    throw new Error('Header "nominal" (setoran) tidak ditemukan pada file CSV.');
+  if (!nominalKey) {
+    throw new Error('Header "nominal" (setoran) tidak ditemukan pada file.');
   }
 
-  const rows: ParsedSavingsImportRow[] = [];
+  const parsedRows: ParsedSavingsImportRow[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i], delimiter);
-    if (cols.length === 0 || cols.every((c) => !c.trim())) continue;
+  for (const row of rows) {
+    // If all values are empty string, skip
+    if (Object.values(row).every(v => v === '')) continue;
 
-    const rawNik = (cols[nikIdx] || '').trim();
+    const rawNik = String(row[nikKey] || '').trim();
     const cleanNik = rawNik.replace(/\D/g, '');
-    const memberName = namaIdx !== -1 ? (cols[namaIdx] || '').trim() : undefined;
-    const rawType = (jenisIdx !== -1 ? cols[jenisIdx] : '').toLowerCase().trim();
-    const rawNominal = (cols[nominalIdx] || '').trim();
-    const rawTanggal = tanggalIdx !== -1 ? (cols[tanggalIdx] || '').trim() : undefined;
+    const memberName = namaKey ? String(row[namaKey] || '').trim() : undefined;
+    const rawType = jenisKey ? String(row[jenisKey] || '').toLowerCase().trim() : '';
+    const rawNominal = String(row[nominalKey] || '').trim();
+    const rawTanggal = tanggalKey ? String(row[tanggalKey] || '').trim() : undefined;
 
     let savingsType: 'pokok' | 'wajib' | 'sukarela' = 'pokok';
     if (rawType.includes('wajib')) savingsType = 'wajib';
@@ -114,7 +81,7 @@ export async function parseSavingsCsvFile(file: File): Promise<ParsedSavingsImpo
       error = 'Nominal setoran tidak valid (> 0)';
     }
 
-    rows.push({
+    parsedRows.push({
       nik: cleanNik || rawNik,
       memberName,
       savingsType,
@@ -125,26 +92,5 @@ export async function parseSavingsCsvFile(file: File): Promise<ParsedSavingsImpo
     });
   }
 
-  return rows;
-}
-
-/** Helper to parse a single CSV line respecting quotes */
-function parseCsvLine(line: string, delimiter: string = ','): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === delimiter && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
+  return parsedRows;
 }
