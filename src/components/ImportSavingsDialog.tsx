@@ -131,8 +131,16 @@ export function ImportSavingsDialogContent({
       const link = document.createElement('a');
       link.href = url;
       link.download = `Template_Import_Simpanan_${today}.csv`;
+      link.style.display = 'none';
       document.body.appendChild(link);
-      link.click();
+      
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      });
+      link.dispatchEvent(event);
+      
       setTimeout(() => {
         if (document.body.contains(link)) {
           document.body.removeChild(link);
