@@ -138,22 +138,45 @@ export function ImportSavingsDialogContent({
                   type="button"
                   label="Template Excel Simpanan Wajib"
                   variant="secondary"
-                  onClick={() => {
+                  onClick={(e) => {
+                    const btn = e.currentTarget as HTMLElement;
                     apiAction.execute(
                       () => api.get<any>('/api/members?all=true'),
                       {
                         successMsg: 'Template berhasil diunduh',
                         errorMsg: 'Gagal mengambil data anggota',
                         onSuccess: (res) => {
-                          const allMembers = res.data || [];
-                          const columns = [
-                            { header: 'nik', key: 'nik' },
-                            { header: 'nama', key: 'name' },
-                            { header: 'jenis_simpanan', key: 'jenis', render: () => 'wajib' },
-                            { header: 'nominal', key: 'nominal', render: () => 50000 },
-                            { header: 'tanggal', key: 'tanggal', render: () => new Date().toISOString().split('T')[0] }
-                          ];
-                          exportToExcel(allMembers, columns, `Template_Import_Simpanan_${new Date().toISOString().split('T')[0]}`);
+                          import('xlsx').then((XLSX) => {
+                            const allMembers = res.data || [];
+                            const data = allMembers.map((m: any) => ({
+                              nik: m.nik || '',
+                              nama: m.name || '',
+                              jenis_simpanan: 'wajib',
+                              nominal: 50000,
+                              tanggal: new Date().toISOString().split('T')[0]
+                            }));
+
+                            const worksheet = XLSX.utils.json_to_sheet(data);
+                            const workbook = XLSX.utils.book_new();
+                            XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+                            
+                            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                            const url = URL.createObjectURL(blob);
+                            
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `Template_Import_Simpanan_${new Date().toISOString().split('T')[0]}.xlsx`;
+                            link.style.display = 'none';
+                            
+                            btn.appendChild(link);
+                            link.click();
+                            
+                            setTimeout(() => {
+                              if (btn.contains(link)) btn.removeChild(link);
+                              URL.revokeObjectURL(url);
+                            }, 500);
+                          });
                         }
                       }
                     );
