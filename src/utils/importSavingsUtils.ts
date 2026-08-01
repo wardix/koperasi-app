@@ -47,14 +47,7 @@ export function downloadSavingsCsvTemplate(
     link.download = filename;
     link.style.display = 'none';
     document.body.appendChild(link);
-
-    // Dispatch explicit mouse click event (bypasses silent click block after async API fetches)
-    const event = new MouseEvent('click', {
-      bubbles: true,
-      cancelable: true,
-      view: window,
-    });
-    link.dispatchEvent(event);
+    link.click();
 
     setTimeout(() => {
       if (document.body.contains(link)) {
