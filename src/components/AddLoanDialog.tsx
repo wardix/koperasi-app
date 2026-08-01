@@ -157,7 +157,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   hasEntriesOnFocus
                 />
                 {selectedMemberError ? (
-                  <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                  <Text type="supporting" color="critical">
                     {selectedMemberError}
                   </Text>
                 ) : null}
@@ -177,7 +177,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   placeholder="Contoh: 5.000.000"
                   description="Pemisah ribuan ditambahkan otomatis"
                 />
-                {errors.amount && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.amount.message}</Text>}
+                {errors.amount && <Text type="supporting" color="critical">{errors.amount.message}</Text>}
               </VStack>
             )}
           />
@@ -193,7 +193,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   onChange={(raw) => field.onChange(raw.replace(/\D/g, ''))}
                   placeholder="12"
                 />
-                {errors.tenor && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.tenor.message}</Text>}
+                {errors.tenor && <Text type="supporting" color="critical">{errors.tenor.message}</Text>}
               </VStack>
             )}
           />
@@ -208,7 +208,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   onChange={field.onChange}
                   placeholder="Contoh: Modal Usaha"
                 />
-                {errors.purpose && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.purpose.message}</Text>}
+                {errors.purpose && <Text type="supporting" color="critical">{errors.purpose.message}</Text>}
               </VStack>
             )}
           />
@@ -225,7 +225,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   max={todayIsoDate()}
                   isRequired
                 />
-                {errors.loanDate && <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>{errors.loanDate.message}</Text>}
+                {errors.loanDate && <Text type="supporting" color="critical">{errors.loanDate.message}</Text>}
               </VStack>
             )}
           />

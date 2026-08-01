@@ -212,12 +212,12 @@ export function ImportSavingsDialogContent({
 
             {/* Messages */}
             {errorMsg && (
-              <Text type="supporting" style={{ color: 'var(--color-text-critical, #dc2626)', fontWeight: 600 }}>
+              <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
                 ⚠️ {errorMsg}
               </Text>
             )}
             {resultMsg && (
-              <Text type="supporting" style={{ color: 'var(--color-text-success, #16a34a)', fontWeight: 600 }}>
+              <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
                 ✅ {resultMsg}
               </Text>
             )}
@@ -228,11 +228,11 @@ export function ImportSavingsDialogContent({
                 <HStack hAlign="space-between" vAlign="center">
                   <Heading level={4}>3. Pratinjau Data ({rows.length} baris)</Heading>
                   <HStack gap={2}>
-                    <Text type="supporting" style={{ color: 'var(--color-text-success, green)' }}>
+                    <Text type="supporting" color="success">
                       Valid: {validRows.length}
                     </Text>
                     {invalidRows.length > 0 && (
-                      <Text type="supporting" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         Error: {invalidRows.length}
                       </Text>
                     )}
@@ -247,13 +247,13 @@ export function ImportSavingsDialogContent({
                   style={{
                     maxHeight: '220px',
                     overflowY: 'auto',
-                    border: '1px solid var(--color-border-primary, #e5e7eb)',
-                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-primary)',
+                    borderRadius: 'var(--radius-md)',
                   }}
                 >
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
-                      <tr style={{ backgroundColor: '#f3f4f6', textAlign: 'left' }}>
+                      <tr style={{ backgroundColor: 'var(--color-background-subtle)', textAlign: 'left' }}>
                         <th style={{ padding: '8px' }}>NIK</th>
                         <th style={{ padding: '8px' }}>Nama</th>
                         <th style={{ padding: '8px' }}>Jenis</th>
@@ -266,8 +266,8 @@ export function ImportSavingsDialogContent({
                         <tr
                           key={i}
                           style={{
-                            borderTop: '1px solid #e5e7eb',
-                            backgroundColor: r.isValid ? 'transparent' : '#fef2f2',
+                            borderTop: '1px solid var(--color-border-primary)',
+                            backgroundColor: r.isValid ? 'transparent' : 'var(--color-critical-50, #fef2f2)',
                           }}
                         >
                           <td style={{ padding: '8px', fontFamily: 'monospace' }}>{r.nik}</td>
@@ -276,9 +276,9 @@ export function ImportSavingsDialogContent({
                           <td style={{ padding: '8px', textAlign: 'right' }}>{formatRp(r.amount)}</td>
                           <td style={{ padding: '8px' }}>
                             {r.isValid ? (
-                              <span style={{ color: '#16a34a', fontWeight: 600 }}>Siap Import</span>
+                              <span style={{ color: 'var(--color-text-success)', fontWeight: 600 }}>Siap Import</span>
                             ) : (
-                              <span style={{ color: '#dc2626', fontWeight: 600 }}>{r.error}</span>
+                              <span style={{ color: 'var(--color-text-critical)', fontWeight: 600 }}>{r.error}</span>
                             )}
                           </td>
                         </tr>

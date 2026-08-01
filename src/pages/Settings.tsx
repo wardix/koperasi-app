@@ -448,7 +448,7 @@ export default function SettingsTemplate() {
                             {recoveryCodes && recoveryCodes.length > 0 && (
                               <div style={{
                                 backgroundColor: 'fffbeb',
-                                border: '1px solid var(--color-warning, #f59e0b)',
+                                border: '1px solid var(--color-warning-500)',
                                 borderRadius: '8px',
                                 padding: '16px',
                                 marginBottom: '16px'
