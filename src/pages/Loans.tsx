@@ -45,8 +45,6 @@ import {
 } from '@heroicons/react/24/outline';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import { lazy, Suspense } from 'react';
-import { Spinner } from '@astryxdesign/core/Spinner';
-import { Center } from '@astryxdesign/core/Center';
 
 const AddLoanDialogContent = lazy(() => import('../components/AddLoanDialog').then(m => ({ default: m.AddLoanDialogContent })));
 const ApproveLoanDialogContent = lazy(() => import('../components/ApproveLoanDialog').then(m => ({ default: m.ApproveLoanDialogContent })));
