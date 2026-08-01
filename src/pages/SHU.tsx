@@ -11,9 +11,8 @@ import { useAuth } from '../hooks/useAuth';
 import { DataStateView } from '../components/DataStateView';
 import { formatRp } from '../utils/format';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
-import { semanticColors } from '../design/tokens';
+import { getCategoricalColor, getThemedTooltipProps } from '../design/chartTheme';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
 interface SHUData {
   year: string;
   pendapatan: number;
@@ -34,13 +33,6 @@ interface SHUData {
   }[];
 }
 
-const COLORS = [
-  semanticColors.dataBlue,
-  semanticColors.dataOrange,
-  semanticColors.dataGreen,
-  semanticColors.dataPurple,
-  semanticColors.dataPink,
-];
 
 export default function SHU() {
   const currentYear = new Date().getFullYear().toString();
@@ -137,10 +129,10 @@ export default function SHU() {
                           dataKey="value"
                         >
                           {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell key={`cell-${index}`} fill={getCategoricalColor(index)} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => formatRp(value)} />
+                        <Tooltip formatter={(value: number) => formatRp(value)} {...getThemedTooltipProps()} />
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>

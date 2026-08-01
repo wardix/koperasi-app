@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ThemeProvider, useThemeMode } from './contexts/ThemeContext'
 import { Theme } from '@astryxdesign/core/theme'
-import { neutralTheme } from '@astryxdesign/theme-neutral'
+import { koperasiTheme } from './design/theme'
 
 const Shell = lazy(() => import('./components/Shell'))
 const Login = lazy(() => import('./pages/Login'))
@@ -32,7 +32,7 @@ function LoadingScreen({ label = 'Loading...' }: { label?: string }) {
 function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const { mode } = useThemeMode()
   return (
-    <Theme theme={neutralTheme} mode={mode}>
+    <Theme theme={koperasiTheme} mode={mode}>
       {children}
     </Theme>
   )
