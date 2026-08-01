@@ -12,11 +12,11 @@ import {
 import { Button } from '@astryxdesign/core/Button';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import {
-  parseSavingsCsvFile,
-  downloadSavingsCsvTemplate,
+  parseSavingsImportFile,
   ParsedSavingsImportRow,
 } from '../utils/importSavingsUtils';
 import { formatRp } from '../utils/format';
+import { exportToExcel } from '../utils/exportUtils';
 import { useApiAction } from '../hooks/useApiAction';
 import { api } from '../services/api';
 import { apiFetch } from '../config';
@@ -51,10 +51,10 @@ export function ImportSavingsDialogContent({
     setIsParsing(true);
 
     try {
-      const parsedRows = await parseSavingsCsvFile(selectedFile);
+      const parsedRows = await parseSavingsImportFile(selectedFile);
       setRows(parsedRows);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Gagal membaca file CSV');
+      setErrorMsg(err instanceof Error ? err.message : 'Gagal membaca file Excel/CSV');
       setRows([]);
     } finally {
       setIsParsing(false);
@@ -128,15 +128,15 @@ export function ImportSavingsDialogContent({
                 border: '1px solid var(--color-border-primary, #e5e7eb)',
               }}
             >
-              <Heading level={4}>1. Unduh Template CSV</Heading>
+              <Heading level={4}>1. Unduh Template Excel</Heading>
               <Text type="supporting" color="secondary">
-                Format kolom CSV: <code>nik, nama, jenis_simpanan, nominal, tanggal</code>.
+                Format kolom: <code>nik, nama, jenis_simpanan, nominal, tanggal</code>.
                 Unduh template berisi seluruh anggota koperasi untuk simpanan wajib (Rp 50.000).
               </Text>
               <HStack gap={2}>
                 <Button
                   type="button"
-                  label="Template CSV Simpanan Wajib"
+                  label="Template Excel Simpanan Wajib"
                   variant="secondary"
                   onClick={() => {
                     apiAction.execute(
@@ -146,7 +146,14 @@ export function ImportSavingsDialogContent({
                         errorMsg: 'Gagal mengambil data anggota',
                         onSuccess: (res) => {
                           const allMembers = res.data || [];
-                          downloadSavingsCsvTemplate(allMembers);
+                          const columns = [
+                            { header: 'nik', key: 'nik' },
+                            { header: 'nama', key: 'name' },
+                            { header: 'jenis_simpanan', key: 'jenis', render: () => 'wajib' },
+                            { header: 'nominal', key: 'nominal', render: () => 50000 },
+                            { header: 'tanggal', key: 'tanggal', render: () => new Date().toISOString().split('T')[0] }
+                          ];
+                          exportToExcel(allMembers, columns, `Template_Import_Simpanan_${new Date().toISOString().split('T')[0]}`);
                         }
                       }
                     );
@@ -157,10 +164,10 @@ export function ImportSavingsDialogContent({
 
             {/* File Upload Section */}
             <VStack gap={2}>
-              <Heading level={4}>2. Pilih File CSV</Heading>
+              <Heading level={4}>2. Pilih File Excel / CSV</Heading>
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={handleFileChange}
                 disabled={isParsing || isSubmitting}
                 style={{
