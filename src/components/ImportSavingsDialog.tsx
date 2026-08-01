@@ -17,7 +17,8 @@ import {
   ParsedSavingsImportRow,
 } from '../utils/importSavingsUtils';
 import { formatRp } from '../utils/format';
-import { useApiQuery } from '../hooks/useApiQuery';
+import { useApiAction } from '../hooks/useApiAction';
+import { api } from '../services/api';
 import { apiFetch } from '../config';
 
 interface ImportSavingsDialogContentProps {
@@ -38,21 +39,7 @@ export function ImportSavingsDialogContent({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resultMsg, setResultMsg] = useState<string | null>(null);
 
-  // Pre-fetch all unpaid members on mount so CSV generation is 100% synchronous on click
-  const { data: unpaidApiRes } = useApiQuery<any>('/api/v1/members?unpaidPokokOnly=true&all=true');
-
-  const allUnpaidMembers = useMemo(() => {
-    if (unpaidApiRes?.data?.data && Array.isArray(unpaidApiRes.data.data)) {
-      return unpaidApiRes.data.data;
-    }
-    if (unpaidApiRes?.data && Array.isArray(unpaidApiRes.data)) {
-      return unpaidApiRes.data;
-    }
-    if (Array.isArray(unpaidApiRes)) {
-      return unpaidApiRes;
-    }
-    return membersWithoutPokok;
-  }, [unpaidApiRes, membersWithoutPokok]);
+  const apiAction = useApiAction();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -119,39 +106,6 @@ export function ImportSavingsDialogContent({
     }
   }, [validRows, onSuccess, onClose]);
 
-  const handleDownloadServerCsv = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/v1/savings/template-csv');
-      if (!res.ok) {
-        throw new Error('Gagal mengunduh template dari server');
-      }
-      const blob = await res.blob();
-      const today = new Date().toISOString().split('T')[0];
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Template_Import_Simpanan_${today}.csv`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      
-      const event = new MouseEvent('click', {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-      });
-      link.dispatchEvent(event);
-      
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-        URL.revokeObjectURL(url);
-      }, 200);
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Gagal mengunduh template dari server');
-    }
-  }, []);
-
   return (
     <Layout
       header={
@@ -177,22 +131,26 @@ export function ImportSavingsDialogContent({
               <Heading level={4}>1. Unduh Template CSV</Heading>
               <Text type="supporting" color="secondary">
                 Format kolom CSV: <code>nik, nama, jenis_simpanan, nominal, tanggal</code>.
-                Unduh template berisi seluruh anggota koperasi di database yang simpanan pokoknya masih Rp 0.
+                Unduh template berisi seluruh anggota koperasi untuk simpanan wajib (Rp 50.000).
               </Text>
               <HStack gap={2}>
                 <Button
                   type="button"
-                  label="Template CSV (Anggota Simpanan Rp 0)"
+                  label="Template CSV Simpanan Wajib"
                   variant="secondary"
                   onClick={() => {
-                    downloadSavingsCsvTemplate(allUnpaidMembers);
+                    apiAction.execute(
+                      () => api.get<any>('/api/members?all=true'),
+                      {
+                        successMsg: 'Template berhasil diunduh',
+                        errorMsg: 'Gagal mengambil data anggota',
+                        onSuccess: (res) => {
+                          const allMembers = res.data || [];
+                          downloadSavingsCsvTemplate(allMembers);
+                        }
+                      }
+                    );
                   }}
-                />
-                <Button
-                  type="button"
-                  label="Unduh Langsung (Server)"
-                  variant="tertiary"
-                  onClick={handleDownloadServerCsv}
                 />
               </HStack>
             </VStack>

@@ -27,14 +27,14 @@ export function downloadSavingsCsvTemplate(
         const nikVal = m.nik || '';
         const nameVal = m.name || '';
         const safeName = nameVal.includes(',') ? `"${nameVal.replace(/"/g, '""')}"` : nameVal;
-        lines.push(`${nikVal},${safeName},pokok,500000,${today}`);
+        lines.push(`${nikVal},${safeName},wajib,50000,${today}`);
       });
     }
 
     // Fallback sample rows if no members passed
     if (lines.length === 1) {
-      lines.push(`3171012345670001,Budi Santoso,pokok,500000,${today}`);
-      lines.push(`3171012345670002,Siti Rahma,pokok,500000,${today}`);
+      lines.push(`3171012345670001,Budi Santoso,wajib,50000,${today}`);
+      lines.push(`3171012345670002,Siti Rahma,wajib,50000,${today}`);
     }
 
     const csvContent = lines.join('\r\n');
