@@ -437,26 +437,41 @@ export default function MembersTemplate() {
                 label="Unduh"
                 icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
                 variant="ghost"
-                onClick={async () => {
-                  const { data } = await api.get('/api/members?limit=10000');
-                  const allMembers = data?.data ?? [];
-                  if (allMembers.length === 0) {
+                onClick={() => {
+                  if (members.length === 0) {
                     toast.show({ type: 'error', message: 'Data kosong' });
                     return;
                   }
-                  const columns = [
-                    { header: 'Nama', key: 'name' },
-                    { header: 'NIK', key: 'nik' },
-                    { header: 'Telepon', key: 'phone' },
-                    { header: 'Jabatan', key: 'role' },
-                    { header: 'Status', key: 'status' },
-                    { header: 'Tanggal Gabung', key: 'joinDate' },
-                    { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
-                    { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
-                    { header: 'Simpanan Sukarela', key: 'simpananSukarela', render: (item: any) => formatRp(item.simpananSukarela) },
-                    { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
-                  ];
-                  exportToExcel(allMembers, columns, `Data_Anggota_${new Date().toISOString().slice(0,10)}`);
+                  
+                  const exportParams = new URLSearchParams();
+                  exportParams.set('all', 'true');
+                  if (debouncedSearch) exportParams.set('search', debouncedSearch);
+                  if (statusFilter) exportParams.set('status', statusFilter);
+                  if (roleFilter) exportParams.set('role', roleFilter);
+
+                  apiAction.execute(
+                    () => api.get<PaginatedResponse<MemberRow>>(`/api/members?${exportParams.toString()}`),
+                    {
+                      successMsg: 'Data Excel berhasil diunduh',
+                      errorMsg: 'Gagal menyiapkan data unduhan',
+                      onSuccess: (res) => {
+                        const allMembers = res.data || [];
+                        const columns = [
+                          { header: 'Nama', key: 'name' },
+                          { header: 'NIK', key: 'nik' },
+                          { header: 'Telepon', key: 'phone' },
+                          { header: 'Jabatan', key: 'role' },
+                          { header: 'Status', key: 'status' },
+                          { header: 'Tanggal Gabung', key: 'joinDate' },
+                          { header: 'Simpanan Pokok', key: 'simpananPokok', render: (item: any) => formatRp(item.simpananPokok) },
+                          { header: 'Simpanan Wajib', key: 'simpananWajib', render: (item: any) => formatRp(item.simpananWajib) },
+                          { header: 'Simpanan Sukarela', key: 'simpananSukarela', render: (item: any) => formatRp(item.simpananSukarela) },
+                          { header: 'Total Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) }
+                        ];
+                        exportToExcel(allMembers, columns, `Data_Anggota_${new Date().toISOString().slice(0,10)}`);
+                      }
+                    }
+                  );
                 }}
               />
             )}
