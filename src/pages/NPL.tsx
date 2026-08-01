@@ -75,7 +75,7 @@ export default function NPLTemplate() {
       header: 'Jumlah Terbayar',
       width: proportional(1.5),
       renderCell: (item: NplRow) => (
-        <Text type="body" style={{ color: 'var(--color-success, #10b981)' }}>{formatRp(item.paidAmount)}</Text>
+        <Text type="body" style={{ color: 'var(--color-success-500)' }}>{formatRp(item.paidAmount)}</Text>
       ),
     },
     {
@@ -83,7 +83,7 @@ export default function NPLTemplate() {
       header: 'Sisa Tunggakan',
       width: proportional(1.8),
       renderCell: (item: NplRow) => (
-        <Text type="body" style={{ fontWeight: 500, color: 'var(--color-error, #ef4444)' }}>
+        <Text type="body" style={{ fontWeight: 500, color: 'var(--color-critical-500)' }}>
           {formatRp(item.remainingAmount)}
         </Text>
       ),
@@ -115,7 +115,7 @@ export default function NPLTemplate() {
   ], []);
 
   // Determine NPL badge/label color depending on risk level
-  const nplColor = summary.nplRatio > 5 ? 'var(--color-error, #ef4444)' : summary.nplRatio > 2 ? 'var(--color-warning, #f59e0b)' : 'var(--color-success, #10b981)';
+  const nplColor = summary.nplRatio > 5 ? 'var(--color-critical-500)' : summary.nplRatio > 2 ? 'var(--color-warning-500)' : 'var(--color-success-500)';
 
   return (
     <Layout
@@ -143,13 +143,13 @@ export default function NPLTemplate() {
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>
                     <Text type="supporting" color="secondary">Total Kredit Macet</Text>
-                    <Heading level={2} style={{ color: 'var(--color-error, #ef4444)' }}>{formatRp(summary.totalBadPrincipal)}</Heading>
+                    <Heading level={2} style={{ color: 'var(--color-critical-500)' }}>{formatRp(summary.totalBadPrincipal)}</Heading>
                   </VStack>
                 </Card>
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>
                     <Text type="supporting" color="secondary">Kredit Aktif Sehat</Text>
-                    <Heading level={2} style={{ color: 'var(--color-success, #10b981)' }}>{formatRp(summary.totalActivePrincipal)}</Heading>
+                    <Heading level={2} style={{ color: 'var(--color-success-500)' }}>{formatRp(summary.totalActivePrincipal)}</Heading>
                   </VStack>
                 </Card>
                 <Card style={{ padding: '20px' }}>

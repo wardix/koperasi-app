@@ -627,12 +627,7 @@ export function LoanDetailDialogContent({
                   <VStack gap={3}>
                     <Text
                       type="supporting"
-                      color="secondary"
-                      style={
-                        principalMismatch
-                          ? { color: 'var(--color-text-critical, red)' }
-                          : undefined
-                      }
+                      color={principalMismatch ? 'critical' : 'secondary'}
                     >
                       Jumlah pokok semua baris harus = plafon ({formatRp(pokok)}). Saat ini:{' '}
                       {formatRp(draftPrincipalSum)} · Total biaya admin: {formatRp(draftAdminSum)}

@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 import { DataStateView } from '../components/DataStateView';
 import { formatRp } from '../utils/format';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
+import { semanticColors } from '../design/tokens';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface SHUData {
@@ -33,7 +34,13 @@ interface SHUData {
   }[];
 }
 
-const COLORS = ['#0171E3', '#EB6E00', '#0B991F', '#6B1EFD', '#E30171'];
+const COLORS = [
+  semanticColors.dataBlue,
+  semanticColors.dataOrange,
+  semanticColors.dataGreen,
+  semanticColors.dataPurple,
+  semanticColors.dataPink,
+];
 
 export default function SHU() {
   const currentYear = new Date().getFullYear().toString();
