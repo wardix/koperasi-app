@@ -2,7 +2,7 @@
 
 'use client';
 
-import {useState, useMemo, useEffect, useCallback} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import {
   VStack,
   HStack,
@@ -10,34 +10,15 @@ import {
   Layout,
   LayoutContent,
   LayoutHeader,
-
 } from '@astryxdesign/core/Layout';
-import {Spinner} from '@astryxdesign/core/Spinner';
-import {Center} from '@astryxdesign/core/Center';
-import {EmptyState} from '@astryxdesign/core/EmptyState';
-import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
-import {Avatar} from '@astryxdesign/core/Avatar';
-import {Badge} from '@astryxdesign/core/Badge';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Selector} from '@astryxdesign/core/Selector';
-import {Table, proportional, pixel} from '@astryxdesign/core/Table';
-import type {TableColumn} from '@astryxdesign/core/Table';
-import {
-  FunnelIcon,
-  ArrowDownTrayIcon,
-  PlusIcon,
-  TrashIcon,
-  BanknotesIcon,
-  PencilIcon,
-  ClockIcon,
-  KeyIcon,
-  EyeIcon,
-} from '@heroicons/react/24/outline';
+import {ArrowDownTrayIcon, PlusIcon} from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddMemberDialogContent} from '../components/AddMemberDialog';
@@ -55,6 +36,7 @@ import {exportToExcel} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
+import {MembersList} from '../components/members/MembersList';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
 
@@ -253,144 +235,6 @@ export default function MembersTemplate() {
     [apiAction, navigate]
   );
 
-  const columns: TableColumn<MemberRow>[] = useMemo(() => [
-    {
-      key: 'name',
-      header: 'Nama',
-      width: proportional(2),
-      renderCell: (item: MemberRow) => (
-        <HStack gap={3} vAlign="center">
-          <Avatar name={item.name} size="small" />
-          <VStack gap={0}>
-            <Text type="body">{item.name}</Text>
-            <Text type="supporting" color="secondary">
-              {item.role}
-            </Text>
-          </VStack>
-        </HStack>
-      ),
-    },
-    {
-      key: 'nik',
-      header: 'NIK',
-      width: pixel(150),
-      renderCell: (item: MemberRow) => (
-        <Text type="body" color={item.nik ? undefined : 'secondary'}>
-          {item.nik || '—'}
-        </Text>
-      ),
-    },
-    {
-      key: 'phone',
-      header: 'Telepon',
-      width: pixel(130),
-      renderCell: (item: MemberRow) => (
-        <Text type="body" color={item.phone ? undefined : 'secondary'}>
-          {item.phone || '—'}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: pixel(100),
-      renderCell: (item: MemberRow) => (
-        <Badge 
-          variant={item.status === 'Aktif' ? 'success' : 'neutral'} 
-          label={item.status} 
-        />
-      ),
-    },
-    {
-      key: 'joinDate',
-      header: 'Tanggal Bergabung',
-      width: proportional(1),
-      renderCell: (item: MemberRow) => (
-        <Text type="body">{item.joinDate}</Text>
-      ),
-    },
-    {
-      key: 'totalSavings',
-      header: 'Total Simpanan',
-      width: proportional(1.5),
-      renderCell: (item: MemberRow) => (
-        <VStack gap={1}>
-          <Text type="body">{formatRp(item.totalSavings)}</Text>
-          <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-            Pokok: {formatRp(item.simpananPokok)}
-          </Text>
-          <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-            Wajib: {formatRp(item.simpananWajib)}
-          </Text>
-          <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-            Sukarela: {formatRp(item.simpananSukarela)}
-          </Text>
-        </VStack>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Aksi',
-      width: pixel(260),
-      renderCell: (item: MemberRow) => (
-        <HStack gap={1}>
-          {hasPermission('update:members') && (
-            <IconButton 
-              icon={<Icon icon={PencilIcon} />} 
-              label="Edit" 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => handleEditMember(item)} 
-            />
-          )}
-          {hasPermission('read:members') && (
-            <IconButton
-              icon={<Icon icon={EyeIcon} />}
-              label="Lihat portal anggota"
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePreviewPortal(item)}
-            />
-          )}
-          {hasPermission('update:members') && (
-            <IconButton
-              icon={<Icon icon={KeyIcon} />}
-              label={item.hasPortalAccess ? 'Portal aktif' : 'Akses portal'}
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePortalAccess(item)}
-            />
-          )}
-          {hasPermission('update:savings') && (
-            <IconButton 
-              icon={<Icon icon={BanknotesIcon} />} 
-              label="Setor" 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => handleUpdateSavings(item)} 
-            />
-          )}
-          <IconButton 
-            icon={<Icon icon={ClockIcon} />} 
-            label="Riwayat" 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => handleShowHistory(item)} 
-          />
-          {hasPermission('delete:members') && (
-            <IconButton 
-              icon={<Icon icon={TrashIcon} />} 
-              label="Hapus" 
-              variant="ghost" 
-              color="error" 
-              size="sm" 
-              onClick={() => handleDelete(item)} 
-            />
-          )}
-        </HStack>
-      ),
-    },
-  ], [hasPermission, handleEditMember, handlePreviewPortal, handlePortalAccess, handleUpdateSavings, handleShowHistory, handleDelete]);
 
   const handleAddMember = useCallback(() => {
     dialog.show(
@@ -520,13 +364,20 @@ export default function MembersTemplate() {
                 />
               </StackItem>
             </HStack>
-            <Table<MemberRow>
-              data={members}
-              columns={columns}
-              idKey="id"
-              density="balanced"
-              dividers="rows"
-              hasHover
+            <MembersList
+              members={members}
+              permissions={{
+                canUpdate: hasPermission('update:members'),
+                canRead: hasPermission('read:members'),
+                canUpdateSavings: hasPermission('update:savings'),
+                canDelete: hasPermission('delete:members'),
+              }}
+              onEdit={handleEditMember}
+              onPreviewPortal={handlePreviewPortal}
+              onPortalAccess={handlePortalAccess}
+              onUpdateSavings={handleUpdateSavings}
+              onShowHistory={handleShowHistory}
+              onDelete={handleDelete}
             />
             <Pagination
               page={membersResponse?.page || 1}
