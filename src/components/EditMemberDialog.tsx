@@ -121,7 +121,7 @@ export function EditMemberDialogContent({
               placeholder="Aktif / Pasif"
             />
             {localError ? (
-              <Text type="supporting" color="error" style={{color: 'var(--color-text-critical, red)'}}>
+              <Text type="supporting" color="critical">
                 {localError}
               </Text>
             ) : null}

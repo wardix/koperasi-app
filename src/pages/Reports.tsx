@@ -150,7 +150,7 @@ export default function ReportsTemplate() {
                   onClick={handleExportCSV}
                   style={{
                     padding: '8px 16px',
-                    backgroundColor: 'var(--color-success, #10B981)',
+                    backgroundColor: 'var(--color-success-500)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
@@ -167,7 +167,7 @@ export default function ReportsTemplate() {
                   onClick={handlePrint}
                   style={{
                     padding: '8px 16px',
-                    backgroundColor: 'var(--color-primary, #0171E3)',
+                    backgroundColor: 'var(--color-primary-500)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
@@ -229,7 +229,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'cooperative_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'cooperative_summary' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'cooperative_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -245,7 +245,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'savings_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'savings_summary' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'savings_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -261,7 +261,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'loans_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'loans_summary' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'loans_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -277,7 +277,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'interest_income' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'interest_income' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'interest_income' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -293,7 +293,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'ar_summary' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'ar_summary' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'ar_summary' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -309,7 +309,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'savings_member' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'savings_member' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'savings_member' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -325,7 +325,7 @@ export default function ReportsTemplate() {
                         padding: '10px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: selectedReport === 'cashflow_statement' ? 'var(--color-primary, #0171E3)' : 'transparent',
+                        backgroundColor: selectedReport === 'cashflow_statement' ? 'var(--color-primary-500)' : 'transparent',
                         color: selectedReport === 'cashflow_statement' ? 'white' : 'inherit',
                         cursor: 'pointer',
                         fontWeight: 500,
@@ -399,11 +399,11 @@ export default function ReportsTemplate() {
                   }
 
                   return (
-                  <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                  <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <VStack gap={5}>
                       {/* Document Header */}
                       <div style={{ borderBottom: '3px double #000', paddingBottom: '20px', textAlign: 'center' }}>
-                        <Heading level={2} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', color: '#111827' }}>Koperasi Simpan Pinjam Koperasi-App</Heading>
+                        <Heading level={2} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-primary)' }}>Koperasi Simpan Pinjam Koperasi-App</Heading>
                         <Text type="supporting" color="secondary" style={{ marginTop: '4px' }}>
                           Jl. Raya Koperasi No. 123, Jakarta, Indonesia | Telp: (021) 555-0199
                         </Text>
@@ -433,31 +433,31 @@ export default function ReportsTemplate() {
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Parameter Keuangan & Operasional</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Nilai/Jumlah</th>
                               </tr>
                             </thead>
                             <tbody>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Anggota Terdaftar</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members?.totalMembers ?? 0} Orang</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Anggota Berstatus Aktif</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members?.activeMembers ?? 0} Orang</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Dana Simpanan Anggota</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Pinjaman Tersalurkan (Kredit Aktif)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary-500)' }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #374151' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                                 <td style={{ padding: '12px 8px' }}>Total Penerimaan Angsuran Pinjaman</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans?.totalPaymentsReceived)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.loans?.totalPaymentsReceived)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -471,27 +471,27 @@ export default function ReportsTemplate() {
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Jenis Simpanan</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Akumulasi</th>
                               </tr>
                             </thead>
                             <tbody>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Simpanan Pokok (Modal Awal)</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalPokok)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Simpanan Wajib (Bulanan)</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalWajib)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Simpanan Sukarela (Tabungan Bebas)</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalSukarela)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Seluruh Simpanan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -505,25 +505,25 @@ export default function ReportsTemplate() {
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Status Portofolio Kredit</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Nominal</th>
                               </tr>
                             </thead>
                             <tbody>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Lancar Aktif (Disetujui)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary, #0171E3)' }}>{formatRp(reportResponse.loans?.activeLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary-500)' }}>{formatRp(reportResponse.loans?.activeLoansAmount)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Lunas (Telah Diselesaikan)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10b981)' }}>{formatRp(reportResponse.loans?.paidLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.loans?.paidLoansAmount)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '12px 8px' }}>Kredit Bermasalah (Macet / NPL)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-error, #ef4444)' }}>{formatRp(reportResponse.loans?.badLoansAmount)}</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-critical-500)' }}>{formatRp(reportResponse.loans?.badLoansAmount)}</td>
                               </tr>
-                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Kumulatif Penyaluran Pinjaman</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600 }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
                               </tr>
@@ -548,30 +548,30 @@ export default function ReportsTemplate() {
                                 <XAxis dataKey="monthName" />
                                 <YAxis tickFormatter={(tick) => `Rp ${(tick / 1000).toLocaleString('id-ID')}k`} />
                                 <RechartsTooltip formatter={(value: any) => formatRp(value)} />
-                                <Bar dataKey="interestIncome" fill="var(--color-success, #10B981)" radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
+                                <Bar dataKey="interestIncome" fill="var(--color-success-500)" radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
 
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Bulan</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pendapatan Bunga</th>
                               </tr>
                             </thead>
                             <tbody>
                               {monthlyInterestRes.map((item) => (
-                                <tr key={item.monthKey} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                <tr key={item.monthKey} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px' }}>{item.monthName}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success, #10B981)' }}>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>
                                     {formatRp(item.interestIncome)}
                                   </td>
                                 </tr>
                               ))}
-                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb', fontWeight: 600 }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
                                 <td style={{ padding: '12px 8px' }}>Total Pendapatan Bunga Tahunan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success, #10B981)' }}>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
                                   {formatRp(monthlyInterestRes.reduce((sum, item) => sum + item.interestIncome, 0))}
                                 </td>
                               </tr>
@@ -587,7 +587,7 @@ export default function ReportsTemplate() {
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Anggota</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pokok Pinjaman</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Tagihan</th>
@@ -598,11 +598,11 @@ export default function ReportsTemplate() {
                             </thead>
                             <tbody>
                               {arRes.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px' }}>{item.memberName}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.principal)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.totalAmount)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success, #10B981)' }}>{formatRp(item.paidAmount)}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(item.paidAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(item.remainingAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                                     <span style={{ 
@@ -619,10 +619,10 @@ export default function ReportsTemplate() {
                               ))}
                               {arRes.length === 0 && (
                                 <tr>
-                                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Tidak ada piutang.</td>
+                                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Tidak ada piutang.</td>
                                 </tr>
                               )}
-                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb', fontWeight: 600 }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
                                 <td colSpan={4} style={{ padding: '12px 8px' }}>Total Sisa Piutang Koperasi</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                                   {formatRp(arRes.reduce((sum, item) => sum + item.remainingAmount, 0))}
@@ -641,7 +641,7 @@ export default function ReportsTemplate() {
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Anggota</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pokok</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Wajib</th>
@@ -651,7 +651,7 @@ export default function ReportsTemplate() {
                             </thead>
                             <tbody>
                               {savingsMemberRes.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px' }}>{item.memberName}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananPokok)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananWajib)}</td>
@@ -661,10 +661,10 @@ export default function ReportsTemplate() {
                               ))}
                               {savingsMemberRes.length === 0 && (
                                 <tr>
-                                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Tidak ada data anggota.</td>
+                                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Tidak ada data anggota.</td>
                                 </tr>
                               )}
-                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f9fafb', fontWeight: 600 }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
                                 <td colSpan={4} style={{ padding: '12px 8px' }}>Total Simpanan Koperasi</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                                   {formatRp(savingsMemberRes.reduce((sum, item) => sum + item.totalSavings, 0))}
@@ -682,7 +682,7 @@ export default function ReportsTemplate() {
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #374151', textAlign: 'left' }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Kategori</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Subkategori</th>
                                 <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Nominal</th>
@@ -692,20 +692,20 @@ export default function ReportsTemplate() {
                               {['inflow', 'outflow'].map(cat => (
                                 <React.Fragment key={cat}>
                                   <tr>
-                                    <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: '#f9fafb' }}>
+                                    <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
                                       {cat === 'inflow' ? 'ARUS KAS MASUK (INFLOW)' : 'ARUS KAS KELUAR (OUTFLOW)'}
                                     </td>
                                   </tr>
                                   {cashflowRes.filter(c => c.category === cat).map((item, idx) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                       <td></td>
                                       <td style={{ padding: '12px 8px', textTransform: 'capitalize' }}>{item.subcategory.replace(/_/g, ' ')}</td>
-                                      <td style={{ padding: '12px 8px', textAlign: 'right', color: cat === 'inflow' ? 'var(--color-success, #10B981)' : 'var(--color-error, #ef4444)' }}>
+                                      <td style={{ padding: '12px 8px', textAlign: 'right', color: cat === 'inflow' ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
                                         {formatRp(item.total)}
                                       </td>
                                     </tr>
                                   ))}
-                                  <tr style={{ borderBottom: '1px solid #374151', fontWeight: 600 }}>
+                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
                                     <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>
                                       Subtotal {cat}
                                     </td>
@@ -716,7 +716,7 @@ export default function ReportsTemplate() {
                                 </React.Fragment>
                               ))}
                               
-                              <tr style={{ borderBottom: '2px solid #374151', backgroundColor: '#f3f4f6', fontWeight: 600 }}>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
                                 <td colSpan={2} style={{ padding: '16px 8px' }}>NET CASH (KAS BERSIH PERIODE)</td>
                                 <td style={{ padding: '16px 8px', textAlign: 'right' }}>
                                   {formatRp(

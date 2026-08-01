@@ -179,7 +179,7 @@ export function AddMemberDialogContent({
                       placeholder="Contoh: Budi Santoso"
                     />
                     {errors.name && (
-                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         {errors.name.message}
                       </Text>
                     )}
@@ -200,7 +200,7 @@ export function AddMemberDialogContent({
                       type="text"
                     />
                     {errors.nik && (
-                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         {errors.nik.message}
                       </Text>
                     )}
@@ -229,7 +229,7 @@ export function AddMemberDialogContent({
                       type="text"
                     />
                     {errors.phone && (
-                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         {errors.phone.message}
                       </Text>
                     )}
@@ -248,7 +248,7 @@ export function AddMemberDialogContent({
                       placeholder="Contoh: Anggota, Pengurus"
                     />
                     {errors.role && (
-                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         {errors.role.message}
                       </Text>
                     )}
@@ -267,7 +267,7 @@ export function AddMemberDialogContent({
                       type="date"
                     />
                     {errors.joinDate && (
-                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         {errors.joinDate.message}
                       </Text>
                     )}
@@ -288,7 +288,7 @@ export function AddMemberDialogContent({
                       description="Pemisah ribuan ditambahkan otomatis"
                     />
                     {errors.deposit && (
-                      <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                      <Text type="supporting" color="critical">
                         {errors.deposit.message}
                       </Text>
                     )}
@@ -326,7 +326,7 @@ export function AddMemberDialogContent({
                         description="Harus sama dengan email Google jika login dengan Google"
                       />
                       {errors.email && (
-                        <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        <Text type="supporting" color="critical">
                           {errors.email.message}
                         </Text>
                       )}
@@ -346,7 +346,7 @@ export function AddMemberDialogContent({
                         type="password"
                       />
                       {errors.password && (
-                        <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        <Text type="supporting" color="critical">
                           {errors.password.message}
                         </Text>
                       )}
@@ -366,7 +366,7 @@ export function AddMemberDialogContent({
                         type="password"
                       />
                       {errors.passwordConfirm && (
-                        <Text type="supporting" color="error" style={{ color: 'var(--color-text-critical, red)' }}>
+                        <Text type="supporting" color="critical">
                           {errors.passwordConfirm.message}
                         </Text>
                       )}

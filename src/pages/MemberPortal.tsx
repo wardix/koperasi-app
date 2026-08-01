@@ -393,7 +393,7 @@ export default function MemberPortal() {
                     style={{
                       flex: 1,
                       height: 1,
-                      background: 'var(--color-border-primary, #e5e7eb)',
+                      background: 'var(--color-border-primary)',
                     }}
                   />
                   <Text type="supporting" color="secondary">
@@ -403,7 +403,7 @@ export default function MemberPortal() {
                     style={{
                       flex: 1,
                       height: 1,
-                      background: 'var(--color-border-primary, #e5e7eb)',
+                      background: 'var(--color-border-primary)',
                     }}
                   />
                 </HStack>
