@@ -8,7 +8,10 @@ export function useA11yDialog(defaultOptions?: DialogOptions) {
   const dialog = useImperativeDialog(defaultOptions);
 
   const element = useMemo(() => (
-    <FocusTrap active={dialog.isOpen}>
+    <FocusTrap 
+      active={dialog.isOpen} 
+      focusTrapOptions={{ fallbackFocus: () => document.body }}
+    >
       <div style={{ display: 'contents' }}>
         {dialog.element}
       </div>
