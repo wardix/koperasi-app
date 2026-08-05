@@ -2,6 +2,7 @@ import type { Db } from "../db";
 import type { LoanRow, LoanScheduleRow } from "../db/entities";
 import { addMonthsYmd, resolveCalendarDateIso } from "../lib/dates";
 import { ServiceError } from "./errors";
+import { recordAutoJournal } from "./accountingService";
 
 export function calculateLoanInterest(amount: number, tenor: string | number, bungaRate: number) {
   const tenorMonths = Math.max(1, parseInt(String(tenor)) || 1);
@@ -472,6 +473,23 @@ export async function updateLoanStatus(
         );
         await generateInstallmentSchedule(database, loanForSchedule, bungaRatePercent, interestAmount, totalAmount);
       }
+
+      if (loan) {
+        try {
+          await recordAutoJournal({
+            transaction_date: approvedAt,
+            description: `Pencairan Pinjaman Anggota (Loan ID: ${loanId})`,
+            reference_type: 'loan_disbursement',
+            reference_id: loanId,
+            lines: [
+              { account_code: '1210', debit: loan.amount }, // Piutang
+              { account_code: '1120', credit: loan.amount } // Kas Keluar
+            ]
+          });
+        } catch (err) {
+          console.error("Gagal auto-journal pencairan pinjaman:", err);
+        }
+      }
     })();
   } else {
     const stmt = database.prepare(`UPDATE loans SET status = ? WHERE id = ?`);
@@ -691,6 +709,30 @@ export async function recordLoanPayment(
       .run(id, loanId, input.amount, paymentDate, input.method);
 
     await rebuildLoanPaymentAllocations(database, loanId);
+    
+    // Otomatisasi Jurnal
+    try {
+      const kasCode = input.method === 'Cash' ? '1110' : '1120';
+      const principalRatio = Number(loan.amount) / totalAmount;
+      const interestRatio = 1 - principalRatio;
+      
+      const principalPaid = Math.round(input.amount * principalRatio);
+      const interestPaid = input.amount - principalPaid;
+
+      await recordAutoJournal({
+        transaction_date: paymentDate,
+        description: `Pembayaran Cicilan Pinjaman (Loan ID: ${loanId})`,
+        reference_type: 'loan_payment',
+        reference_id: id,
+        lines: [
+          { account_code: kasCode, debit: input.amount }, // Kas Masuk
+          { account_code: '1210', credit: principalPaid }, // Piutang Berkurang
+          { account_code: '4110', credit: interestPaid } // Pendapatan Bunga
+        ]
+      });
+    } catch (err) {
+      console.error("Gagal auto-journal pembayaran pinjaman:", err);
+    }
   })();
 
   return { id };

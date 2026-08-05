@@ -2,6 +2,7 @@ import type { Db } from "../db";
 import type { MemberSavingsCols } from "../db/entities";
 import { resolveCalendarDateIso } from "../lib/dates";
 import { ServiceError } from "./errors";
+import { recordAutoJournal } from "./accountingService";
 
 export type SavingsType = "pokok" | "wajib" | "sukarela";
 
@@ -93,20 +94,46 @@ export async function updateMemberSavings(
       .query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?")
       .run(newPokok, newWajib, newSukarela, newTotal, memberId);
 
-    await database.query(`
+      const transactionId = crypto.randomUUID();
+      await database.query(`
       INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      crypto.randomUUID(),
-      memberId,
-      additionalSavingsNum >= 0 ? `setor_${input.savingsType}` : `tarik_${input.savingsType}`,
-      Math.abs(additionalSavingsNum),
-      Number(member.totalSavings ?? 0),
-      newTotal,
-      createdAt,
-      createdBy
-    );
-  })();
+        transactionId,
+        memberId,
+        additionalSavingsNum >= 0 ? `setor_${input.savingsType}` : `tarik_${input.savingsType}`,
+        Math.abs(additionalSavingsNum),
+        Number(member.totalSavings ?? 0),
+        newTotal,
+        createdAt,
+        createdBy
+      );
+
+      // Otomatisasi Jurnal
+      let simpananAccountCode = '2110';
+      if (input.savingsType === 'pokok') simpananAccountCode = '3110';
+      else if (input.savingsType === 'wajib') simpananAccountCode = '3120';
+      
+      const kasCode = '1120'; // Default Kas Bank
+      const absAmount = Math.abs(additionalSavingsNum);
+      const isSetor = additionalSavingsNum >= 0;
+
+      try {
+        await recordAutoJournal({
+          transaction_date: createdAt,
+          description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} - Anggota ${memberId}`,
+          reference_type: `savings_${isSetor ? 'setor' : 'tarik'}`,
+          reference_id: transactionId,
+          lines: [
+            { account_code: kasCode, debit: isSetor ? absAmount : 0, credit: isSetor ? 0 : absAmount },
+            { account_code: simpananAccountCode, debit: isSetor ? 0 : absAmount, credit: isSetor ? absAmount : 0 },
+          ]
+        });
+      } catch (err) {
+        console.error("Gagal auto-journal simpanan:", err);
+      }
+
+    })();
 
   return {
     newTotal,

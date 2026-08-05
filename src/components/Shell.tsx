@@ -46,6 +46,8 @@ const Expenses = React.lazy(() => import('../pages/Expenses'));
 const NPL = React.lazy(() => import('../pages/NPL'));
 const Reports = React.lazy(() => import('../pages/Reports'));
 const AuditLog = React.lazy(() => import('../pages/AuditLog'));
+const Accounting = React.lazy(() => import('../pages/Accounting'));
+const Ledger = React.lazy(() => import('../pages/Ledger'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
@@ -177,6 +179,18 @@ export default function Shell() {
                 onClick={() => navigate('/expenses')}
               />
             )}
+            <SideNavItem
+              label="Jurnal Umum"
+              icon={BanknotesIcon}
+              isSelected={path === '/accounting'}
+              onClick={() => navigate('/accounting')}
+            />
+            <SideNavItem
+              label="Buku Besar"
+              icon={BanknotesIcon}
+              isSelected={path === '/ledger'}
+              onClick={() => navigate('/ledger')}
+            />
           </SideNavSection>
           <SideNavSection title="Kredit & Persetujuan">
             <SideNavItem 
@@ -240,6 +254,8 @@ export default function Shell() {
           <Route path="/npl" element={<ProtectedRoute permission="read:npl"><NPL /></ProtectedRoute>} />
           <Route path="/roles" element={<Roles />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/accounting" element={<Accounting />} />
+          <Route path="/ledger" element={<Ledger />} />
         </Routes>
       </Suspense>
     </AppShell>

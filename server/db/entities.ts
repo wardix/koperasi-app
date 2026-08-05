@@ -272,3 +272,39 @@ export const monthTotalSchema = z.object({
   total: numNull,
 });
 export type MonthTotal = z.infer<typeof monthTotalSchema>;
+
+// ---------------------------------------------------------------------------
+// Accounting (General Ledger)
+// ---------------------------------------------------------------------------
+
+export const accountRowSchema = z.object({
+  id: str,
+  code: str,
+  name: str,
+  type: str,
+  normal_balance: str,
+  is_active: bool.default(true),
+  created_at: strNull,
+});
+export type AccountRow = z.infer<typeof accountRowSchema>;
+
+export const journalEntryRowSchema = z.object({
+  id: str,
+  transaction_date: str,
+  description: str,
+  reference_type: strNull,
+  reference_id: strNull,
+  created_by: strNull,
+  created_at: strNull,
+});
+export type JournalEntryRow = z.infer<typeof journalEntryRowSchema>;
+
+export const journalLineRowSchema = z.object({
+  id: str,
+  journal_entry_id: str,
+  account_id: str,
+  debit: num.default(0),
+  credit: num.default(0),
+  description: strNull,
+});
+export type JournalLineRow = z.infer<typeof journalLineRowSchema>;

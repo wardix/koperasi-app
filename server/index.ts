@@ -17,6 +17,7 @@ import expensesRoutes from './routes/expenses'
 import nplRoutes from './routes/npl'
 import reportsRoutes from './routes/reports'
 import auditRoutes from './routes/audit'
+import accountingRoutes from './routes/accounting'
 import docsRoutes from './routes/docs'
 import memberAuthRoutes from './routes/memberAuth'
 import cronRoutes from './routes/cron'
@@ -131,6 +132,7 @@ app.route('/api/v1/expenses', expensesRoutes)
 app.route('/api/v1/npl', nplRoutes)
 app.route('/api/v1/reports', reportsRoutes)
 app.route('/api/v1/audit-logs', auditRoutes)
+app.route('/api/v1/accounting', accountingRoutes)
 
 // OpenAPI spec + Swagger UI (development only)
 if (process.env.NODE_ENV !== 'production') {

@@ -2,6 +2,7 @@ import type { Db } from "../db";
 import { resolveCalendarDateIso } from "../lib/dates";
 import type { ExpenseCategory } from "../schemas";
 import { ServiceError } from "./errors";
+import { recordAutoJournal } from "./accountingService";
 
 export type ExpenseInput = {
   expenseDate: string;
@@ -71,6 +72,28 @@ export async function createExpense(
       now,
     ]
   );
+
+  let expenseAccount = '5990'; // Beban Lain-lain
+  if (input.category === 'gaji') expenseAccount = '5110';
+  else if (input.category === 'utilitas') expenseAccount = '5120';
+  else if (input.category === 'pajak' || input.category === 'notaris') expenseAccount = '5220';
+
+  const cashAccount = input.paymentMethod === 'Cash' ? '1110' : '1120';
+
+  try {
+    await recordAutoJournal({
+      transaction_date: expenseDate,
+      description: `Pengeluaran: ${input.category} - ${input.description}`,
+      reference_type: 'expense',
+      reference_id: id,
+      lines: [
+        { account_code: expenseAccount, debit: input.amount },
+        { account_code: cashAccount, credit: input.amount }
+      ]
+    });
+  } catch (e) {
+    console.error("Auto Journal failed for expense", e);
+  }
 
   return { id };
 }

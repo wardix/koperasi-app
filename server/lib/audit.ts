@@ -30,7 +30,9 @@ export type AuditAction =
   | 'update_expense'
   | 'delete_expense'
   | 'archive_loan'
-  | 'archive_member';
+  | 'archive_member'
+  | 'create_account'
+  | 'create_journal';
 
 export interface AuditRecord {
   actor: string;        // admin email who performed the action
