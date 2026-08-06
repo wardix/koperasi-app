@@ -36,6 +36,7 @@ import {exportToExcel} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
+import {ImportMembersDialogContent} from '../components/ImportMembersDialog';
 import {MembersList} from '../components/members/MembersList';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
@@ -266,6 +267,15 @@ export default function MembersTemplate() {
     );
   }, [dialog, members, fetchMembers]);
 
+  const handleImportMembers = useCallback(() => {
+    dialog.show(
+      <ImportMembersDialogContent
+        onClose={() => dialog.hide()}
+        onSuccess={() => fetchMembers()}
+      />
+    );
+  }, [dialog, fetchMembers]);
+
   return (
     <>
     <Layout
@@ -325,6 +335,14 @@ export default function MembersTemplate() {
                 icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
                 variant="secondary"
                 onClick={handleImportSavings}
+              />
+            )}
+            {hasPermission('create:members') && (
+              <Button
+                label="Import Anggota (CSV)"
+                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                variant="secondary"
+                onClick={handleImportMembers}
               />
             )}
             {hasPermission('create:members') && (

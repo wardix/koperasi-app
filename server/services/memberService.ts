@@ -352,3 +352,70 @@ export async function deleteMember(database: Db, id: string): Promise<Pick<Membe
 
   return before;
 }
+
+// ---------------------------------------------------------------------------
+// Batch Import Members (from CSV)
+// ---------------------------------------------------------------------------
+
+export type BatchMemberImportItem = {
+  nik?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  joinDate?: string | null;
+  simpananPokok?: number;
+  simpananWajib?: number;
+  simpananSukarela?: number;
+};
+
+export type BatchMemberImportResult = {
+  processedCount: number;
+  failedCount: number;
+  errors: Array<{ index: number; identifier: string; message: string }>;
+};
+
+export async function batchImportMembers(
+  database: Db,
+  items: BatchMemberImportItem[],
+  createdBy: string
+): Promise<BatchMemberImportResult> {
+  let processedCount = 0;
+  const errors: Array<{ index: number; identifier: string; message: string }> = [];
+  const today = new Date().toISOString().split("T")[0];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const identifier = item.nik || item.name || `Baris #${i + 1}`;
+
+    if (!item.name || item.name.trim() === "") {
+      errors.push({ index: i, identifier, message: "Nama anggota wajib diisi" });
+      continue;
+    }
+
+    try {
+      await createMember(database, {
+        name: item.name.trim(),
+        role: "anggota",
+        status: "Aktif",
+        joinDate: item.joinDate || today,
+        nik: item.nik || null,
+        phone: item.phone || null,
+        email: item.email || null,
+        simpananPokok: Number(item.simpananPokok ?? 0),
+        simpananWajib: Number(item.simpananWajib ?? 0),
+        simpananSukarela: Number(item.simpananSukarela ?? 0),
+      }, createdBy);
+      processedCount++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses anggota";
+      errors.push({ index: i, identifier, message: msg });
+    }
+  }
+
+  return {
+    processedCount,
+    failedCount: errors.length,
+    errors,
+  };
+}

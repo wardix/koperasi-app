@@ -341,3 +341,32 @@ export const adminCreationSchema = z.object({
 export const adminUpdateSchema = z.object({
   role: z.enum(["viewer", "admin", "superadmin"]),
 })
+
+// ---------------------------------------------------------------------------
+// Batch Member Import (CSV)
+// ---------------------------------------------------------------------------
+
+export const batchMemberImportItemSchema = z.object({
+  nik: z.string().optional().nullable(),
+  name: z.string().min(1, "Nama wajib diisi"),
+  email: z.string().email("Format email tidak valid").optional().nullable().or(z.literal("")),
+  phone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  joinDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional()
+    .nullable(),
+  simpananPokok: z.number().min(0).default(0),
+  simpananWajib: z.number().min(0).default(0),
+  simpananSukarela: z.number().min(0).default(0),
+});
+
+export const batchMemberImportSchema = z.object({
+  items: z
+    .array(batchMemberImportItemSchema)
+    .min(1, "Minimal 1 data anggota untuk diimport"),
+});
+
+export type BatchMemberImportItem = z.infer<typeof batchMemberImportItemSchema>;
+

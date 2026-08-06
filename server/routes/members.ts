@@ -10,11 +10,12 @@ import {
 } from '../schemas'
 import { requirePermission, secretKey } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { createMember, deleteMember, setMemberPortalAccess, updateMember } from '../services/memberService'
+import { createMember, deleteMember, setMemberPortalAccess, updateMember, batchImportMembers } from '../services/memberService'
 import { updateMemberSavings } from '../services/savingsService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
+import { batchMemberImportSchema } from '../schemas'
 
 const members = new Hono()
 
@@ -328,6 +329,56 @@ members.get('/:id/transactions', requirePermission('read:members'), async (c) =>
     if (response) return response
     throw err
   }
+})
+
+// ---------------------------------------------------------------------------
+// CSV Template Download
+// ---------------------------------------------------------------------------
+
+members.get('/template-csv', requirePermission('create:members'), async (c) => {
+  const today = new Date().toISOString().split('T')[0]
+
+  const lines = [
+    'nik,nama,email,phone,alamat,tanggal_bergabung,simpanan_pokok,simpanan_wajib,simpanan_sukarela',
+    `3171012345670001,Budi Santoso,budi@email.com,08123456789,Jl. Merdeka No. 1,${today},1000000,500000,0`,
+    `3171012345670002,Siti Rahma,siti@email.com,08987654321,Jl. Pahlawan No. 5,${today},1000000,500000,250000`,
+  ]
+
+  const csvText = '\uFEFF' + lines.join('\r\n')
+  c.header('Content-Type', 'text/csv; charset=utf-8')
+  c.header('Content-Disposition', `attachment; filename="Template_Import_Anggota_${today}.csv"`)
+  return c.text(csvText)
+})
+
+// ---------------------------------------------------------------------------
+// Batch Import Members
+// ---------------------------------------------------------------------------
+
+members.post('/batch-import', requirePermission('create:members'), async (c) => {
+  const body = await c.req.json()
+  const parsed = batchMemberImportSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const result = await batchImportMembers(db, parsed.data.items, getActor(c))
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'create_member',
+    entity: 'members',
+    after: { batchImportCount: result.processedCount, failedCount: result.failedCount },
+    ip: getClientIp(c),
+  })
+
+  clearStatsCache()
+
+  return c.json({
+    success: true,
+    message: `Berhasil mengimpor ${result.processedCount} data anggota${result.failedCount > 0 ? `, ${result.failedCount} gagal` : ''}`,
+    data: result,
+  })
 })
 
 export default members
