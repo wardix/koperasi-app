@@ -370,3 +370,28 @@ export const batchMemberImportSchema = z.object({
 
 export type BatchMemberImportItem = z.infer<typeof batchMemberImportItemSchema>;
 
+// ---------------------------------------------------------------------------
+// Batch Loan Import (CSV)
+// ---------------------------------------------------------------------------
+
+export const batchLoanImportItemSchema = z.object({
+  nik: z.string().min(1, "NIK wajib diisi"),
+  nama_pinjaman: z.string().min(1, "Nama pinjaman wajib diisi"),
+  jumlah: z.number().positive("Jumlah pinjaman harus lebih dari 0"),
+  tenor: z.number().int().positive("Tenor harus lebih dari 0 bulan"),
+  tujuan: z.string().min(1, "Tujuan pinjaman wajib diisi"),
+  tanggal_pinjaman: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional()
+    .nullable(),
+  bunga: z.number().min(0).optional().nullable(),
+});
+
+export const batchLoanImportSchema = z.object({
+  items: z
+    .array(batchLoanImportItemSchema)
+    .min(1, "Minimal 1 data pinjaman untuk diimport"),
+});
+
+export type BatchLoanImportItem = z.infer<typeof batchLoanImportItemSchema>;

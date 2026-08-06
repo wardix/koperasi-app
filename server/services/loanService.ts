@@ -922,3 +922,76 @@ export async function deleteLoan(database: Db, loanId: string): Promise<void> {
     .query("UPDATE loans SET deletedAt = ? WHERE id = ?")
     .run(new Date().toISOString(), loanId);
 }
+
+// ---------------------------------------------------------------------------
+// Batch Loan Import (CSV)
+// ---------------------------------------------------------------------------
+
+export type BatchLoanImportItem = {
+  nik: string;
+  nama_pinjaman: string;
+  jumlah: number;
+  tenor: number;
+  tujuan: string;
+  tanggal_pinjaman?: string | null;
+  bunga?: number | null;
+};
+
+export type BatchLoanImportResult = {
+  processedCount: number;
+  failedCount: number;
+  errors: Array<{ index: number; identifier: string; message: string }>;
+};
+
+export async function batchImportLoans(
+  database: Db,
+  items: BatchLoanImportItem[]
+): Promise<BatchLoanImportResult> {
+  let processedCount = 0;
+  const errors: Array<{ index: number; identifier: string; message: string }> = [];
+
+  const globalRate = await getBungaRatePercent(database);
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const identifier = `NIK ${item.nik}`;
+
+    try {
+      // 1. Lookup member by NIK
+      const cleanNik = String(item.nik).replace(/\D/g, "");
+      const member = await database
+        .query("SELECT id FROM members WHERE nik = ? AND deletedAt IS NULL LIMIT 1")
+        .get<{ id: string }>(cleanNik);
+
+      if (!member) {
+        errors.push({ index: i, identifier, message: `Anggota dengan NIK ${item.nik} tidak ditemukan` });
+        continue;
+      }
+
+      // 2. Create loan (status Menunggu first so we can approve)
+      const { id: loanId } = await createLoan(database, {
+        memberId: member.id,
+        name: item.nama_pinjaman,
+        amount: item.jumlah,
+        tenor: item.tenor,
+        purpose: item.tujuan,
+        status: "Menunggu",
+        loanDate: item.tanggal_pinjaman ?? undefined,
+      });
+
+      // 3. Approve loan → auto-generates schedule + auto-journal
+      const bungaRate = item.bunga != null ? item.bunga : globalRate;
+      await updateLoanStatus(database, loanId, "Disetujui", {
+        approvedDate: item.tanggal_pinjaman ?? undefined,
+        interestRate: bungaRate,
+      });
+
+      processedCount++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses pinjaman";
+      errors.push({ index: i, identifier, message: msg });
+    }
+  }
+
+  return { processedCount, failedCount: errors.length, errors };
+}

@@ -49,6 +49,7 @@ import { lazy, Suspense } from 'react';
 const AddLoanDialogContent = lazy(() => import('../components/AddLoanDialog').then(m => ({ default: m.AddLoanDialogContent })));
 const ApproveLoanDialogContent = lazy(() => import('../components/ApproveLoanDialog').then(m => ({ default: m.ApproveLoanDialogContent })));
 const LoanDetailDialogContent = lazy(() => import('../components/LoanDetailDialog').then(m => ({ default: m.LoanDetailDialogContent })));
+const ImportLoansDialogContent = lazy(() => import('../components/ImportLoansDialog').then(m => ({ default: m.ImportLoansDialogContent })));
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';
 
@@ -153,6 +154,17 @@ export default function LoansTemplate() {
       </Suspense>
     );
   }, [dialog, apiAction, fetchLoans]);
+
+  const handleImportLoans = useCallback(() => {
+    dialog.show(
+      <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+        <ImportLoansDialogContent
+          onClose={() => dialog.hide()}
+          onSuccess={() => fetchLoans()}
+        />
+      </Suspense>
+    );
+  }, [dialog, fetchLoans]);
 
   const handleDeleteLoan = useCallback((loan: LoanRow) => {
     dialog.show(
@@ -341,6 +353,14 @@ export default function LoansTemplate() {
                   }}
                 />
               </>
+            )}
+            {hasPermission('create:loans') && (
+              <Button
+                label="Import Pinjaman (CSV)"
+                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                variant="secondary"
+                onClick={handleImportLoans}
+              />
             )}
             {hasPermission('create:loans') && (
               <Button

@@ -25,10 +25,12 @@ import {
   updateLoanDisbursementDate,
   updateLoanPayment,
   updateLoanStatus,
+  batchImportLoans,
 } from '../services/loanService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
+import { batchLoanImportSchema } from '../schemas'
 
 const loans = new Hono()
 
@@ -450,6 +452,54 @@ loans.delete('/:id', requirePermission('delete:loans'), async (c) => {
     if (response) return response
     throw err
   }
+})
+
+// ---------------------------------------------------------------------------
+// CSV Template Download
+// ---------------------------------------------------------------------------
+
+loans.get('/template-csv', requirePermission('create:loans'), async (c) => {
+  const today = new Date().toISOString().split('T')[0]
+  const lines = [
+    'nik,nama_pinjaman,jumlah,tenor,tujuan,tanggal_pinjaman,bunga',
+    `3171012345670001,Pinjaman Modal Usaha,5000000,12,Modal usaha warung,${today},`,
+    `3171012345670002,Pinjaman Konsumtif,3000000,6,Kebutuhan rumah tangga,${today},`,
+  ]
+  const csvText = '\uFEFF' + lines.join('\r\n')
+  c.header('Content-Type', 'text/csv; charset=utf-8')
+  c.header('Content-Disposition', `attachment; filename="Template_Import_Pinjaman_${today}.csv"`)
+  return c.text(csvText)
+})
+
+// ---------------------------------------------------------------------------
+// Batch Import Loans
+// ---------------------------------------------------------------------------
+
+loans.post('/batch-import', requirePermission('create:loans'), async (c) => {
+  const body = await c.req.json()
+  const parsed = batchLoanImportSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const result = await batchImportLoans(db, parsed.data.items)
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'create_loan',
+    entity: 'loans',
+    after: { batchImportCount: result.processedCount, failedCount: result.failedCount },
+    ip: getClientIp(c),
+  })
+
+  clearStatsCache()
+
+  return c.json({
+    success: true,
+    message: `Berhasil mengimpor ${result.processedCount} pinjaman${result.failedCount > 0 ? `, ${result.failedCount} gagal` : ''}`,
+    data: result,
+  })
 })
 
 export default loans
