@@ -419,3 +419,25 @@ export const batchPaymentImportSchema = z.object({
 });
 
 export type BatchPaymentImportItem = z.infer<typeof batchPaymentImportItemSchema>;
+
+// ---------------------------------------------------------------------------
+// Batch Schedule Import / Jadwal Angsuran (CSV)
+// ---------------------------------------------------------------------------
+
+export const batchScheduleImportItemSchema = z.object({
+  loan_id: z.string().min(1, "ID Pinjaman wajib diisi"),
+  cicilan_ke: z.number().int().positive("Cicilan ke harus lebih dari 0"),
+  tanggal_jatuh_tempo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
+  pokok: z.number().min(0, "Pokok tidak boleh negatif"),
+  bunga: z.number().min(0, "Bunga tidak boleh negatif"),
+});
+
+export const batchScheduleImportSchema = z.object({
+  items: z
+    .array(batchScheduleImportItemSchema)
+    .min(1, "Minimal 1 baris jadwal untuk diimport"),
+});
+
+export type BatchScheduleImportItem = z.infer<typeof batchScheduleImportItemSchema>;

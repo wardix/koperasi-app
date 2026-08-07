@@ -1077,3 +1077,65 @@ export async function batchImportPayments(
 
   return { processedCount, failedCount: errors.length, errors };
 }
+
+// ---------------------------------------------------------------------------
+// Batch Schedule Import / Jadwal Angsuran (CSV)
+// ---------------------------------------------------------------------------
+
+export type BatchScheduleImportItem = {
+  loan_id: string;
+  cicilan_ke: number;
+  tanggal_jatuh_tempo: string;
+  pokok: number;
+  bunga: number;
+};
+
+export type BatchScheduleImportResult = {
+  processedCount: number;
+  failedCount: number;
+  errors: Array<{ identifier: string; message: string }>;
+};
+
+export async function batchImportSchedules(
+  database: Db,
+  items: BatchScheduleImportItem[]
+): Promise<BatchScheduleImportResult> {
+  let processedCount = 0;
+  const errors: Array<{ identifier: string; message: string }> = [];
+
+  // Group by loan_id
+  const groups: Record<string, BatchScheduleImportItem[]> = {};
+  for (const item of items) {
+    if (!groups[item.loan_id]) {
+      groups[item.loan_id] = [];
+    }
+    groups[item.loan_id].push(item);
+  }
+
+  for (const loanId of Object.keys(groups)) {
+    const groupItems = groups[loanId];
+    
+    try {
+      const loan = await database.query("SELECT * FROM loans WHERE id = ? AND deletedAt IS NULL").get<LoanRow>(loanId);
+      if (!loan) {
+        errors.push({ identifier: `Loan ${loanId}`, message: `Pinjaman dengan ID ${loanId} tidak ditemukan atau sudah dihapus` });
+        continue;
+      }
+
+      const rows: ScheduleRowInput[] = groupItems.map((item) => ({
+        installmentNo: item.cicilan_ke,
+        dueDate: item.tanggal_jatuh_tempo,
+        principalAmount: item.pokok,
+        interestAmount: item.bunga,
+      }));
+
+      await replaceLoanInstallmentSchedule(database, loanId, rows);
+      processedCount += rows.length;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses jadwal";
+      errors.push({ identifier: `Loan ${loanId}`, message: msg });
+    }
+  }
+
+  return { processedCount, failedCount: errors.length, errors };
+}

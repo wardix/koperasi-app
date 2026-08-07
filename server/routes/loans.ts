@@ -27,11 +27,12 @@ import {
   updateLoanStatus,
   batchImportLoans,
   batchImportPayments,
+  batchImportSchedules,
 } from '../services/loanService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
-import { batchLoanImportSchema, batchPaymentImportSchema } from '../schemas'
+import { batchLoanImportSchema, batchPaymentImportSchema, batchScheduleImportSchema } from '../schemas'
 
 const loans = new Hono()
 
@@ -547,6 +548,59 @@ loans.post('/payments/batch-import', requirePermission('create:payments'), async
   return c.json({
     success: true,
     message: `Berhasil mengimpor ${result.processedCount} angsuran${result.failedCount > 0 ? `, ${result.failedCount} gagal` : ''}`,
+    data: result,
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CSV Template - Jadwal Angsuran
+// ---------------------------------------------------------------------------
+
+loans.get('/schedules/template-csv', requirePermission('approve:loans'), async (c) => {
+  const today = new Date()
+  const nextMonth = new Date(today)
+  nextMonth.setMonth(nextMonth.getMonth() + 1)
+  const d1 = today.toISOString().split('T')[0]
+  const d2 = nextMonth.toISOString().split('T')[0]
+  
+  const lines = [
+    'loan_id,cicilan_ke,tanggal_jatuh_tempo,pokok,bunga',
+    `contoh-id-pinjaman-123,1,${d1},416667,100000`,
+    `contoh-id-pinjaman-123,2,${d2},416667,100000`,
+  ]
+  const csvText = '\uFEFF' + lines.join('\r\n')
+  c.header('Content-Type', 'text/csv; charset=utf-8')
+  c.header('Content-Disposition', `attachment; filename="Template_Import_Jadwal.csv"`)
+  return c.text(csvText)
+})
+
+// ---------------------------------------------------------------------------
+// Batch Import Jadwal Angsuran
+// ---------------------------------------------------------------------------
+
+loans.post('/schedules/batch-import', requirePermission('approve:loans'), async (c) => {
+  const body = await c.req.json()
+  const parsed = batchScheduleImportSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const result = await batchImportSchedules(db, parsed.data.items)
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'replace_loan_schedule',
+    entity: 'loan_schedules',
+    after: { batchImportCount: result.processedCount, failedCount: result.failedCount },
+    ip: getClientIp(c),
+  })
+
+  clearStatsCache()
+
+  return c.json({
+    success: true,
+    message: `Berhasil mengimpor ${result.processedCount} baris jadwal${result.failedCount > 0 ? `, ${result.failedCount} grup pinjaman gagal` : ''}`,
     data: result,
   })
 })

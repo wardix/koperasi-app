@@ -50,6 +50,7 @@ const AddLoanDialogContent = lazy(() => import('../components/AddLoanDialog').th
 const ApproveLoanDialogContent = lazy(() => import('../components/ApproveLoanDialog').then(m => ({ default: m.ApproveLoanDialogContent })));
 const LoanDetailDialogContent = lazy(() => import('../components/LoanDetailDialog').then(m => ({ default: m.LoanDetailDialogContent })));
 const ImportLoansDialogContent = lazy(() => import('../components/ImportLoansDialog').then(m => ({ default: m.ImportLoansDialogContent })));
+const ImportSchedulesDialogContent = lazy(() => import('../components/ImportSchedulesDialog').then(m => ({ default: m.ImportSchedulesDialogContent })));
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';
 
@@ -159,6 +160,17 @@ export default function LoansTemplate() {
     dialog.show(
       <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
         <ImportLoansDialogContent
+          onClose={() => dialog.hide()}
+          onSuccess={() => fetchLoans()}
+        />
+      </Suspense>
+    );
+  }, [dialog, fetchLoans]);
+
+  const handleImportSchedules = useCallback(() => {
+    dialog.show(
+      <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+        <ImportSchedulesDialogContent
           onClose={() => dialog.hide()}
           onSuccess={() => fetchLoans()}
         />
@@ -353,6 +365,14 @@ export default function LoansTemplate() {
                   }}
                 />
               </>
+            )}
+            {hasPermission('approve:loans') && (
+              <Button
+                label="Import Jadwal (CSV)"
+                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                variant="secondary"
+                onClick={handleImportSchedules}
+              />
             )}
             {hasPermission('create:loans') && (
               <Button
