@@ -31,13 +31,13 @@ type LedgerRow = {
 
 export default function Ledger() {
   const {
-    data: ledgerRes,
+    data: rowsData,
     isLoading,
     error,
     refetch,
-  } = useApiQuery<{ data: LedgerRow[] }>('/api/accounting/ledger');
+  } = useApiQuery<LedgerRow[]>('/api/accounting/ledger');
 
-  const rows = ledgerRes?.data || [];
+  const rows = Array.isArray(rowsData) ? rowsData : [];
 
   const columns: TableColumn<LedgerRow>[] = React.useMemo(() => [
     {

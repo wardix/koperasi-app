@@ -196,8 +196,8 @@ export default function Accounting() {
     }
   }, [journalsRes]);
 
-  const { data: accountsRes } = useApiQuery<{ data: AccountRow[] }>('/api/accounting/accounts');
-  const accounts = accountsRes?.data || [];
+  const { data: accountsData } = useApiQuery<AccountRow[]>('/api/accounting/accounts');
+  const accounts = Array.isArray(accountsData) ? accountsData : [];
 
   const columns: TableColumn<JournalEntryRow & { creator_name: string }>[] = useMemo(() => [
     {
