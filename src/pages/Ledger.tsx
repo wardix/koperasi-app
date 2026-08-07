@@ -36,52 +36,47 @@ export default function Ledger() {
 
   const rows = ledgerRes?.data || [];
 
-  const columns: TableColumn<LedgerRow>[] = [
+  const columns: TableColumn<LedgerRow>[] = React.useMemo(() => [
     {
-      id: 'code',
+      key: 'code',
       header: 'Kode Akun',
-      accessor: (r) => r.code,
       width: proportional(15),
-      cell: (v) => <Text style={{ fontWeight: 600 }}>{v as string}</Text>
+      renderCell: (item) => <Text style={{ fontWeight: 600 }}>{item.code}</Text>
     },
     {
-      id: 'name',
+      key: 'name',
       header: 'Nama Akun',
-      accessor: (r) => r.name,
       width: proportional(30),
-      cell: (v, r) => (
+      renderCell: (item) => (
         <VStack gap={1}>
-          <Text>{v as string}</Text>
-          <Text type="supporting" color="secondary">{r.type}</Text>
+          <Text>{item.name}</Text>
+          <Text type="supporting" color="secondary">{item.type}</Text>
         </VStack>
       )
     },
     {
-      id: 'total_debit',
+      key: 'total_debit',
       header: 'Total Debit',
-      accessor: (r) => r.total_debit,
       width: proportional(15),
-      cell: (v) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(v))}</Text>
+      renderCell: (item) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(item.total_debit))}</Text>
     },
     {
-      id: 'total_credit',
+      key: 'total_credit',
       header: 'Total Kredit',
-      accessor: (r) => r.total_credit,
       width: proportional(15),
-      cell: (v) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(v))}</Text>
+      renderCell: (item) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(item.total_credit))}</Text>
     },
     {
-      id: 'balance',
+      key: 'balance',
       header: 'Saldo Akhir',
-      accessor: (r) => r.balance,
       width: proportional(25),
-      cell: (v) => (
+      renderCell: (item) => (
         <Text style={{ textAlign: 'right', fontWeight: 600 }}>
-          {formatRp(Number(v))}
+          {formatRp(Number(item.balance))}
         </Text>
       )
     },
-  ];
+  ], []);
 
   return (
     <Layout>
@@ -102,7 +97,7 @@ export default function Ledger() {
             <Table
               data={rows}
               columns={columns}
-              rowKey="id"
+              idKey="id"
             />
           </VStack>
         </DataStateView>
