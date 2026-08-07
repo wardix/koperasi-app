@@ -184,11 +184,11 @@ export default function Accounting() {
     isLoading,
     error,
     refetch,
-  } = useApiQuery<PaginatedResponse<JournalEntryRow & { creator_name: string }>>(
+  } = useApiQuery<PaginatedResponse<JournalEntryRow & { creator_name: string, total_amount: number }>>(
     `/api/accounting/journals?page=${page}&limit=${limit}`
   );
 
-  const [journalRows, setJournalRows] = useState<(JournalEntryRow & { creator_name: string })[]>([]);
+  const [journalRows, setJournalRows] = useState<(JournalEntryRow & { creator_name: string, total_amount: number })[]>([]);
 
   useEffect(() => {
     if (journalsRes?.data) {
@@ -199,7 +199,7 @@ export default function Accounting() {
   const { data: accountsData } = useApiQuery<AccountRow[]>('/api/accounting/accounts');
   const accounts = Array.isArray(accountsData) ? accountsData : [];
 
-  const columns: TableColumn<JournalEntryRow & { creator_name: string }>[] = useMemo(() => [
+  const columns: TableColumn<JournalEntryRow & { creator_name: string, total_amount: number }>[] = useMemo(() => [
     {
       key: 'transaction_date',
       header: 'Tanggal',
@@ -224,6 +224,14 @@ export default function Accounting() {
           )}
         </VStack>
       ),
+    },
+    {
+      key: 'total_amount',
+      header: 'Total Nilai',
+      width: proportional(20),
+      renderCell: (item) => (
+        <Text style={{ fontWeight: 600 }}>{formatRp(Number(item.total_amount))}</Text>
+      )
     },
     {
       key: 'creator_name',
