@@ -258,6 +258,7 @@ export function ImportSavingsDialogContent({
                         <th style={{ padding: '8px' }}>Nama</th>
                         <th style={{ padding: '8px' }}>Jenis</th>
                         <th style={{ padding: '8px', textAlign: 'right' }}>Nominal</th>
+                        <th style={{ padding: '8px' }}>Tanggal</th>
                         <th style={{ padding: '8px' }}>Status</th>
                       </tr>
                     </thead>
@@ -274,6 +275,7 @@ export function ImportSavingsDialogContent({
                           <td style={{ padding: '8px' }}>{r.memberName || '-'}</td>
                           <td style={{ padding: '8px', textTransform: 'capitalize' }}>{r.savingsType}</td>
                           <td style={{ padding: '8px', textAlign: 'right' }}>{formatRp(r.amount)}</td>
+                          <td style={{ padding: '8px' }}>{r.transactionDate || '-'}</td>
                           <td style={{ padding: '8px' }}>
                             {r.isValid ? (
                               <span style={{ color: 'var(--color-text-success)', fontWeight: 600 }}>Siap Import</span>
