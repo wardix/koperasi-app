@@ -31,7 +31,7 @@ export function useA11yDialog(defaultOptions?: DialogOptions) {
             outline: 'none',
             maxHeight: 'min(70vh, 100%)',
             overflowY: 'auto',
-            overflowX: 'hidden',
+            overflowX: 'auto',
             WebkitOverflowScrolling: 'touch',
             width: '100%',
             boxSizing: 'border-box',

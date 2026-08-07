@@ -300,10 +300,11 @@ export default function Accounting() {
           icon={<EyeIcon width={16} />} 
           onClick={() => {
             dialog.show(
-              <JournalLinesDialog 
-                journalId={item.id} 
-                onClose={() => dialog.hide()} 
-              />
+              <JournalLinesDialog
+                journalId={item.id}
+                onClose={() => dialog.hide()}
+              />,
+              { width: 'min(90vw, 900px)' }
             );
           }}
           label="Detail"
@@ -314,8 +315,8 @@ export default function Accounting() {
 
   const handleAdd = () => {
     dialog.show(
-      <JournalDialog 
-        onClose={() => dialog.hide()} 
+      <JournalDialog
+        onClose={() => dialog.hide()}
         accounts={accounts}
         onAdd={(data) => {
           apiAction.execute(() => api.post('/api/accounting/journals', data), {
@@ -327,7 +328,8 @@ export default function Accounting() {
             }
           });
         }}
-      />
+      />,
+      { width: 640 }
     );
   };
 
