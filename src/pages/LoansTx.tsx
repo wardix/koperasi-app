@@ -143,56 +143,59 @@ export default function LoansTxTemplate() {
   ], []);
 
   return (
-    <Layout
-      height="auto"
-      header={
-        <LayoutHeader hasDivider>
-          <HStack gap={2} vAlign="center">
-            <StackItem size="fill">
-              <Heading level={1}>Riwayat Transaksi Pinjaman</Heading>
-            </StackItem>
-            {hasPermission('create:payments') && (
-              <Button
-                label="Import Angsuran (CSV)"
-                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                variant="secondary"
-                onClick={handleImportPayments}
-              />
-            )}
-          </HStack>
-        </LayoutHeader>
-      }
-      content={
-        <LayoutContent padding={3}>
-          <DataStateView isLoading={isLoading} error={error} onRetry={fetchPayments} errorTitle="Gagal Memuat Riwayat Pembayaran">
-            <VStack gap={4}>
-              <PowerSearch
-                config={config}
-                filters={filters}
-                onChange={newFilters => {
-                  setFilters([...newFilters]);
-                }}
-                placeholder="Cari transaksi pembayaran..."
-                resultCount={filtered.length}
-              />
-              <Table<LoanPaymentRow>
-                data={filtered}
-                columns={columns}
-                idKey="id"
-                density="balanced"
-                dividers="rows"
-                hasHover
-              />
-              <Pagination
-                page={paymentsResponse?.page || 1}
-                limit={paymentsResponse?.limit || limit}
-                total={paymentsResponse?.total || 0}
-                onPageChange={setPage}
-              />
-            </VStack>
-          </DataStateView>
-        </LayoutContent>
-      }
-    />
+    <>
+      <Layout
+        height="auto"
+        header={
+          <LayoutHeader hasDivider>
+            <HStack gap={2} vAlign="center">
+              <StackItem size="fill">
+                <Heading level={1}>Riwayat Transaksi Pinjaman</Heading>
+              </StackItem>
+              {hasPermission('create:payments') && (
+                <Button
+                  label="Import Angsuran (CSV)"
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                  variant="secondary"
+                  onClick={handleImportPayments}
+                />
+              )}
+            </HStack>
+          </LayoutHeader>
+        }
+        content={
+          <LayoutContent padding={3}>
+            <DataStateView isLoading={isLoading} error={error} onRetry={fetchPayments} errorTitle="Gagal Memuat Riwayat Pembayaran">
+              <VStack gap={4}>
+                <PowerSearch
+                  config={config}
+                  filters={filters}
+                  onChange={newFilters => {
+                    setFilters([...newFilters]);
+                  }}
+                  placeholder="Cari transaksi pembayaran..."
+                  resultCount={filtered.length}
+                />
+                <Table<LoanPaymentRow>
+                  data={filtered}
+                  columns={columns}
+                  idKey="id"
+                  density="balanced"
+                  dividers="rows"
+                  hasHover
+                />
+                <Pagination
+                  page={paymentsResponse?.page || 1}
+                  limit={paymentsResponse?.limit || limit}
+                  total={paymentsResponse?.total || 0}
+                  onPageChange={setPage}
+                />
+              </VStack>
+            </DataStateView>
+          </LayoutContent>
+        }
+      />
+      {dialog.element}
+    </>
   );
 }
