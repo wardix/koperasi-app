@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   VStack,
   HStack,
@@ -199,32 +199,39 @@ export default function Accounting() {
   const { data: accountsRes } = useApiQuery<{ data: AccountRow[] }>('/api/accounting/accounts');
   const accounts = accountsRes?.data || [];
 
-  const columns: TableColumn<JournalEntryRow & { creator_name: string }>[] = [
+  const columns: TableColumn<JournalEntryRow & { creator_name: string }>[] = useMemo(() => [
     {
-      id: 'date',
+      key: 'transaction_date',
       header: 'Tanggal',
-      accessor: (r) => r.transaction_date,
       width: proportional(15),
+      renderCell: (item) => (
+        <Text type="supporting" color="secondary">
+          {new Date(item.transaction_date).toLocaleDateString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric',
+          })}
+        </Text>
+      ),
     },
     {
-      id: 'desc',
+      key: 'description',
       header: 'Keterangan',
-      accessor: (r) => r.description,
       width: proportional(40),
-      cell: (v, r) => (
+      renderCell: (item) => (
         <VStack gap={1}>
-          <Text>{v as string}</Text>
-          {r.reference_type && <Text type="supporting" color="secondary">Ref: {r.reference_type}</Text>}
+          <Text>{item.description}</Text>
+          {item.reference_type && (
+            <Text type="supporting" color="secondary">Ref: {item.reference_type}</Text>
+          )}
         </VStack>
-      )
+      ),
     },
     {
-      id: 'creator',
+      key: 'creator_name',
       header: 'Dicatat Oleh',
-      accessor: (r) => r.creator_name,
       width: proportional(20),
-    }
-  ];
+      renderCell: (item) => <Text type="supporting">{item.creator_name || 'Sistem'}</Text>,
+    },
+  ], []);
 
   const handleAdd = () => {
     dialog.show(
