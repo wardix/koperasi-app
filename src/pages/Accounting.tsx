@@ -336,15 +336,22 @@ export default function Accounting() {
   return (
     <>
       {dialog.element}
-      <Layout>
-        <LayoutHeader
-        title="Jurnal Umum & Akuntansi"
-        subtitle="Catat dan pantau transaksi keuangan secara double-entry."
-        actions={
-          <Button label="Tambah Jurnal" icon={PlusIcon} onClick={handleAdd} />
+      <Layout
+        header={
+          <LayoutHeader hasDivider>
+            <HStack gap={2} vAlign="center">
+              <StackItem size="fill">
+                <VStack gap={1}>
+                  <Heading level={2}>Jurnal Umum & Akuntansi</Heading>
+                  <Text type="supporting">Catat dan pantau transaksi keuangan secara double-entry.</Text>
+                </VStack>
+              </StackItem>
+              <Button label="Tambah Jurnal" icon={<PlusIcon width={20} />} onClick={handleAdd} />
+            </HStack>
+          </LayoutHeader>
         }
-      />
-      <LayoutContent>
+        content={
+          <LayoutContent>
         <DataStateView
           isLoading={isLoading}
           error={error}
@@ -373,7 +380,8 @@ export default function Accounting() {
           </VStack>
         </DataStateView>
       </LayoutContent>
-      </Layout>
+        }
+      />
     </>
   );
 }
