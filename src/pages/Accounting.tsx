@@ -314,8 +314,10 @@ export default function Accounting() {
   };
 
   return (
-    <Layout>
-      <LayoutHeader
+    <>
+      {dialog.element}
+      <Layout>
+        <LayoutHeader
         title="Jurnal Umum & Akuntansi"
         subtitle="Catat dan pantau transaksi keuangan secara double-entry."
         actions={
@@ -351,6 +353,7 @@ export default function Accounting() {
           </VStack>
         </DataStateView>
       </LayoutContent>
-    </Layout>
+      </Layout>
+    </>
   );
 }
