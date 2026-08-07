@@ -30,8 +30,8 @@ export function createAddAccountingMigration(db: {
           transaction_date DATE NOT NULL,
           description TEXT NOT NULL,
           reference_type VARCHAR(50),
-          reference_id UUID,
-          created_by UUID REFERENCES admins(id),
+          reference_id TEXT,
+          created_by TEXT REFERENCES admins(id),
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `);
