@@ -10,7 +10,7 @@ import {
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
-import { Table, proportional } from '@astryxdesign/core/Table';
+import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { useApiAction } from '../hooks/useApiAction';
@@ -183,13 +183,13 @@ function JournalLinesDialog({
   const lines = Array.isArray(linesData) ? linesData : [];
 
   const columns = React.useMemo(() => [
-    { key: 'account', header: 'Akun', width: proportional(40), renderCell: (item: any) => <VStack gap={1}><Text>{item.account_code} - {item.account_name}</Text><Text type="supporting">{item.description}</Text></VStack> },
-    { key: 'debit', header: 'Debit', width: proportional(30), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.debit))}</Text> },
-    { key: 'credit', header: 'Kredit', width: proportional(30), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.credit))}</Text> },
+    { key: 'account', header: 'Akun', width: proportional(1), renderCell: (item: any) => <VStack gap={1}><Text>{item.account_code} - {item.account_name}</Text><Text type="supporting">{item.description}</Text></VStack> },
+    { key: 'debit', header: 'Debit', width: pixel(150), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.debit))}</Text> },
+    { key: 'credit', header: 'Kredit', width: pixel(150), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.credit))}</Text> },
   ], []);
 
   return (
-    <VStack gap={4} style={{ padding: '24px', minWidth: '600px' }}>
+    <VStack gap={4} style={{ padding: '24px', minWidth: '800px' }}>
       <Heading level={3}>Detail Baris Jurnal</Heading>
       <DataStateView isLoading={isLoading} error={error}>
         {lines.length === 0 ? (
