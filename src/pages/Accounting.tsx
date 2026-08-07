@@ -182,12 +182,6 @@ function JournalLinesDialog({
   const { data: linesData, isLoading, error } = useApiQuery<any[]>(`/api/accounting/journals/${journalId}/lines`);
   const lines = Array.isArray(linesData) ? linesData : [];
 
-  const columns = React.useMemo(() => [
-    { key: 'account', header: 'Akun', width: proportional(1), renderCell: (item: any) => <VStack gap={1}><Text>{item.account_code} - {item.account_name}</Text><Text type="supporting">{item.description}</Text></VStack> },
-    { key: 'debit', header: 'Debit', width: pixel(150), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.debit))}</Text> },
-    { key: 'credit', header: 'Kredit', width: pixel(150), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.credit))}</Text> },
-  ], []);
-
   return (
     <VStack gap={4} style={{ padding: '24px', minWidth: '800px' }}>
       <Heading level={3}>Detail Baris Jurnal</Heading>
@@ -195,7 +189,31 @@ function JournalLinesDialog({
         {lines.length === 0 ? (
           <Text type="supporting">Tidak ada detail baris</Text>
         ) : (
-          <Table data={lines} columns={columns} idKey="id" density="compact" />
+          <VStack gap={0} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+            {/* Header */}
+            <HStack gap={4} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-muted)' }}>
+              <div style={{ flex: 2 }}><Text weight="semibold" type="supporting">Akun</Text></div>
+              <div style={{ flex: 1, textAlign: 'right' }}><Text weight="semibold" type="supporting">Debit</Text></div>
+              <div style={{ flex: 1, textAlign: 'right' }}><Text weight="semibold" type="supporting">Kredit</Text></div>
+            </HStack>
+            {/* Body */}
+            {lines.map((item: any, idx: number) => (
+              <HStack key={item.id || idx} gap={4} align="center" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ flex: 2 }}>
+                  <VStack gap={1}>
+                    <Text>{item.account_code} - {item.account_name}</Text>
+                    {item.description && <Text type="supporting">{item.description}</Text>}
+                  </VStack>
+                </div>
+                <div style={{ flex: 1, textAlign: 'right' }}>
+                  <Text>{formatRp(Number(item.debit))}</Text>
+                </div>
+                <div style={{ flex: 1, textAlign: 'right' }}>
+                  <Text>{formatRp(Number(item.credit))}</Text>
+                </div>
+              </HStack>
+            ))}
+          </VStack>
         )}
       </DataStateView>
       <HStack hAlign="end" style={{ marginTop: 16 }}>
