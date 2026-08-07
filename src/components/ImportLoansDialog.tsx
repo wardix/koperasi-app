@@ -138,11 +138,23 @@ export function ImportLoansDialogContent({ onClose, onSuccess }: Props) {
     }
   };
 
-  const handleDownloadTemplate = () => {
-    const a = document.createElement('a');
-    a.href = '/api/v1/loans/template-csv';
-    a.download = 'Template_Import_Pinjaman.csv';
-    a.click();
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await apiFetch('/api/v1/loans/template-csv');
+      if (!res.ok) throw new Error('Gagal mengunduh template');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Template_Import_Pinjaman.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal mengunduh template CSV');
+    }
   };
 
   const handleImport = async () => {

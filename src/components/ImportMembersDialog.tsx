@@ -144,11 +144,23 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
     }
   };
 
-  const handleDownloadTemplate = () => {
-    const a = document.createElement('a');
-    a.href = '/api/v1/members/template-csv';
-    a.download = 'Template_Import_Anggota.csv';
-    a.click();
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await apiFetch('/api/v1/members/template-csv');
+      if (!res.ok) throw new Error('Gagal mengunduh template');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Template_Import_Anggota.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal mengunduh template CSV');
+    }
   };
 
   const handleImport = async () => {

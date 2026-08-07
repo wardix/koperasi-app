@@ -131,11 +131,23 @@ export function ImportPaymentsDialogContent({ onClose, onSuccess }: Props) {
     }
   };
 
-  const handleDownloadTemplate = () => {
-    const a = document.createElement('a');
-    a.href = '/api/v1/loans/payments/template-csv';
-    a.download = 'Template_Import_Angsuran.csv';
-    a.click();
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await apiFetch('/api/v1/loans/payments/template-csv');
+      if (!res.ok) throw new Error('Gagal mengunduh template');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Template_Import_Angsuran.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal mengunduh template CSV');
+    }
   };
 
   const handleImport = async () => {
