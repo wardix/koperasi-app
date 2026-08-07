@@ -24,7 +24,7 @@ import { DateInput } from '@astryxdesign/core/DateInput';
 import { Selector } from '@astryxdesign/core/Selector';
 import type { AccountRow, JournalEntryRow, PaginatedResponse } from '../shared/types';
 import { IconButton } from '@astryxdesign/core/IconButton';
-import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 // We just borrow some UI styles from expenses or loans.
 
@@ -172,6 +172,39 @@ function JournalDialog({
   )
 }
 
+function JournalLinesDialog({
+  journalId,
+  onClose,
+}: {
+  journalId: string;
+  onClose: () => void;
+}) {
+  const { data: linesData, isLoading, error } = useApiQuery<any[]>(`/api/accounting/journals/${journalId}/lines`);
+  const lines = Array.isArray(linesData) ? linesData : [];
+
+  const columns = React.useMemo(() => [
+    { key: 'account', header: 'Akun', width: proportional(40), renderCell: (item: any) => <VStack gap={1}><Text>{item.account_code} - {item.account_name}</Text><Text type="supporting">{item.description}</Text></VStack> },
+    { key: 'debit', header: 'Debit', width: proportional(30), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.debit))}</Text> },
+    { key: 'credit', header: 'Kredit', width: proportional(30), renderCell: (item: any) => <Text style={{textAlign: 'right'}}>{formatRp(Number(item.credit))}</Text> },
+  ], []);
+
+  return (
+    <VStack gap={4} style={{ padding: '24px', minWidth: '600px' }}>
+      <Heading level={3}>Detail Baris Jurnal</Heading>
+      <DataStateView isLoading={isLoading} error={error}>
+        {lines.length === 0 ? (
+          <Text type="supporting">Tidak ada detail baris</Text>
+        ) : (
+          <Table data={lines} columns={columns} idKey="id" density="compact" />
+        )}
+      </DataStateView>
+      <HStack hAlign="end" style={{ marginTop: 16 }}>
+        <Button label="Tutup" onClick={onClose} />
+      </HStack>
+    </VStack>
+  );
+}
+
 export default function Accounting() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -239,7 +272,27 @@ export default function Accounting() {
       width: proportional(20),
       renderCell: (item) => <Text type="supporting">{item.creator_name || 'Sistem'}</Text>,
     },
-  ], []);
+    {
+      key: 'actions',
+      header: 'Aksi',
+      width: proportional(10),
+      renderCell: (item) => (
+        <Button 
+          variant="secondary" 
+          icon={<EyeIcon width={16} />} 
+          onClick={() => {
+            dialog.show(
+              <JournalLinesDialog 
+                journalId={item.id} 
+                onClose={() => dialog.hide()} 
+              />
+            );
+          }}
+          label="Detail"
+        />
+      ),
+    },
+  ], [dialog]);
 
   const handleAdd = () => {
     dialog.show(
