@@ -188,6 +188,14 @@ export default function Accounting() {
     `/api/accounting/journals?page=${page}&limit=${limit}`
   );
 
+  const [journalRows, setJournalRows] = useState<(JournalEntryRow & { creator_name: string })[]>([]);
+
+  useEffect(() => {
+    if (journalsRes?.data) {
+      setJournalRows(journalsRes.data);
+    }
+  }, [journalsRes]);
+
   const { data: accountsRes } = useApiQuery<{ data: AccountRow[] }>('/api/accounting/accounts');
   const accounts = accountsRes?.data || [];
 
@@ -251,20 +259,20 @@ export default function Accounting() {
           isLoading={isLoading}
           error={error}
           onRetry={refetch}
-          hasData={!!journalsRes?.data.length}
+          hasData={journalRows.length > 0}
           emptyTitle="Belum ada catatan jurnal"
           emptyMessage="Transaksi jurnal akan muncul di sini"
         >
           <VStack gap={4}>
             <Table
-              data={journalsRes?.data || []}
+              data={journalRows}
               columns={columns}
               rowKey="id"
             />
-            {journalsRes && journalsRes.total > limit && (
+            {journalsRes && (journalsRes.total || 0) > limit && (
               <Pagination
                 currentPage={page}
-                totalItems={journalsRes.total}
+                totalItems={journalsRes.total || 0}
                 itemsPerPage={limit}
                 onPageChange={setPage}
               />
