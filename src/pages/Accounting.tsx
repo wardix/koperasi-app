@@ -264,16 +264,19 @@ export default function Accounting() {
           emptyMessage="Transaksi jurnal akan muncul di sini"
         >
           <VStack gap={4}>
-            <Table
+            <Table<JournalEntryRow & { creator_name: string }>
               data={journalRows}
               columns={columns}
-              rowKey="id"
+              idKey="id"
+              density="balanced"
+              dividers="rows"
+              hasHover
             />
             {journalsRes && (journalsRes.total || 0) > limit && (
               <Pagination
-                currentPage={page}
-                totalItems={journalsRes.total || 0}
-                itemsPerPage={limit}
+                page={page}
+                limit={limit}
+                total={journalsRes.total || 0}
                 onPageChange={setPage}
               />
             )}
