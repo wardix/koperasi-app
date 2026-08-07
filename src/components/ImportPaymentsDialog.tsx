@@ -132,6 +132,7 @@ export function ImportPaymentsDialogContent({ onClose, onSuccess }: Props) {
   };
 
   const handleDownloadTemplate = (e: React.MouseEvent) => {
+    const btn = e.currentTarget as HTMLElement;
     const today = new Date().toISOString().split('T')[0];
     const lines = [
       'nik,loan_id,jumlah,metode,tanggal',
@@ -145,10 +146,13 @@ export function ImportPaymentsDialogContent({ onClose, onSuccess }: Props) {
     link.href = url;
     link.download = 'Template_Import_Angsuran.csv';
     link.style.display = 'none';
-    document.body.appendChild(link);
+    link.addEventListener('click', (ev) => ev.stopPropagation());
+    btn.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      if (btn.contains(link)) btn.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 500);
   };
 
   const handleImport = async () => {

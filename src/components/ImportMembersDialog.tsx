@@ -145,6 +145,7 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
   };
 
   const handleDownloadTemplate = (e: React.MouseEvent) => {
+    const btn = e.currentTarget as HTMLElement;
     const today = new Date().toISOString().split('T')[0];
     const lines = [
       'nik,nama,email,phone,alamat,tanggal_bergabung,simpanan_pokok,simpanan_wajib,simpanan_sukarela',
@@ -158,10 +159,13 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
     link.href = url;
     link.download = 'Template_Import_Anggota.csv';
     link.style.display = 'none';
-    document.body.appendChild(link);
+    link.addEventListener('click', (ev) => ev.stopPropagation());
+    btn.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      if (btn.contains(link)) btn.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 500);
   };
 
   const handleImport = async () => {
