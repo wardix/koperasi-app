@@ -1,5 +1,46 @@
 import * as XLSX from 'xlsx';
 
+function formatDateToYmd(val: any): string | undefined {
+  if (!val) return undefined;
+  
+  // Handle Excel serial number date
+  if (typeof val === 'number' || (!isNaN(Number(val)) && !String(val).includes('-') && !String(val).includes('/'))) {
+    const num = Number(val);
+    if (num > 30000 && num < 60000) {
+      const parsed = XLSX.SSF.parse_date_code(num);
+      if (parsed) {
+        const yyyy = parsed.y;
+        const mm = String(parsed.m).padStart(2, '0');
+        const dd = String(parsed.d).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+    }
+  }
+
+  const str = String(val).trim();
+  if (!str) return undefined;
+
+  // Match YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(str);
+  if (ymdMatch) {
+    const yyyy = ymdMatch[1];
+    const mm = ymdMatch[2].padStart(2, '0');
+    const dd = ymdMatch[3].padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // Match DD-MM-YYYY or DD/MM/YYYY
+  const dmyMatch = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/.exec(str);
+  if (dmyMatch) {
+    const dd = dmyMatch[1].padStart(2, '0');
+    const mm = dmyMatch[2].padStart(2, '0');
+    const yyyy = dmyMatch[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return str;
+}
+
 export interface ParsedSavingsImportRow {
   nik: string;
   memberName?: string;
@@ -61,7 +102,7 @@ export async function parseSavingsImportFile(file: File): Promise<ParsedSavingsI
     const memberName = namaKey ? String(row[namaKey] || '').trim() : undefined;
     const rawType = jenisKey ? String(row[jenisKey] || '').toLowerCase().trim() : '';
     const rawNominal = String(row[nominalKey] || '').trim();
-    const rawTanggal = tanggalKey ? String(row[tanggalKey] || '').trim() : undefined;
+    const rawTanggal = tanggalKey ? formatDateToYmd(row[tanggalKey]) : undefined;
 
     let savingsType: 'pokok' | 'wajib' | 'sukarela' = 'pokok';
     if (rawType.includes('wajib')) savingsType = 'wajib';
