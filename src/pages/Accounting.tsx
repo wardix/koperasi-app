@@ -145,7 +145,8 @@ function JournalDialog({
             <div style={{ flex: 0.2, marginTop: idx === 0 ? 24 : 0 }}>
                {lines.length > 2 && (
                  <IconButton
-                   icon={TrashIcon}
+                   icon={<TrashIcon width={20} />}
+                   label="Hapus Baris"
                    variant="secondary"
                    onClick={() => {
                      const newLines = [...lines];
