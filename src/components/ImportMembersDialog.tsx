@@ -15,7 +15,7 @@ import { apiFetch } from '../config';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Icon } from '@astryxdesign/core/Icon';
 
-// CSV columns: nik, nama, email, phone, alamat, tanggal_bergabung,
+// CSV columns: nik, nama, email, phone, tanggal_bergabung,
 //              simpanan_pokok, simpanan_wajib, simpanan_sukarela
 
 type ParsedRow = {
@@ -148,9 +148,9 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
     const btn = e.currentTarget as HTMLElement;
     const today = new Date().toISOString().split('T')[0];
     const lines = [
-      'nik,nama,email,phone,alamat,tanggal_bergabung,simpanan_pokok,simpanan_wajib,simpanan_sukarela',
-      `3171012345670001,Budi Santoso,budi@email.com,08123456789,Jl. Merdeka No. 1,${today},1000000,500000,0`,
-      `3171012345670002,Siti Rahma,siti@email.com,08987654321,Jl. Pahlawan No. 5,${today},1000000,500000,250000`,
+      'nik,nama,email,phone,tanggal_bergabung,simpanan_pokok,simpanan_wajib,simpanan_sukarela',
+      `3171012345670001,Budi Santoso,budi@email.com,08123456789,${today},1000000,500000,0`,
+      `3171012345670002,Siti Rahma,siti@email.com,08987654321,${today},1000000,500000,250000`,
     ];
     const csvText = '\uFEFF' + lines.join('\r\n');
     const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
@@ -229,7 +229,7 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
             <VStack gap={2} style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
               <Heading level={4}>1. Unduh Template CSV</Heading>
               <Text type="supporting" color="secondary">
-                Format kolom: <code>nik, nama, email, phone, alamat, tanggal_bergabung, simpanan_pokok, simpanan_wajib, simpanan_sukarela</code>
+                Format kolom: <code>nik, nama, email, phone, tanggal_bergabung, simpanan_pokok, simpanan_wajib, simpanan_sukarela</code>
               </Text>
               <Button
                 label="Unduh Template CSV"
