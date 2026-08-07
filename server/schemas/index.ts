@@ -395,3 +395,27 @@ export const batchLoanImportSchema = z.object({
 });
 
 export type BatchLoanImportItem = z.infer<typeof batchLoanImportItemSchema>;
+
+// ---------------------------------------------------------------------------
+// Batch Payment Import / Angsuran (CSV)
+// ---------------------------------------------------------------------------
+
+export const batchPaymentImportItemSchema = z.object({
+  nik: z.string().min(1, "NIK wajib diisi"),
+  loan_id: z.string().optional().nullable(), // Explicit if member has multiple active loans
+  jumlah: z.number().positive("Jumlah angsuran harus lebih dari 0"),
+  metode: z.enum(["Transfer", "Cash", "Debit"]).default("Transfer"),
+  tanggal: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional()
+    .nullable(),
+});
+
+export const batchPaymentImportSchema = z.object({
+  items: z
+    .array(batchPaymentImportItemSchema)
+    .min(1, "Minimal 1 data angsuran untuk diimport"),
+});
+
+export type BatchPaymentImportItem = z.infer<typeof batchPaymentImportItemSchema>;

@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useMemo, useEffect} from 'react';
+import {useState, useMemo, useEffect, useCallback, lazy, Suspense} from 'react';
 import {
   VStack,
   HStack,
@@ -11,14 +11,23 @@ import {
 } from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Badge} from '@astryxdesign/core/Badge';
+import {Button} from '@astryxdesign/core/Button';
+import {Icon} from '@astryxdesign/core/Icon';
+import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
+import {Spinner} from '@astryxdesign/core/Spinner';
+import {Center} from '@astryxdesign/core/Center';
 import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
 import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {Table, proportional} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {useAuth} from '../hooks/useAuth';
+import {useA11yDialog} from '../hooks/useA11yDialog';
 import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
+
+const ImportPaymentsDialogContent = lazy(() => import('../components/ImportPaymentsDialog').then(m => ({ default: m.ImportPaymentsDialogContent })));
 
 import type {LoanPaymentRow, PaginatedResponse} from '../shared/types';
 
@@ -41,6 +50,8 @@ const fieldDefs = [
 export default function LoansTxTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
+  const { hasPermission } = useAuth();
+  const dialog = useA11yDialog({ purpose: 'form', width: 560 });
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -53,6 +64,17 @@ export default function LoansTxTemplate() {
       setLocalPayments(paymentsResponse.data);
     }
   }, [paymentsResponse]);
+
+  const handleImportPayments = useCallback(() => {
+    dialog.show(
+      <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+        <ImportPaymentsDialogContent
+          onClose={() => dialog.hide()}
+          onSuccess={() => fetchPayments()}
+        />
+      </Suspense>
+    );
+  }, [dialog, fetchPayments]);
 
   const filtered = useMemo(() => {
     return applyFilters(filters, localPayments);
@@ -129,6 +151,14 @@ export default function LoansTxTemplate() {
             <StackItem size="fill">
               <Heading level={1}>Riwayat Transaksi Pinjaman</Heading>
             </StackItem>
+            {hasPermission('create:payments') && (
+              <Button
+                label="Import Angsuran (CSV)"
+                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                variant="secondary"
+                onClick={handleImportPayments}
+              />
+            )}
           </HStack>
         </LayoutHeader>
       }

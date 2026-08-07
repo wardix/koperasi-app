@@ -995,3 +995,85 @@ export async function batchImportLoans(
 
   return { processedCount, failedCount: errors.length, errors };
 }
+
+// ---------------------------------------------------------------------------
+// Batch Payment Import / Angsuran (CSV)
+// ---------------------------------------------------------------------------
+
+export type BatchPaymentImportItem = {
+  nik: string;
+  loan_id?: string | null;
+  jumlah: number;
+  metode: string;
+  tanggal?: string | null;
+};
+
+export type BatchPaymentImportResult = {
+  processedCount: number;
+  failedCount: number;
+  errors: Array<{ index: number; identifier: string; message: string }>;
+};
+
+export async function batchImportPayments(
+  database: Db,
+  items: BatchPaymentImportItem[]
+): Promise<BatchPaymentImportResult> {
+  let processedCount = 0;
+  const errors: Array<{ index: number; identifier: string; message: string }> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const identifier = `NIK ${item.nik}`;
+
+    try {
+      let loanId = item.loan_id || null;
+
+      // If no explicit loan_id, look up via NIK
+      if (!loanId) {
+        const cleanNik = String(item.nik).replace(/\D/g, "");
+        const member = await database
+          .query("SELECT id FROM members WHERE nik = ? AND deletedAt IS NULL LIMIT 1")
+          .get<{ id: string }>(cleanNik);
+
+        if (!member) {
+          errors.push({ index: i, identifier, message: `Anggota dengan NIK ${item.nik} tidak ditemukan` });
+          continue;
+        }
+
+        // Find active loans
+        const activeLoans = await database
+          .query(`SELECT id FROM loans WHERE memberId = ? AND status = 'Disetujui' AND deletedAt IS NULL ORDER BY createdAt ASC`)
+          .all<{ id: string }>(member.id);
+
+        if (activeLoans.length === 0) {
+          errors.push({ index: i, identifier, message: `Tidak ada pinjaman aktif untuk NIK ${item.nik}` });
+          continue;
+        }
+
+        if (activeLoans.length > 1) {
+          errors.push({
+            index: i,
+            identifier,
+            message: `Anggota NIK ${item.nik} memiliki ${activeLoans.length} pinjaman aktif — gunakan kolom loan_id untuk menentukan pinjaman yang dituju`
+          });
+          continue;
+        }
+
+        loanId = activeLoans[0].id;
+      }
+
+      await recordLoanPayment(database, loanId, {
+        amount: item.jumlah,
+        method: item.metode,
+        paymentDate: item.tanggal ?? undefined,
+      });
+
+      processedCount++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses angsuran";
+      errors.push({ index: i, identifier, message: msg });
+    }
+  }
+
+  return { processedCount, failedCount: errors.length, errors };
+}

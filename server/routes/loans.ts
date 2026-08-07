@@ -26,11 +26,12 @@ import {
   updateLoanPayment,
   updateLoanStatus,
   batchImportLoans,
+  batchImportPayments,
 } from '../services/loanService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
-import { batchLoanImportSchema } from '../schemas'
+import { batchLoanImportSchema, batchPaymentImportSchema } from '../schemas'
 
 const loans = new Hono()
 
@@ -498,6 +499,54 @@ loans.post('/batch-import', requirePermission('create:loans'), async (c) => {
   return c.json({
     success: true,
     message: `Berhasil mengimpor ${result.processedCount} pinjaman${result.failedCount > 0 ? `, ${result.failedCount} gagal` : ''}`,
+    data: result,
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CSV Template - Angsuran
+// ---------------------------------------------------------------------------
+
+loans.get('/payments/template-csv', requirePermission('create:payments'), async (c) => {
+  const today = new Date().toISOString().split('T')[0]
+  const lines = [
+    'nik,loan_id,jumlah,metode,tanggal',
+    `3171012345670001,,500000,Transfer,${today}`,
+    `3171012345670002,,300000,Cash,${today}`,
+  ]
+  const csvText = '\uFEFF' + lines.join('\r\n')
+  c.header('Content-Type', 'text/csv; charset=utf-8')
+  c.header('Content-Disposition', `attachment; filename="Template_Import_Angsuran_${today}.csv"`)
+  return c.text(csvText)
+})
+
+// ---------------------------------------------------------------------------
+// Batch Import Angsuran
+// ---------------------------------------------------------------------------
+
+loans.post('/payments/batch-import', requirePermission('create:payments'), async (c) => {
+  const body = await c.req.json()
+  const parsed = batchPaymentImportSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const result = await batchImportPayments(db, parsed.data.items)
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'create_payment',
+    entity: 'loan_payments',
+    after: { batchImportCount: result.processedCount, failedCount: result.failedCount },
+    ip: getClientIp(c),
+  })
+
+  clearStatsCache()
+
+  return c.json({
+    success: true,
+    message: `Berhasil mengimpor ${result.processedCount} angsuran${result.failedCount > 0 ? `, ${result.failedCount} gagal` : ''}`,
     data: result,
   })
 })
