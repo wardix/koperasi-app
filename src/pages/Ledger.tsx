@@ -7,6 +7,7 @@ import {
   Layout,
   LayoutContent,
   LayoutHeader,
+  StackItem,
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Table, proportional } from '@astryxdesign/core/Table';
@@ -14,6 +15,8 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
 import { DataStateView } from '../components/DataStateView';
+import { Center } from '@astryxdesign/core/Center';
+import { EmptyState } from '@astryxdesign/core/EmptyState';
 
 type LedgerRow = {
   id: string;
@@ -41,7 +44,7 @@ export default function Ledger() {
       key: 'code',
       header: 'Kode Akun',
       width: proportional(15),
-      renderCell: (item) => <Text style={{ fontWeight: 600 }}>{item.code}</Text>
+      renderCell: (item) => <Text style={{ fontWeight: 600 }}>{item.code}</Text>,
     },
     {
       key: 'name',
@@ -52,19 +55,19 @@ export default function Ledger() {
           <Text>{item.name}</Text>
           <Text type="supporting" color="secondary">{item.type}</Text>
         </VStack>
-      )
+      ),
     },
     {
       key: 'total_debit',
       header: 'Total Debit',
       width: proportional(15),
-      renderCell: (item) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(item.total_debit))}</Text>
+      renderCell: (item) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(item.total_debit))}</Text>,
     },
     {
       key: 'total_credit',
       header: 'Total Kredit',
       width: proportional(15),
-      renderCell: (item) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(item.total_credit))}</Text>
+      renderCell: (item) => <Text style={{ textAlign: 'right' }}>{formatRp(Number(item.total_credit))}</Text>,
     },
     {
       key: 'balance',
@@ -74,34 +77,52 @@ export default function Ledger() {
         <Text style={{ textAlign: 'right', fontWeight: 600 }}>
           {formatRp(Number(item.balance))}
         </Text>
-      )
+      ),
     },
   ], []);
 
   return (
-    <Layout>
-      <LayoutHeader
-        title="Buku Besar (General Ledger)"
-        subtitle="Rangkuman saldo dari seluruh akun akuntansi Koperasi Kasmir."
-      />
-      <LayoutContent>
-        <DataStateView
-          isLoading={isLoading}
-          error={error}
-          onRetry={refetch}
-          hasData={rows.length > 0}
-          emptyTitle="Belum ada data akun"
-          emptyMessage="Buku besar masih kosong."
-        >
-          <VStack gap={4}>
-            <Table
-              data={rows}
-              columns={columns}
-              idKey="id"
-            />
-          </VStack>
-        </DataStateView>
-      </LayoutContent>
-    </Layout>
+    <Layout
+      height="auto"
+      header={
+        <LayoutHeader hasDivider>
+          <HStack gap={2} vAlign="center">
+            <StackItem size="fill">
+              <Heading level={1}>Buku Besar (General Ledger)</Heading>
+              <Text type="supporting" color="secondary">
+                Rangkuman saldo dari seluruh akun akuntansi Koperasi Kasmir.
+              </Text>
+            </StackItem>
+          </HStack>
+        </LayoutHeader>
+      }
+      content={
+        <LayoutContent padding={3}>
+          <DataStateView
+            isLoading={isLoading}
+            error={error}
+            onRetry={refetch}
+          >
+            {rows.length === 0 ? (
+              <Center style={{ height: '300px' }}>
+                <EmptyState
+                  title="Belum ada data akun"
+                  description="Buku besar masih kosong. Pastikan migrasi akun sudah dijalankan."
+                />
+              </Center>
+            ) : (
+              <Table<LedgerRow>
+                data={rows}
+                columns={columns}
+                idKey="id"
+                density="balanced"
+                dividers="rows"
+                hasHover
+              />
+            )}
+          </DataStateView>
+        </LayoutContent>
+      }
+    />
   );
 }
