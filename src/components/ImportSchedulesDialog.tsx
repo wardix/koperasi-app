@@ -132,23 +132,29 @@ export function ImportSchedulesDialogContent({ onClose, onSuccess }: Props) {
     }
   };
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const res = await apiFetch('/api/v1/loans/schedules/template-csv');
-      if (!res.ok) throw new Error('Gagal mengunduh template');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Template_Import_Jadwal.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Gagal mengunduh template CSV');
-    }
+  const handleDownloadTemplate = (e: React.MouseEvent) => {
+    const today = new Date();
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const d1 = today.toISOString().split('T')[0];
+    const d2 = nextMonth.toISOString().split('T')[0];
+    
+    const lines = [
+      'loan_id,cicilan_ke,tanggal_jatuh_tempo,pokok,bunga',
+      `contoh-id-pinjaman-123,1,${d1},416667,100000`,
+      `contoh-id-pinjaman-123,2,${d2},416667,100000`,
+    ];
+    const csvText = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Template_Import_Jadwal.csv';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = async () => {

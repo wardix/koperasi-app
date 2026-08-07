@@ -144,23 +144,24 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
     }
   };
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const res = await apiFetch('/api/v1/members/template-csv');
-      if (!res.ok) throw new Error('Gagal mengunduh template');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Template_Import_Anggota.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Gagal mengunduh template CSV');
-    }
+  const handleDownloadTemplate = (e: React.MouseEvent) => {
+    const today = new Date().toISOString().split('T')[0];
+    const lines = [
+      'nik,nama,email,phone,alamat,tanggal_bergabung,simpanan_pokok,simpanan_wajib,simpanan_sukarela',
+      `3171012345670001,Budi Santoso,budi@email.com,08123456789,Jl. Merdeka No. 1,${today},1000000,500000,0`,
+      `3171012345670002,Siti Rahma,siti@email.com,08987654321,Jl. Pahlawan No. 5,${today},1000000,500000,250000`,
+    ];
+    const csvText = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Template_Import_Anggota.csv';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = async () => {

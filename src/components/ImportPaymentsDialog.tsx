@@ -131,23 +131,24 @@ export function ImportPaymentsDialogContent({ onClose, onSuccess }: Props) {
     }
   };
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const res = await apiFetch('/api/v1/loans/payments/template-csv');
-      if (!res.ok) throw new Error('Gagal mengunduh template');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Template_Import_Angsuran.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Gagal mengunduh template CSV');
-    }
+  const handleDownloadTemplate = (e: React.MouseEvent) => {
+    const today = new Date().toISOString().split('T')[0];
+    const lines = [
+      'nik,loan_id,jumlah,metode,tanggal',
+      `3171012345670001,,516667,Transfer,${today}`,
+      `3171012345670002,,1250000,Cash,${today}`,
+    ];
+    const csvText = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Template_Import_Angsuran.csv';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = async () => {
