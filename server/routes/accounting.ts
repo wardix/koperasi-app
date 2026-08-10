@@ -3,7 +3,7 @@ import db from '../db'
 import { requirePermission } from '../middleware'
 import { z } from 'zod'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
-import { audit, getActor, getClientIp } from '../lib/audit'
+import { audit, getActor, getClientIp, getJwtPayload } from '../lib/audit'
 import type { AccountRow, JournalEntryRow, JournalLineRow } from '../db/entities'
 import { parsePagination } from '../services/pagination'
 
@@ -162,13 +162,14 @@ accounting.post('/journals', requirePermission('create:accounting'), async (c) =
   try {
     const entryId = crypto.randomUUID()
     const actor = getActor(c)
+    const adminId = getJwtPayload(c)?.sub || null
 
     await db.transaction(async () => {
       // 1. Insert Header
       await db.run(`
         INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by)
         VALUES ($1, $2, $3, $4, $5, $6)
-      `, [entryId, data.transaction_date, data.description, data.reference_type || null, data.reference_id || null, actor === 'system' ? null : actor])
+      `, [entryId, data.transaction_date, data.description, data.reference_type || null, data.reference_id || null, adminId])
 
       // 2. Insert Lines
       for (const line of data.lines) {
