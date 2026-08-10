@@ -694,7 +694,7 @@ export async function recordLoanPayment(
       SELECT l.*, COALESCE(m.name, l.name) as borrower_name 
       FROM loans l
       LEFT JOIN members m ON l.memberId = m.id
-      WHERE l.id = ? FOR UPDATE
+      WHERE l.id = ? FOR UPDATE OF l
     `).get(loanId) as (LoanRow & { borrower_name: string }) | null;
     if (!loan) {
       throw new ServiceError("Loan not found", 404);
