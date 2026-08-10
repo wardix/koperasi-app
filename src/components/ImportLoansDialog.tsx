@@ -175,6 +175,7 @@ export function ImportLoansDialogContent({ onClose, onSuccess }: Props) {
       const payload = {
         items: validRows.map(r => ({
           nik: r.nik,
+          loan_id: r.loan_id || null,
           nama_pinjaman: r.nama_pinjaman,
           jumlah: r.jumlah,
           tenor: r.tenor,
