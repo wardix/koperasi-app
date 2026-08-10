@@ -26,12 +26,20 @@ async function runExport() {
     
     // 1. Members
     const members = await db.query(`
-      SELECT nik, name as nama, phone as no_hp, simpananpokok as simpanan_pokok 
+      SELECT 
+        nik, 
+        name as nama, 
+        email, 
+        phone, 
+        joindate as tanggal_bergabung, 
+        simpananpokok as simpanan_pokok,
+        simpananwajib as simpanan_wajib,
+        simpanansukarela as simpanan_sukarela
       FROM members 
       WHERE deletedat IS NULL
       ORDER BY name ASC
     `).all();
-    writeCsv('export_members.csv', ['nik', 'nama', 'no_hp', 'simpanan_pokok'], members as any);
+    writeCsv('export_members.csv', ['nik', 'nama', 'email', 'phone', 'tanggal_bergabung', 'simpanan_pokok', 'simpanan_wajib', 'simpanan_sukarela'], members as any);
 
     // 2. Savings (Simpanan)
     const savings = await db.query(`
