@@ -65,12 +65,6 @@ export const OPENAPI_ROUTE_MANIFEST: RouteEntry[] = [
   // Cashflow
   { method: "GET", path: "/cashflow", tag: "cashflow" },
 
-  // Expenses (pengeluaran operasional)
-  { method: "GET", path: "/expenses", tag: "expenses" },
-  { method: "POST", path: "/expenses", tag: "expenses" },
-  { method: "PUT", path: "/expenses/{id}", tag: "expenses" },
-  { method: "DELETE", path: "/expenses/{id}", tag: "expenses" },
-
   // Reports
   { method: "GET", path: "/reports/summary", tag: "reports" },
   { method: "GET", path: "/reports/monthly-interest", tag: "reports" },
