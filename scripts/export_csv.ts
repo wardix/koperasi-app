@@ -46,7 +46,7 @@ async function runExport() {
       SELECT m.nik, m.name as nama, t.type as jenis_simpanan, t.amount as nominal, t.createdat::date as tanggal
       FROM transactions t
       JOIN members m ON t.memberid = m.id
-      WHERE t.type IN ('Simpanan Pokok', 'Simpanan Wajib', 'Simpanan Sukarela')
+      WHERE t.type IN ('setor_pokok', 'setor_wajib', 'setor_sukarela')
       ORDER BY t.createdat ASC
     `).all();
     writeCsv('export_savings.csv', ['nik', 'nama', 'jenis_simpanan', 'nominal', 'tanggal'], savings as any);
