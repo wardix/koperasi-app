@@ -174,57 +174,6 @@ function JournalDialog({
   )
 }
 
-function JournalLinesDialog({
-  journalId,
-  onClose,
-}: {
-  journalId: string;
-  onClose: () => void;
-}) {
-  const { data: linesData, isLoading, error } = useApiQuery<any[]>(`/api/accounting/journals/${journalId}/lines`);
-  const lines = Array.isArray(linesData) ? linesData : [];
-
-  return (
-    <VStack gap={4} style={{ padding: '24px', minWidth: '800px' }}>
-      <Heading level={3}>Detail Baris Jurnal</Heading>
-      <DataStateView isLoading={isLoading} error={error}>
-        {lines.length === 0 ? (
-          <Text type="supporting">Tidak ada detail baris</Text>
-        ) : (
-          <VStack gap={0} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-            {/* Header */}
-            <HStack gap={4} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-muted)' }}>
-              <div style={{ flex: 2 }}><Text weight="semibold" type="supporting">Akun</Text></div>
-              <div style={{ flex: 1, textAlign: 'right' }}><Text weight="semibold" type="supporting">Debit</Text></div>
-              <div style={{ flex: 1, textAlign: 'right' }}><Text weight="semibold" type="supporting">Kredit</Text></div>
-            </HStack>
-            {/* Body */}
-            {lines.map((item: any, idx: number) => (
-              <HStack key={item.id || idx} gap={4} align="center" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div style={{ flex: 2 }}>
-                  <VStack gap={1}>
-                    <Text>{item.account_code} - {item.account_name}</Text>
-                    {item.description && <Text type="supporting">{item.description}</Text>}
-                  </VStack>
-                </div>
-                <div style={{ flex: 1, textAlign: 'right' }}>
-                  <Text>{formatRp(Number(item.debit))}</Text>
-                </div>
-                <div style={{ flex: 1, textAlign: 'right' }}>
-                  <Text>{formatRp(Number(item.credit))}</Text>
-                </div>
-              </HStack>
-            ))}
-          </VStack>
-        )}
-      </DataStateView>
-      <HStack hAlign="end" style={{ marginTop: 16 }}>
-        <Button label="Tutup" onClick={onClose} />
-      </HStack>
-    </VStack>
-  );
-}
-
 export default function Accounting() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -251,70 +200,6 @@ export default function Accounting() {
 
   const { data: accountsData } = useApiQuery<AccountRow[]>('/api/accounting/accounts');
   const accounts = Array.isArray(accountsData) ? accountsData : [];
-
-  const columns: TableColumn<JournalEntryRow & { creator_name: string, total_amount: number }>[] = useMemo(() => [
-    {
-      key: 'transaction_date',
-      header: 'Tanggal',
-      width: proportional(15),
-      renderCell: (item) => (
-        <Text type="supporting" color="secondary">
-          {new Date(item.transaction_date).toLocaleDateString('id-ID', {
-            day: '2-digit', month: 'short', year: 'numeric',
-          })}
-        </Text>
-      ),
-    },
-    {
-      key: 'description',
-      header: 'Keterangan',
-      width: proportional(40),
-      renderCell: (item) => (
-        <VStack gap={1}>
-          <Text>{item.description}</Text>
-          {item.reference_type && (
-            <Text type="supporting" color="secondary">Ref: {item.reference_type}</Text>
-          )}
-        </VStack>
-      ),
-    },
-    {
-      key: 'total_amount',
-      header: 'Total Nilai',
-      width: proportional(20),
-      renderCell: (item) => (
-        <Text style={{ fontWeight: 600 }}>{formatRp(Number(item.total_amount))}</Text>
-      )
-    },
-    {
-      key: 'creator_name',
-      header: 'Dicatat Oleh',
-      width: proportional(20),
-      renderCell: (item) => <Text type="supporting">{item.creator_name || 'Sistem'}</Text>,
-    },
-    {
-      key: 'actions',
-      header: 'Aksi',
-      width: proportional(10),
-      renderCell: (item) => (
-        <Button 
-          variant="secondary" 
-          icon={<EyeIcon width={16} />} 
-          onClick={() => {
-            dialog.show(
-              <JournalLinesDialog
-                journalId={item.id}
-                onClose={() => dialog.hide()}
-              />,
-              { width: 'min(90vw, 900px)' }
-            );
-          }}
-          label="Detail"
-        />
-      ),
-    },
-  ], [dialog]);
-
   const handleAdd = () => {
     dialog.show(
       <JournalDialog
@@ -354,23 +239,70 @@ export default function Accounting() {
         }
         content={
           <LayoutContent>
-        <DataStateView
-          isLoading={isLoading}
-          error={error}
-          onRetry={refetch}
-          hasData={journalRows.length > 0}
-          emptyTitle="Belum ada catatan jurnal"
-          emptyMessage="Transaksi jurnal akan muncul di sini"
-        >
-          <VStack gap={4}>
-            <Table<JournalEntryRow & { creator_name: string }>
-              data={journalRows}
-              columns={columns}
-              idKey="id"
-              density="balanced"
-              dividers="rows"
-              hasHover
-            />
+            <DataStateView
+              isLoading={isLoading}
+              error={error}
+              onRetry={refetch}
+              hasData={journalRows.length > 0}
+              emptyTitle="Belum ada catatan jurnal"
+              emptyMessage="Transaksi jurnal akan muncul di sini"
+            >
+              <VStack gap={4}>
+            <div style={{ backgroundColor: 'var(--color-background-surface, #fff)', border: '1px solid var(--border-subtle, #e5e7eb)', borderRadius: 8, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead style={{ backgroundColor: 'var(--bg-muted, #f9fafb)', borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>Tanggal</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>Akun / Keterangan</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'right' }}>Debit</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'right' }}>Kredit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {journalRows.map((entry: any) => (
+                    <React.Fragment key={entry.id}>
+                      <tr style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)', backgroundColor: 'var(--color-background-base, #fafafa)' }}>
+                        <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', width: '15%' }}>
+                           <Text type="supporting" color="secondary" style={{ fontWeight: 500 }}>
+                             {new Date(entry.transaction_date).toLocaleDateString('id-ID', {
+                               day: '2-digit', month: 'short', year: 'numeric',
+                             })}
+                           </Text>
+                        </td>
+                        <td colSpan={3} style={{ padding: '16px 16px 4px', verticalAlign: 'top' }}>
+                           <VStack gap={0}>
+                             <Text style={{ fontWeight: 600 }}>{entry.description}</Text>
+                             {entry.reference_type && <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Ref: {entry.reference_type}</Text>}
+                           </VStack>
+                        </td>
+                      </tr>
+                      {entry.lines?.map((line: any) => (
+                         <tr key={line.id} style={{ backgroundColor: 'var(--color-background-surface, #fff)' }}>
+                           <td style={{ padding: '6px 16px' }}></td>
+                           <td style={{ padding: '6px 16px', paddingLeft: line.debit > 0 ? 16 : 48 }}>
+                             <Text style={{ fontFamily: 'monospace', fontSize: 13, marginRight: 8, color: 'var(--text-secondary, #4b5563)' }}>{line.account_code}</Text>
+                             <Text style={{ fontWeight: line.debit > 0 ? 500 : 400 }}>{line.account_name}</Text>
+                             {line.description && <Text type="supporting" color="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{line.description}</Text>}
+                           </td>
+                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top' }}>
+                             <Text>{line.debit > 0 ? formatRp(line.debit) : ''}</Text>
+                           </td>
+                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top' }}>
+                             <Text>{line.credit > 0 ? formatRp(line.credit) : ''}</Text>
+                           </td>
+                         </tr>
+                      ))}
+                      <tr>
+                        <td></td>
+                        <td colSpan={3} style={{ padding: '4px 16px 16px 16px' }}>
+                           <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Dicatat oleh: {entry.creator_name || 'Sistem'}</Text>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {journalsRes && (journalsRes.total || 0) > limit && (
               <Pagination
                 page={page}

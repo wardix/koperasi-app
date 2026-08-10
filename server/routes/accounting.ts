@@ -75,12 +75,25 @@ accounting.get('/journals', requirePermission('read:accounting'), async (c) => {
     SELECT 
       j.*,
       COALESCE(a.name, 'Sistem') as creator_name,
-      (SELECT COALESCE(SUM(debit), 0) FROM journal_lines WHERE journal_entry_id = j.id) as total_amount
+      (SELECT COALESCE(SUM(debit), 0) FROM journal_lines WHERE journal_entry_id = j.id) as total_amount,
+      (
+        SELECT json_agg(json_build_object(
+          'id', l.id,
+          'account_code', acc.code,
+          'account_name', acc.name,
+          'debit', l.debit,
+          'credit', l.credit,
+          'description', l.description
+        ) ORDER BY l.debit DESC, acc.code ASC)
+        FROM journal_lines l
+        JOIN accounts acc ON l.account_id = acc.id
+        WHERE l.journal_entry_id = j.id
+      ) as lines
     FROM journal_entries j
     LEFT JOIN admins a ON j.created_by = a.id
     ORDER BY j.transaction_date DESC, j.created_at DESC
     LIMIT $1 OFFSET $2
-  `).all<JournalEntryRow & { creator_name: string, total_amount: number }>(limit, offset)
+  `).all<JournalEntryRow & { creator_name: string, total_amount: number, lines: any }>(limit, offset)
 
   const countRes = await db.query(`SELECT COUNT(*) as count FROM journal_entries`).get() as { count: number }
 
