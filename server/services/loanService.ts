@@ -95,6 +95,7 @@ export function buildAmortizationSchedule(
 }
 
 export type CreateLoanInput = {
+  id?: string;
   memberId: string;
   name: string;
   amount: number;
@@ -106,7 +107,7 @@ export type CreateLoanInput = {
 };
 
 export async function createLoan(database: Db, input: CreateLoanInput): Promise<{ id: string }> {
-  const id = crypto.randomUUID();
+  const id = input.id ?? crypto.randomUUID();
   const createdAt = resolveCalendarDateIso(input.loanDate);
 
   const insert = database.prepare(`
@@ -941,6 +942,7 @@ export async function deleteLoan(database: Db, loanId: string): Promise<void> {
 
 export type BatchLoanImportItem = {
   nik: string;
+  loan_id?: string | null;
   nama_pinjaman: string;
   jumlah: number;
   tenor: number;
@@ -982,6 +984,7 @@ export async function batchImportLoans(
 
       // 2. Create loan (status Menunggu first so we can approve)
       const { id: loanId } = await createLoan(database, {
+        id: item.loan_id ?? undefined,
         memberId: member.id,
         name: item.nama_pinjaman,
         amount: item.jumlah,

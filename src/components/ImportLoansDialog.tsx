@@ -20,6 +20,7 @@ import { Icon } from '@astryxdesign/core/Icon';
 
 type ParsedRow = {
   nik: string;
+  loan_id?: string;
   nama_pinjaman: string;
   jumlah: number;
   tenor: number;
@@ -68,6 +69,7 @@ function parseLoanImportFile(file: File): Promise<ParsedRow[]> {
           headers.forEach((h, idx) => { raw[h] = vals[idx] ?? ''; });
 
           const nik = (raw['nik'] || '').trim();
+          const loan_id = (raw['loan_id'] || '').trim();
           const nama_pinjaman = (raw['nama_pinjaman'] || '').trim();
           const jumlah = parseFloat((raw['jumlah'] || '0').replace(/[^0-9.-]/g, '')) || 0;
           const tenor = parseInt((raw['tenor'] || '0').replace(/[^0-9]/g, ''), 10) || 0;
@@ -89,7 +91,7 @@ function parseLoanImportFile(file: File): Promise<ParsedRow[]> {
             isValid = false; error = 'Format bunga tidak valid';
           }
 
-          rows.push({ nik, nama_pinjaman, jumlah, tenor, tujuan, tanggal_pinjaman, bunga, isValid, error });
+          rows.push({ nik, loan_id: loan_id || undefined, nama_pinjaman, jumlah, tenor, tujuan, tanggal_pinjaman, bunga, isValid, error });
         }
 
         resolve(rows);

@@ -376,6 +376,7 @@ export type BatchMemberImportItem = z.infer<typeof batchMemberImportItemSchema>;
 
 export const batchLoanImportItemSchema = z.object({
   nik: z.string().min(1, "NIK wajib diisi"),
+  loan_id: z.string().optional().nullable(),
   nama_pinjaman: z.string().min(1, "Nama pinjaman wajib diisi"),
   jumlah: z.number().positive("Jumlah pinjaman harus lebih dari 0"),
   tenor: z.number().int().positive("Tenor harus lebih dari 0 bulan"),
