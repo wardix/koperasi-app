@@ -6,7 +6,14 @@ function writeCsv(filename: string, headers: string[], data: any[]) {
   const lines = [headers.join(',')];
   for (const row of data) {
     const values = headers.map(h => {
-      const val = row[h] ?? '';
+      let val = row[h] ?? '';
+      if (val instanceof Date) {
+        val = val.toISOString().split('T')[0];
+      } else if (typeof val === 'string' && val.length >= 10 && val.includes('T')) {
+        // Just in case it's an ISO string stored as TEXT
+        val = val.substring(0, 10);
+      }
+      
       // Escape quotes and wrap in quotes if there's a comma
       const strVal = String(val).replace(/"/g, '""');
       if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
