@@ -14,6 +14,7 @@
     "db:migrate": "bun -e \"import('./server/db.ts').then(() => process.exit(0))\"",
     "db:regenerate-loan-schedules": "bun run scripts/regenerate-loan-schedules.ts",
     "db:reset-data": "bun run scripts/db-reset-data.ts",
+    "db:export-csv": "bun run scripts/export_csv.ts",
     "start": "bun run server/index.ts",
     "typecheck": "tsc --noEmit"
   },
