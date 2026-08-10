@@ -74,8 +74,8 @@ export async function updateMemberSavings(
   createdBy: string
 ): Promise<UpdateSavingsResult> {
   const member = await database
-    .query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?")
-    .get<MemberSavingsCols>(memberId);
+    .query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings, name FROM members WHERE id = ?")
+    .get<MemberSavingsCols & { name: string }>(memberId);
 
   if (!member) {
     throw new ServiceError("Not found", 404);
@@ -121,7 +121,7 @@ export async function updateMemberSavings(
       try {
         await recordAutoJournal({
           transaction_date: createdAt,
-          description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} - Anggota ${memberId}`,
+          description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} — ${member.name}`,
           reference_type: `savings_${isSetor ? 'setor' : 'tarik'}`,
           reference_id: transactionId,
           lines: [

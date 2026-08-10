@@ -432,13 +432,20 @@ export async function updateLoanStatus(
   if (status === "Disetujui") {
     await database.transaction(async () => {
       const loan = (await database
-        .query("SELECT id, amount, tenor, scheduleGenerated, createdAt FROM loans WHERE id = ?")
+        .query(`
+          SELECT l.id, l.amount, l.tenor, l.scheduleGenerated, l.createdAt,
+                 COALESCE(m.name, l.name) as borrower_name
+          FROM loans l
+          LEFT JOIN members m ON l.memberId = m.id
+          WHERE l.id = ?
+        `)
         .get(loanId)) as {
         id: string;
         amount: number;
         tenor: string;
         scheduleGenerated: boolean;
         createdAt: string | null;
+        borrower_name: string;
       } | null;
 
       // Prefer explicit approvedDate (from approve UI), else loan application date, else now.
@@ -478,7 +485,7 @@ export async function updateLoanStatus(
         try {
           await recordAutoJournal({
             transaction_date: approvedAt,
-            description: `Pencairan Pinjaman Anggota (Loan ID: ${loanId})`,
+            description: `Pencairan Pinjaman Anggota — ${loan.borrower_name}`,
             reference_type: 'loan_disbursement',
             reference_id: loanId,
             lines: [
@@ -683,7 +690,12 @@ export async function recordLoanPayment(
   const paymentDate = resolveCalendarDateIso(input.paymentDate);
 
   await database.transaction(async () => {
-    const loan = await database.query("SELECT * FROM loans WHERE id = ? FOR UPDATE").get<LoanRow>(loanId);
+    const loan = await database.query(`
+      SELECT l.*, COALESCE(m.name, l.name) as borrower_name 
+      FROM loans l
+      LEFT JOIN members m ON l.memberId = m.id
+      WHERE l.id = ? FOR UPDATE
+    `).get(loanId) as (LoanRow & { borrower_name: string }) | null;
     if (!loan) {
       throw new ServiceError("Loan not found", 404);
     }
@@ -721,7 +733,7 @@ export async function recordLoanPayment(
 
       await recordAutoJournal({
         transaction_date: paymentDate,
-        description: `Pembayaran Cicilan Pinjaman (Loan ID: ${loanId})`,
+        description: `Pembayaran Cicilan Pinjaman — ${loan.borrower_name}`,
         reference_type: 'loan_payment',
         reference_id: id,
         lines: [
