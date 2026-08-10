@@ -40,3 +40,4 @@ data/
 playwright-report/
 test-results/
 
+*.csv
