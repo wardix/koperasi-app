@@ -490,8 +490,8 @@ export async function updateLoanStatus(
             reference_type: 'loan_disbursement',
             reference_id: loanId,
             lines: [
-              { account_code: '1210', debit: loan.amount }, // Piutang
-              { account_code: '1120', credit: loan.amount } // Kas Keluar
+              { account_code: '11201', debit: loan.amount }, // Piutang
+              { account_code: '11102', credit: loan.amount } // Kas Keluar
             ]
           });
         } catch (err) {
@@ -725,7 +725,7 @@ export async function recordLoanPayment(
     
     // Otomatisasi Jurnal
     try {
-      const kasCode = input.method === 'Cash' ? '1110' : '1120';
+      const kasCode = input.method === 'Cash' ? '11101' : '11102';
       const principalRatio = Number(loan.amount) / totalAmount;
       const interestRatio = 1 - principalRatio;
       
@@ -739,8 +739,8 @@ export async function recordLoanPayment(
         reference_id: id,
         lines: [
           { account_code: kasCode, debit: input.amount }, // Kas Masuk
-          { account_code: '1210', credit: principalPaid }, // Piutang Berkurang
-          { account_code: '4110', credit: interestPaid } // Pendapatan Bunga
+          { account_code: '11201', credit: principalPaid }, // Piutang Berkurang
+          { account_code: '41101', credit: interestPaid } // Pendapatan Bunga
         ]
       });
     } catch (err) {

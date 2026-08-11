@@ -59,29 +59,43 @@ export function createAddAccountingMigration(db: {
       
       if (count === 0) {
         const initialAccounts = [
-          // Aset (Harta)
-          { code: '1110', name: 'Kas Operasional (Tunai)', type: 'ASSET', normal_balance: 'DEBIT' },
-          { code: '1120', name: 'Kas Bank', type: 'ASSET', normal_balance: 'DEBIT' },
-          { code: '1210', name: 'Piutang Pinjaman Anggota (Pokok)', type: 'ASSET', normal_balance: 'DEBIT' },
-          // Kewajiban (Hutang)
-          { code: '2110', name: 'Simpanan Sukarela Anggota', type: 'LIABILITY', normal_balance: 'CREDIT' },
-          { code: '2210', name: 'Hutang Bank / Pihak Ketiga', type: 'LIABILITY', normal_balance: 'CREDIT' },
-          // Ekuitas (Modal)
-          { code: '3110', name: 'Simpanan Pokok', type: 'EQUITY', normal_balance: 'CREDIT' },
-          { code: '3120', name: 'Simpanan Wajib', type: 'EQUITY', normal_balance: 'CREDIT' },
-          { code: '3210', name: 'SHU Tahun Berjalan', type: 'EQUITY', normal_balance: 'CREDIT' },
-          { code: '3220', name: 'Cadangan Modal', type: 'EQUITY', normal_balance: 'CREDIT' },
+          // Aset
+          { code: '11101', name: 'Kas Kecil', type: 'ASSET', normal_balance: 'DEBIT' },
+          { code: '11102', name: 'Bank Mandiri', type: 'ASSET', normal_balance: 'DEBIT' },
+          { code: '11201', name: 'Piutang Pinjaman Anggota', type: 'ASSET', normal_balance: 'DEBIT' },
+          { code: '11202', name: 'Cadangan Kerugian Piutang', type: 'ASSET', normal_balance: 'CREDIT' }, // Contra-asset
+          { code: '11301', name: 'Piutang Potong Gaji (Payroll)', type: 'ASSET', normal_balance: 'DEBIT' },
+          { code: '11401', name: 'Perlengkapan Kantor', type: 'ASSET', normal_balance: 'DEBIT' },
+          { code: '12101', name: 'Peralatan Kantor', type: 'ASSET', normal_balance: 'DEBIT' },
+          { code: '12102', name: 'Akumulasi Penyusutan Peralatan', type: 'ASSET', normal_balance: 'CREDIT' }, // Contra-asset
+          // Kewajiban
+          { code: '21101', name: 'Simpanan Sukarela Anggota', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '21102', name: 'Simpanan Berjangka Koperasi', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '21201', name: 'Beban Yang Masih Harus Dibayar', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '21301', name: 'Utang Pajak (PPh 21/23/Final)', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '22101', name: 'Dana Bagian RAT', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '22102', name: 'Dana Pengurus & Pengawas', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '22103', name: 'Dana Karyawan', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          { code: '22104', name: 'Dana Sosial & Pendidikan', type: 'LIABILITY', normal_balance: 'CREDIT' },
+          // Ekuitas
+          { code: '31101', name: 'Simpanan Pokok', type: 'EQUITY', normal_balance: 'CREDIT' },
+          { code: '31102', name: 'Simpanan Wajib', type: 'EQUITY', normal_balance: 'CREDIT' },
+          { code: '32101', name: 'Cadangan Koperasi', type: 'EQUITY', normal_balance: 'CREDIT' },
+          { code: '33101', name: 'SHU Ditahan', type: 'EQUITY', normal_balance: 'CREDIT' },
+          { code: '33102', name: 'SHU Tahun Berjalan', type: 'EQUITY', normal_balance: 'CREDIT' },
           // Pendapatan
-          { code: '4110', name: 'Pendapatan Bunga Pinjaman Anggota', type: 'REVENUE', normal_balance: 'CREDIT' },
-          { code: '4120', name: 'Pendapatan Administrasi', type: 'REVENUE', normal_balance: 'CREDIT' },
-          { code: '4210', name: 'Pendapatan Bunga Bank', type: 'REVENUE', normal_balance: 'CREDIT' },
-          { code: '4220', name: 'Pendapatan Lain-lain', type: 'REVENUE', normal_balance: 'CREDIT' },
-          // Beban (Pengeluaran)
-          { code: '5110', name: 'Beban Gaji & Honor', type: 'EXPENSE', normal_balance: 'DEBIT' },
-          { code: '5120', name: 'Beban Utilitas (Listrik/Air/Internet)', type: 'EXPENSE', normal_balance: 'DEBIT' },
-          { code: '5210', name: 'Beban Bunga Hutang Pihak Ketiga', type: 'EXPENSE', normal_balance: 'DEBIT' },
-          { code: '5220', name: 'Beban Pajak / Notaris / Legal', type: 'EXPENSE', normal_balance: 'DEBIT' },
-          { code: '5990', name: 'Beban Lain-lain', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '41101', name: 'Pendapatan Jasa Pinjaman', type: 'REVENUE', normal_balance: 'CREDIT' },
+          { code: '41102', name: 'Pendapatan Provisi / Administrasi', type: 'REVENUE', normal_balance: 'CREDIT' },
+          { code: '42101', name: 'Pendapatan Bunga Bank', type: 'REVENUE', normal_balance: 'CREDIT' },
+          { code: '42102', name: 'Pendapatan Denda', type: 'REVENUE', normal_balance: 'CREDIT' },
+          // Beban
+          { code: '51101', name: 'Beban Jasa Simpanan Sukarela', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '51102', name: 'Beban Jasa Simpanan Berjangka', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '61101', name: 'Beban Gaji & Tunjangan Karyawan', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '61102', name: 'Beban Kerugian Piutang Macet', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '61201', name: 'Beban Operasional Kantor', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '61202', name: 'Beban Penyusutan Aset', type: 'EXPENSE', normal_balance: 'DEBIT' },
+          { code: '61301', name: 'Beban Pelaksanaan RAT', type: 'EXPENSE', normal_balance: 'DEBIT' },
         ];
 
         for (const acc of initialAccounts) {

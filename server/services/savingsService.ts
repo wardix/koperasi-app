@@ -110,11 +110,11 @@ export async function updateMemberSavings(
       );
 
       // Otomatisasi Jurnal
-      let simpananAccountCode = '2110';
-      if (input.savingsType === 'pokok') simpananAccountCode = '3110';
-      else if (input.savingsType === 'wajib') simpananAccountCode = '3120';
+      let simpananAccountCode = '21101';
+      if (input.savingsType === 'pokok') simpananAccountCode = '31101';
+      else if (input.savingsType === 'wajib') simpananAccountCode = '31102';
       
-      const kasCode = '1120'; // Default Kas Bank
+      const kasCode = '11102'; // Default Kas Bank
       const absAmount = Math.abs(additionalSavingsNum);
       const isSetor = additionalSavingsNum >= 0;
 
