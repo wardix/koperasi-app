@@ -242,21 +242,21 @@ export default function Accounting() {
               emptyMessage="Transaksi jurnal akan muncul di sini"
             >
               <VStack gap={4}>
-            <div style={{ backgroundColor: 'var(--color-background-surface, #fff)', border: '1px solid var(--border-subtle, #e5e7eb)', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--color-background-surface)', border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-                <thead style={{ backgroundColor: 'var(--bg-muted, #f9fafb)', borderBottom: '1px solid var(--border-subtle, #e5e7eb)' }}>
+                <thead style={{ backgroundColor: 'var(--color-background-muted)', borderBottom: '1px solid var(--color-border)' }}>
                   <tr>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>Tanggal</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>Akun / Keterangan</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'right' }}>Debit</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'right' }}>Kredit</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'center', width: 120 }}>Aksi</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Tanggal</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Akun / Keterangan</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right' }}>Debit</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right' }}>Kredit</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'center', width: 120 }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {journalRows.map((entry: any) => (
                     <React.Fragment key={entry.id}>
-                      <tr style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)', backgroundColor: 'var(--color-background-base, #fafafa)' }}>
+                      <tr style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-background-muted)' }}>
                         <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', width: '15%' }}>
                            <Text type="supporting" color="secondary" style={{ fontWeight: 500 }}>
                              {new Date(entry.transaction_date).toLocaleDateString('id-ID', {
@@ -288,7 +288,7 @@ export default function Accounting() {
                                 }}
                                 style={{
                                   background: 'none', border: '1px solid var(--color-border)', borderRadius: 6,
-                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-warning-600, #d97706)',
+                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-text-orange)',
                                   display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
                                 }}
                               >
@@ -311,8 +311,8 @@ export default function Accounting() {
                                   );
                                 }}
                                 style={{
-                                  background: 'none', border: '1px solid var(--color-critical-300, #fca5a5)', borderRadius: 6,
-                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-critical-600, #dc2626)',
+                                  background: 'none', border: '1px solid var(--color-border-red)', borderRadius: 6,
+                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-text-red)',
                                   display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
                                 }}
                               >
@@ -324,10 +324,10 @@ export default function Accounting() {
                         </td>
                       </tr>
                       {entry.lines?.map((line: any) => (
-                         <tr key={line.id} style={{ backgroundColor: 'var(--color-background-surface, #fff)' }}>
+                         <tr key={line.id} style={{ backgroundColor: 'var(--color-background-surface)' }}>
                            <td style={{ padding: '6px 16px' }}></td>
                            <td style={{ padding: '6px 16px', paddingLeft: line.debit > 0 ? 16 : 48 }}>
-                             <Text style={{ fontFamily: 'monospace', fontSize: 13, marginRight: 8, color: 'var(--text-secondary, #4b5563)' }}>{line.account_code}</Text>
+                             <Text style={{ fontFamily: 'monospace', fontSize: 13, marginRight: 8, color: 'var(--color-text-secondary)' }}>{line.account_code}</Text>
                              <Text style={{ fontWeight: line.debit > 0 ? 500 : 400 }}>{line.account_name}</Text>
                              {line.description && <Text type="supporting" color="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{line.description}</Text>}
                            </td>
