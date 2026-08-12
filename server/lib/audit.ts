@@ -32,7 +32,9 @@ export type AuditAction =
   | 'archive_loan'
   | 'archive_member'
   | 'create_account'
-  | 'create_journal';
+  | 'create_journal'
+  | 'reverse_journal'
+  | 'delete_journal';
 
 export interface AuditRecord {
   actor: string;        // admin email who performed the action
