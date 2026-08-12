@@ -35,7 +35,7 @@ memberSelfService.get('/savings/transactions', async (c) => {
   const memberId = payload.sub;
 
   const transactions = await db.query(
-    "SELECT id, type, amount, balanceBefore, balanceAfter, createdAt, createdBy FROM transactions WHERE memberId = ? ORDER BY createdAt DESC"
+    "SELECT id, type, amount, balanceBefore, balanceAfter, createdAt, createdBy FROM transactions WHERE memberId = ? ORDER BY createdAt DESC, balanceAfter DESC"
   ).all(memberId);
 
   return c.json({ success: true, data: transactions });

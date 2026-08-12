@@ -321,7 +321,7 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
 members.get('/:id/transactions', requirePermission('read:members'), async (c) => {
   try {
     const id = requireRouteParam(c, 'id')
-    const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC")
+    const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY createdAt DESC, balanceAfter DESC")
       .all<TransactionRow>(id)
     return c.json({ success: true, data: rows })
   } catch (err) {
