@@ -483,7 +483,21 @@ export default function MemberPortal() {
       width: pixel(120),
       renderCell: (i) => new Date(i.createdAt).toLocaleDateString('id-ID'),
     },
-    { key: 'type', header: 'Jenis', width: pixel(100) },
+    {
+      key: 'type',
+      header: 'Jenis',
+      width: pixel(160),
+      renderCell: (i) => {
+        const labels: Record<string, string> = {
+          setor_pokok: 'Setor Simpanan Pokok',
+          setor_wajib: 'Setor Simpanan Wajib',
+          setor_sukarela: 'Setor Simpanan Sukarela',
+          tarik_sukarela: 'Tarik Simpanan Sukarela',
+          bunga: 'Jasa Simpanan',
+        };
+        return labels[i.type] ?? i.type?.replace(/_/g, ' ');
+      },
+    },
     {
       key: 'amount',
       header: 'Jumlah',

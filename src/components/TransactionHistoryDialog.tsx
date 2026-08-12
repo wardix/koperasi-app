@@ -55,24 +55,33 @@ export function TransactionHistoryDialogContent({
     },
     {
       key: 'type',
-      header: 'Tipe',
-      width: pixel(100),
-      renderCell: (item: Transaction) => (
-        <Badge 
-          variant={item.type === 'setor' ? 'success' : 'warning'} 
-          label={item.type.toUpperCase()} 
-        />
-      ),
+      header: 'Jenis',
+      width: pixel(190),
+      renderCell: (item: Transaction) => {
+        const labels: Record<string, string> = {
+          setor_pokok: 'Setor Simpanan Pokok',
+          setor_wajib: 'Setor Simpanan Wajib',
+          setor_sukarela: 'Setor Simpanan Sukarela',
+          tarik_sukarela: 'Tarik Simpanan Sukarela',
+          bunga: 'Jasa Simpanan',
+        };
+        const label = labels[item.type] ?? item.type?.replace(/_/g, ' ');
+        const isDebit = item.type.startsWith('tarik');
+        return <Badge variant={isDebit ? 'warning' : 'success'} label={label} />;
+      },
     },
     {
       key: 'amount',
       header: 'Nominal',
       width: proportional(1),
-      renderCell: (item: Transaction) => (
-        <Text type="body" color={item.type === 'setor' ? 'success' : 'neutral'}>
-          {item.type === 'setor' ? '+' : '-'} {formatRp(item.amount)}
-        </Text>
-      ),
+      renderCell: (item: Transaction) => {
+        const isDebit = item.type.startsWith('tarik');
+        return (
+          <Text type="body" color={isDebit ? 'neutral' : 'success'}>
+            {isDebit ? '-' : '+'} {formatRp(item.amount)}
+          </Text>
+        );
+      },
     },
     {
       key: 'balanceAfter',
