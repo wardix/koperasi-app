@@ -18,6 +18,7 @@ import { createAddMemberNikMigration } from "./0020_add_member_nik";
 import { createAddMemberPhoneMigration } from "./0021_add_member_phone";
 import { createAddAccountingMigration } from "./0022_add_accounting";
 import { createDropExpensesMigration } from "./0023_drop_expenses";
+import { createAddTransactionSeqMigration } from "./0024_add_transaction_seq";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -54,6 +55,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddMemberPhoneMigration(db),
     createAddAccountingMigration(db),
     createDropExpensesMigration(db),
+    createAddTransactionSeqMigration(db),
   ];
 }
 
