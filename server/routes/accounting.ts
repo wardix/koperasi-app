@@ -346,6 +346,88 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
   
   return c.json({ success: true, data: rows })
 })
+accounting.get('/ledger/:accountId', requirePermission('read:accounting'), async (c) => {
+  const accountId = c.req.param('accountId')
+  const startDate = c.req.query('startDate')
+  const endDate = c.req.query('endDate')
+
+  const account = await db.query(`SELECT * FROM accounts WHERE id = ?`).get(accountId)
+  if (!account) {
+    return c.json({ success: false, error: 'Account not found' }, 404)
+  }
+
+  // Calculate Opening Balance
+  let openingBalance = 0;
+  if (startDate) {
+    const obQuery = `
+      SELECT COALESCE(SUM(l.debit), 0) as total_debit, COALESCE(SUM(l.credit), 0) as total_credit
+      FROM journal_lines l
+      JOIN journal_entries j ON l.journal_entry_id = j.id
+      WHERE l.account_id = ? AND j.transaction_date < ?
+    `;
+    const obRes = await db.query(obQuery).get(accountId, startDate) as any;
+    if (obRes) {
+      if ((account as any).normal_balance === 'DEBIT') {
+        openingBalance = Number(obRes.total_debit) - Number(obRes.total_credit);
+      } else {
+        openingBalance = Number(obRes.total_credit) - Number(obRes.total_debit);
+      }
+    }
+  }
+
+  // Fetch Transactions
+  let txQuery = `
+    SELECT 
+      l.id,
+      j.transaction_date,
+      j.reference_type,
+      j.reference_id,
+      j.description as journal_description,
+      l.description as line_description,
+      l.debit,
+      l.credit
+    FROM journal_lines l
+    JOIN journal_entries j ON l.journal_entry_id = j.id
+    WHERE l.account_id = ?
+  `;
+  const params: any[] = [accountId];
+
+  if (startDate) {
+    txQuery += ` AND j.transaction_date >= ?`;
+    params.push(startDate);
+  }
+  if (endDate) {
+    txQuery += ` AND j.transaction_date <= ?`;
+    params.push(endDate);
+  }
+
+  txQuery += ` ORDER BY j.transaction_date ASC, j.created_at ASC`;
+
+  const transactions = await db.query(txQuery).all(...params) as any[];
+
+  // Calculate Running Balance
+  let runningBalance = openingBalance;
+  for (const tx of transactions) {
+    const d = Number(tx.debit || 0);
+    const c = Number(tx.credit || 0);
+    if ((account as any).normal_balance === 'DEBIT') {
+      runningBalance += d - c;
+    } else {
+      runningBalance += c - d;
+    }
+    tx.balance = runningBalance;
+  }
+
+  return c.json({ 
+    success: true, 
+    data: { 
+      account,
+      openingBalance,
+      transactions,
+      closingBalance: runningBalance
+    }
+  })
+})
 
 export default accounting
 
