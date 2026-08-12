@@ -332,32 +332,57 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
   const startDate = c.req.query('startDate')
   const endDate = c.req.query('endDate')
 
-  let dateFilter = '';
+  let obFilter = '';
+  let perFilter = '';
   const params: any[] = [];
-  if (startDate && endDate) {
-    dateFilter = 'AND j.transaction_date >= ? AND j.transaction_date <= ?';
-    params.push(startDate, endDate);
-  } else if (startDate) {
-    dateFilter = 'AND j.transaction_date >= ?';
-    params.push(startDate);
-  } else if (endDate) {
-    dateFilter = 'AND j.transaction_date <= ?';
+  
+  if (startDate) {
+    obFilter = 'AND j.transaction_date < ?';
+    perFilter = 'AND j.transaction_date >= ?';
+    params.push(startDate, startDate);
+  }
+  if (endDate) {
+    perFilter += ' AND j.transaction_date <= ?';
     params.push(endDate);
   }
 
   const query = `
+    WITH OB AS (
+      SELECT 
+        l.account_id,
+        SUM(l.debit) as ob_debit,
+        SUM(l.credit) as ob_credit
+      FROM journal_lines l
+      JOIN journal_entries j ON l.journal_entry_id = j.id
+      WHERE 1=1 ${obFilter}
+      GROUP BY l.account_id
+    ),
+    PER AS (
+      SELECT
+        l.account_id,
+        SUM(l.debit) as per_debit,
+        SUM(l.credit) as per_credit
+      FROM journal_lines l
+      JOIN journal_entries j ON l.journal_entry_id = j.id
+      WHERE 1=1 ${perFilter}
+      GROUP BY l.account_id
+    )
     SELECT 
       a.id, a.code, a.name, a.type, a.normal_balance,
-      COALESCE(SUM(l.debit), 0) as total_debit,
-      COALESCE(SUM(l.credit), 0) as total_credit,
+      COALESCE(PER.per_debit, 0) as total_debit,
+      COALESCE(PER.per_credit, 0) as total_credit,
       CASE 
-        WHEN a.normal_balance = 'DEBIT' THEN COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0)
-        ELSE COALESCE(SUM(l.credit), 0) - COALESCE(SUM(l.debit), 0)
+        WHEN a.normal_balance = 'DEBIT' THEN COALESCE(OB.ob_debit, 0) - COALESCE(OB.ob_credit, 0)
+        ELSE COALESCE(OB.ob_credit, 0) - COALESCE(OB.ob_debit, 0)
+      END as opening_balance,
+      CASE 
+        WHEN a.normal_balance = 'DEBIT' THEN (COALESCE(OB.ob_debit, 0) - COALESCE(OB.ob_credit, 0)) + COALESCE(PER.per_debit, 0) - COALESCE(PER.per_credit, 0)
+        ELSE (COALESCE(OB.ob_credit, 0) - COALESCE(OB.ob_debit, 0)) + COALESCE(PER.per_credit, 0) - COALESCE(PER.per_debit, 0)
       END as balance
     FROM accounts a
-    LEFT JOIN journal_lines l ON a.id = l.account_id
-    LEFT JOIN journal_entries j ON l.journal_entry_id = j.id ${dateFilter ? 'AND ' + dateFilter.substring(4) : ''}
-    GROUP BY a.id, a.code, a.name, a.type, a.normal_balance
+    LEFT JOIN OB ON a.id = OB.account_id
+    LEFT JOIN PER ON a.id = PER.account_id
+    WHERE (COALESCE(OB.ob_debit, 0) + COALESCE(OB.ob_credit, 0) + COALESCE(PER.per_debit, 0) + COALESCE(PER.per_credit, 0)) > 0
     ORDER BY a.code ASC
   `;
 
