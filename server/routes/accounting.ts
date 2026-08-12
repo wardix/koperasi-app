@@ -329,7 +329,23 @@ accounting.delete('/journals/:id', requirePermission('delete:accounting'), async
 // ---------------------------------------------------------------------------
 
 accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
-  const rows = await db.query(`
+  const startDate = c.req.query('startDate')
+  const endDate = c.req.query('endDate')
+
+  let dateFilter = '';
+  const params: any[] = [];
+  if (startDate && endDate) {
+    dateFilter = 'AND j.transaction_date >= ? AND j.transaction_date <= ?';
+    params.push(startDate, endDate);
+  } else if (startDate) {
+    dateFilter = 'AND j.transaction_date >= ?';
+    params.push(startDate);
+  } else if (endDate) {
+    dateFilter = 'AND j.transaction_date <= ?';
+    params.push(endDate);
+  }
+
+  const query = `
     SELECT 
       a.id, a.code, a.name, a.type, a.normal_balance,
       COALESCE(SUM(l.debit), 0) as total_debit,
@@ -340,9 +356,12 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
       END as balance
     FROM accounts a
     LEFT JOIN journal_lines l ON a.id = l.account_id
+    LEFT JOIN journal_entries j ON l.journal_entry_id = j.id ${dateFilter ? 'AND ' + dateFilter.substring(4) : ''}
     GROUP BY a.id, a.code, a.name, a.type, a.normal_balance
     ORDER BY a.code ASC
-  `).all()
+  `;
+
+  const rows = await db.query(query).all(...params)
   
   return c.json({ success: true, data: rows })
 })

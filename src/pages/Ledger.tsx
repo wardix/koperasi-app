@@ -55,12 +55,13 @@ export default function Ledger() {
   const [endDate, setEndDate] = useState('');
 
   // 1. Query Trial Balance (All accounts summary - used for selector)
+  const allAccountsQueryString = `/api/accounting/ledger?startDate=${startDate}&endDate=${endDate}`;
   const {
     data: allAccountsData,
     isLoading: isAllAccountsLoading,
     error: allAccountsError,
     refetch: refetchAllAccounts,
-  } = useApiQuery<LedgerRow[]>('/api/accounting/ledger');
+  } = useApiQuery<LedgerRow[]>(allAccountsQueryString);
 
   const allAccounts = Array.isArray(allAccountsData) ? allAccountsData : [];
 
