@@ -8,7 +8,7 @@ export type Permission =
   | 'read:reports' | 'export:reports'
   | 'read:shu'
   | 'read:settings' | 'update:settings'
-  | 'read:accounting' | 'create:accounting' | 'manage:accounting'
+  | 'read:accounting' | 'create:accounting' | 'manage:accounting' | 'delete:accounting'
   | 'manage:users';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -41,7 +41,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'read:reports', 'export:reports',
     'read:shu',
     'read:settings', 'update:settings',
-    'read:accounting', 'create:accounting', 'manage:accounting',
+    'read:accounting', 'create:accounting', 'manage:accounting', 'delete:accounting',
     'manage:users',
   ],
 };

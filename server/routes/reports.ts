@@ -172,5 +172,62 @@ reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) 
   const rows = await db.query(query).all(...params);
   return c.json({ success: true, data: rows });
 })
+reports.get('/income-statement', requirePermission('read:reports'), async (c) => {
+  const query = `
+    SELECT 
+      a.code, a.name, a.type, a.normal_balance,
+      COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
+    FROM accounts a
+    LEFT JOIN journal_lines jl ON a.id = jl.account_id
+    WHERE a.type IN ('REVENUE', 'EXPENSE')
+    GROUP BY a.code, a.name, a.type, a.normal_balance
+    ORDER BY a.code
+  `;
+  const rows = await db.query(query).all();
+  
+  const revenues = rows.filter((r: any) => r.type === 'REVENUE').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
+  const expenses = rows.filter((r: any) => r.type === 'EXPENSE').map((r: any) => ({ ...r, balance: Number(r.total_debit) - Number(r.total_credit) }));
+  
+  const totalRevenue = revenues.reduce((sum, r) => sum + r.balance, 0);
+  const totalExpense = expenses.reduce((sum, r) => sum + r.balance, 0);
+  const netIncome = totalRevenue - totalExpense;
+
+  return c.json({ success: true, data: { revenues, expenses, totalRevenue, totalExpense, netIncome } });
+})
+
+reports.get('/balance-sheet', requirePermission('read:reports'), async (c) => {
+  const query = `
+    SELECT 
+      a.code, a.name, a.type, a.normal_balance,
+      COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
+    FROM accounts a
+    LEFT JOIN journal_lines jl ON a.id = jl.account_id
+    WHERE a.type IN ('ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE')
+    GROUP BY a.code, a.name, a.type, a.normal_balance
+    ORDER BY a.code
+  `;
+  const rows = await db.query(query).all();
+  
+  const revenues = rows.filter((r: any) => r.type === 'REVENUE').map((r: any) => Number(r.total_credit) - Number(r.total_debit));
+  const expenses = rows.filter((r: any) => r.type === 'EXPENSE').map((r: any) => Number(r.total_debit) - Number(r.total_credit));
+  const netIncome = revenues.reduce((a, b) => a + b, 0) - expenses.reduce((a, b) => a + b, 0);
+
+  const assets = rows.filter((r: any) => r.type === 'ASSET').map((r: any) => ({ ...r, balance: Number(r.total_debit) - Number(r.total_credit) }));
+  const liabilities = rows.filter((r: any) => r.type === 'LIABILITY').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
+  const equity = rows.filter((r: any) => r.type === 'EQUITY').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
+  
+  const shuTahunBerjalan = equity.find(e => e.code === '33102');
+  if (shuTahunBerjalan) {
+    shuTahunBerjalan.balance += netIncome;
+  } else {
+    equity.push({ code: '33102', name: 'SHU Tahun Berjalan', type: 'EQUITY', normal_balance: 'CREDIT', total_debit: 0, total_credit: netIncome, balance: netIncome });
+  }
+
+  const totalAssets = assets.reduce((sum, r) => sum + r.balance, 0);
+  const totalLiabilities = liabilities.reduce((sum, r) => sum + r.balance, 0);
+  const totalEquity = equity.reduce((sum, r) => sum + r.balance, 0);
+
+  return c.json({ success: true, data: { assets, liabilities, equity, totalAssets, totalLiabilities, totalEquity } });
+})
 
 export default reports

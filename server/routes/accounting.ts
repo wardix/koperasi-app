@@ -201,6 +201,130 @@ accounting.post('/journals', requirePermission('create:accounting'), async (c) =
 })
 
 // ---------------------------------------------------------------------------
+// Journal Reversal (Koreksi / Storno)
+// ---------------------------------------------------------------------------
+
+accounting.post('/journals/:id/reverse', requirePermission('create:accounting'), async (c) => {
+  const id = requireRouteParam(c, 'id')
+  const actor = getActor(c)
+  const adminId = getJwtPayload(c)?.sub || null
+
+  // 1. Load the original entry
+  const entry = await db.query(`SELECT * FROM journal_entries WHERE id = $1`).get<{ id: string; transaction_date: string; description: string; reference_type: string | null; reference_id: string | null }>(id)
+  if (!entry) return c.json({ success: false, message: 'Jurnal tidak ditemukan' }, 404)
+
+  // Check if this entry was already reversed (has a reversal entry)
+  const alreadyReversed = await db.query(
+    `SELECT id FROM journal_entries WHERE reference_type = 'reversal_of' AND reference_id = $1`
+  ).get(id)
+  if (alreadyReversed) {
+    return c.json({ success: false, message: 'Jurnal ini sudah pernah dikoreksi sebelumnya.' }, 400)
+  }
+
+  // 2. Load original lines
+  const lines = await db.query(`
+    SELECT jl.*, a.code as account_code
+    FROM journal_lines jl
+    JOIN accounts a ON jl.account_id = a.id
+    WHERE jl.journal_entry_id = $1
+  `).all<{ id: string; account_id: string; debit: number; credit: number; description: string | null }>(id)
+
+  if (lines.length === 0) return c.json({ success: false, message: 'Jurnal tidak memiliki baris' }, 400)
+
+  try {
+    const reversalId = crypto.randomUUID()
+    const today = new Date().toISOString().split('T')[0]
+
+    await db.transaction(async () => {
+      // Insert reversal header
+      await db.run(`
+        INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        reversalId,
+        today,
+        `[KOREKSI] ${entry.description}`,
+        'reversal_of',
+        id,
+        adminId,
+      ])
+
+      // Insert reversed lines (swap debit ↔ credit)
+      for (const line of lines) {
+        await db.run(`
+          INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+        `, [
+          reversalId,
+          line.account_id,
+          line.credit,   // swapped
+          line.debit,    // swapped
+          line.description ? `[Koreksi] ${line.description}` : '[Koreksi]',
+        ])
+      }
+    })()
+
+    await audit(db, {
+      actor,
+      action: 'reverse_journal',
+      entity: 'journal_entries',
+      entityId: reversalId,
+      after: { reversed_entry_id: id },
+      ip: getClientIp(c),
+    })
+
+    return c.json({ success: true, message: 'Jurnal koreksi berhasil dibuat', id: reversalId }, 201)
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Journal Delete (Hapus) — superadmin only
+// ---------------------------------------------------------------------------
+
+accounting.delete('/journals/:id', requirePermission('delete:accounting'), async (c) => {
+  const id = requireRouteParam(c, 'id')
+  const actor = getActor(c)
+
+  const entry = await db.query(`SELECT * FROM journal_entries WHERE id = $1`).get<{ id: string; description: string; reference_type: string | null }>(id)
+  if (!entry) return c.json({ success: false, message: 'Jurnal tidak ditemukan' }, 404)
+
+  // Block deletion of auto-generated journals (they are owned by business logic)
+  const autoTypes = ['loan_disbursement', 'loan_payment', 'savings_setor', 'savings_tarik']
+  if (entry.reference_type && autoTypes.includes(entry.reference_type)) {
+    return c.json({
+      success: false,
+      message: 'Jurnal otomatis (dari simpanan/pinjaman) tidak dapat dihapus langsung. Gunakan fitur Koreksi.',
+    }, 400)
+  }
+
+  try {
+    await db.transaction(async () => {
+      await db.run(`DELETE FROM journal_lines WHERE journal_entry_id = $1`, [id])
+      await db.run(`DELETE FROM journal_entries WHERE id = $1`, [id])
+    })()
+
+    await audit(db, {
+      actor,
+      action: 'delete_journal',
+      entity: 'journal_entries',
+      entityId: id,
+      before: { description: entry.description, reference_type: entry.reference_type },
+      ip: getClientIp(c),
+    })
+
+    return c.json({ success: true, message: 'Jurnal berhasil dihapus' })
+  } catch (err) {
+    const response = mapServiceError(c, err)
+    if (response) return response
+    throw err
+  }
+})
+
+// ---------------------------------------------------------------------------
 // General Ledger
 // ---------------------------------------------------------------------------
 
@@ -224,3 +348,4 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
 })
 
 export default accounting
+

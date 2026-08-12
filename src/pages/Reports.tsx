@@ -20,7 +20,7 @@ import {DataStateView} from '../components/DataStateView';
 import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
 import type {ReportData} from '../shared/types';
 
-type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'interest_income' | 'ar_summary' | 'savings_member' | 'cashflow_statement';
+type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'interest_income' | 'ar_summary' | 'savings_member' | 'cashflow_statement' | 'income_statement' | 'balance_sheet';
 
 export default function ReportsTemplate() {
   const { hasPermission } = useAuth();
@@ -39,6 +39,9 @@ export default function ReportsTemplate() {
   const cashflowPath = `/api/reports/cashflow-statement?startDate=${startDate}&endDate=${endDate}`;
   const { data: cashflowRes, isLoading: isCashflowLoading, error: cashflowError, refetch: fetchCashflow } = useApiQuery<Array<{ category: string, subcategory: string, total: number }>>(cashflowPath);
 
+  const { data: incomeRes, isLoading: isIncomeLoading, error: incomeError, refetch: fetchIncome } = useApiQuery<any>('/api/reports/income-statement');
+  const { data: balanceRes, isLoading: isBalanceLoading, error: balanceError, refetch: fetchBalance } = useApiQuery<any>('/api/reports/balance-sheet');
+
   let isLoading = false;
   let error: string | null = null;
   let refetch = () => {};
@@ -51,6 +54,10 @@ export default function ReportsTemplate() {
     isLoading = isSavingsMemberLoading; error = savingsMemberError; refetch = fetchSavingsMember;
   } else if (selectedReport === 'cashflow_statement') {
     isLoading = isCashflowLoading; error = cashflowError; refetch = fetchCashflow;
+  } else if (selectedReport === 'income_statement') {
+    isLoading = isIncomeLoading; error = incomeError; refetch = fetchIncome;
+  } else if (selectedReport === 'balance_sheet') {
+    isLoading = isBalanceLoading; error = balanceError; refetch = fetchBalance;
   } else {
     isLoading = isSummaryLoading; error = summaryError; refetch = fetchSummary;
   }
@@ -109,10 +116,26 @@ export default function ReportsTemplate() {
         }
       } else if (selectedReport === 'cashflow_statement' && cashflowRes) {
         filename = "laporan_arus_kas.csv";
-        csvContent += "Kategori,Subkategori,Total\r\n";
+        csvContent += "Kategori,Subkategori,Total Nominal\r\n";
         for (const item of cashflowRes) {
           csvContent += `${item.category},${item.subcategory},${item.total}\r\n`;
         }
+      } else if (selectedReport === 'income_statement' && incomeRes) {
+        filename = "laporan_laba_rugi.csv";
+        csvContent += "Akun,Saldo\r\n";
+        incomeRes.revenues.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
+        incomeRes.expenses.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
+        csvContent += `Total Pendapatan,${incomeRes.totalRevenue}\r\n`;
+        csvContent += `Total Beban,${incomeRes.totalExpense}\r\n`;
+        csvContent += `Laba/Rugi Bersih,${incomeRes.netIncome}\r\n`;
+      } else if (selectedReport === 'balance_sheet' && balanceRes) {
+        filename = "laporan_neraca.csv";
+        csvContent += "Akun,Saldo\r\n";
+        balanceRes.assets.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
+        balanceRes.liabilities.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
+        balanceRes.equity.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
+        csvContent += `Total Aset,${balanceRes.totalAssets}\r\n`;
+        csvContent += `Total Kewajiban & Ekuitas,${balanceRes.totalLiabilities + balanceRes.totalEquity}\r\n`;
       }
     }
 
@@ -332,7 +355,39 @@ export default function ReportsTemplate() {
                         transition: 'all 0.2s'
                       }}
                     >
-                      🌊 Laporan Arus Kas Periode
+                      💵 Laporan Arus Kas
+                    </button>
+                    <button
+                      onClick={() => setSelectedReport('income_statement')}
+                      style={{
+                        textAlign: 'left',
+                        padding: '10px 14px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: selectedReport === 'income_statement' ? 'var(--color-primary-500)' : 'transparent',
+                        color: selectedReport === 'income_statement' ? 'white' : 'inherit',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      📈 Laporan Laba Rugi
+                    </button>
+                    <button
+                      onClick={() => setSelectedReport('balance_sheet')}
+                      style={{
+                        textAlign: 'left',
+                        padding: '10px 14px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: selectedReport === 'balance_sheet' ? 'var(--color-primary-500)' : 'transparent',
+                        color: selectedReport === 'balance_sheet' ? 'white' : 'inherit',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      ⚖️ Neraca Koperasi
                     </button>
                   </VStack>
                   
@@ -368,8 +423,6 @@ export default function ReportsTemplate() {
               <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
                 {(() => {
                   // Only open the printable card when the *selected* report has data.
-                  // Other endpoints may resolve earlier (empty arrays are truthy) and must
-                  // not render summary sections that read reportResponse.members / .loans.
                   const summaryReady = !!(
                     reportResponse &&
                     reportResponse.members &&
@@ -388,7 +441,11 @@ export default function ReportsTemplate() {
                             ? Array.isArray(savingsMemberRes)
                             : selectedReport === 'cashflow_statement'
                               ? Array.isArray(cashflowRes)
-                              : false;
+                              : selectedReport === 'income_statement'
+                                ? !!incomeRes
+                                : selectedReport === 'balance_sheet'
+                                  ? !!balanceRes
+                                  : false;
 
                   if (!hasSelectedData) {
                     return (
@@ -416,9 +473,11 @@ export default function ReportsTemplate() {
                           {selectedReport === 'savings_summary' && 'LAPORAN PORTFOLIO SIMPANAN ANGGOTA'}
                           {selectedReport === 'loans_summary' && 'LAPORAN KINERJA DAN PORTOFOLIO PINJAMAN'}
                           {selectedReport === 'interest_income' && 'LAPORAN REKAPITULASI PENDAPATAN BUNGA BULANAN'}
-                          {selectedReport === 'ar_summary' && 'DAFTAR PIUTANG PINJAMAN ANGGOTA'}
-                          {selectedReport === 'savings_member' && 'REKAPITULASI SIMPANAN PER ANGGOTA'}
+                          {selectedReport === 'ar_summary' && 'LAPORAN PIUTANG PINJAMAN'}
+                          {selectedReport === 'savings_member' && 'LAPORAN SIMPANAN ANGGOTA'}
                           {selectedReport === 'cashflow_statement' && 'LAPORAN ARUS KAS PERIODE'}
+                          {selectedReport === 'income_statement' && 'LAPORAN LABA RUGI'}
+                          {selectedReport === 'balance_sheet' && 'NERACA (POSISI KEUANGAN)'}
                         </Heading>
                         <Text type="supporting" color="secondary" style={{ marginTop: '4px' }}>
                           Per Tanggal: {formattedDate} {selectedReport === 'cashflow_statement' && (startDate || endDate) && ` (Filter: ${startDate || 'Awal'} s.d ${endDate || 'Sekarang'})`}
@@ -730,6 +789,155 @@ export default function ReportsTemplate() {
                         </VStack>
                       )}
 
+                      {selectedReport === 'income_statement' && incomeRes && (
+                        <VStack gap={4}>
+                          <Text type="body">
+                            Laporan Pendapatan dan Beban untuk mengetahui sisa hasil usaha periode berjalan.
+                          </Text>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Kode Akun</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Akun</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
+                                  PENDAPATAN (REVENUE)
+                                </td>
+                              </tr>
+                              {incomeRes.revenues.map((item: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
+                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
+                                    {formatRp(item.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Pendapatan</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(incomeRes.totalRevenue)}</td>
+                              </tr>
+
+                              <tr>
+                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
+                                  BEBAN (EXPENSE)
+                                </td>
+                              </tr>
+                              {incomeRes.expenses.map((item: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
+                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-critical-500)' }}>
+                                    {formatRp(item.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Beban</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-critical-500)' }}>{formatRp(incomeRes.totalExpense)}</td>
+                              </tr>
+                              
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '16px 8px' }}>LABA BERSIH (NET INCOME)</td>
+                                <td style={{ padding: '16px 8px', textAlign: 'right' }}>
+                                  {formatRp(incomeRes.netIncome)}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </VStack>
+                      )}
+
+                      {selectedReport === 'balance_sheet' && balanceRes && (
+                        <VStack gap={4}>
+                          <Text type="body">
+                            Laporan Posisi Keuangan (Neraca) yang menyajikan Aset, Kewajiban, dan Ekuitas.
+                          </Text>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Kode Akun</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Akun</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
+                                  ASET (ASSETS)
+                                </td>
+                              </tr>
+                              {balanceRes.assets.map((item: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
+                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                                    {formatRp(item.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Aset</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalAssets)}</td>
+                              </tr>
+
+                              <tr>
+                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
+                                  KEWAJIBAN (LIABILITIES)
+                                </td>
+                              </tr>
+                              {balanceRes.liabilities.map((item: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
+                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                                    {formatRp(item.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Kewajiban</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalLiabilities)}</td>
+                              </tr>
+
+                              <tr>
+                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
+                                  EKUITAS (EQUITY)
+                                </td>
+                              </tr>
+                              {balanceRes.equity.map((item: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
+                                  <td style={{ padding: '12px 8px' }}>
+                                    {item.name}
+                                    {item.code === '33102' && <Text type="supporting" color="secondary" style={{ display: 'block', fontSize: 12 }}>* Termasuk Laba Bersih Tahun Berjalan</Text>}
+                                  </td>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                                    {formatRp(item.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Ekuitas</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalEquity)}</td>
+                              </tr>
+                              
+                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
+                                <td colSpan={2} style={{ padding: '16px 8px', color: balanceRes.totalAssets === (balanceRes.totalLiabilities + balanceRes.totalEquity) ? 'inherit' : 'var(--color-critical-500)' }}>
+                                  TOTAL KEWAJIBAN & EKUITAS
+                                </td>
+                                <td style={{ padding: '16px 8px', textAlign: 'right', color: balanceRes.totalAssets === (balanceRes.totalLiabilities + balanceRes.totalEquity) ? 'inherit' : 'var(--color-critical-500)' }}>
+                                  {formatRp(balanceRes.totalLiabilities + balanceRes.totalEquity)}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </VStack>
+                      )}
 
                       {/* Signature block */}
                       <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
