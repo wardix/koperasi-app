@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch } from '../services/api';
+import { apiFetch } from '../config';
 
 interface PaginatedResponse<T> {
   data: T[];
