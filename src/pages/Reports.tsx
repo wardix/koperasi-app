@@ -42,6 +42,10 @@ export default function ReportsTemplate() {
   const { data: incomeRes, isLoading: isIncomeLoading, error: incomeError, refetch: fetchIncome } = useApiQuery<any>('/api/reports/income-statement');
   const { data: balanceRes, isLoading: isBalanceLoading, error: balanceError, refetch: fetchBalance } = useApiQuery<any>('/api/reports/balance-sheet');
 
+  const { data: settings } = useApiQuery<import('../shared/types').SettingsData>('/api/settings');
+  const koperasiName = settings?.koperasiName?.trim() || 'Koperasi';
+
+
   let isLoading = false;
   let error: string | null = null;
   let refetch = () => {};
@@ -459,11 +463,8 @@ export default function ReportsTemplate() {
                   <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <VStack gap={5}>
                       {/* Document Header */}
-                      <div style={{ borderBottom: '3px double #000', paddingBottom: '20px', textAlign: 'center' }}>
-                        <Heading level={2} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-primary)' }}>Koperasi Simpan Pinjam Koperasi-App</Heading>
-                        <Text type="supporting" color="secondary" style={{ marginTop: '4px' }}>
-                          Jl. Raya Koperasi No. 123, Jakarta, Indonesia | Telp: (021) 555-0199
-                        </Text>
+                      <div style={{ borderBottom: '3px double var(--color-border)', paddingBottom: '16px', textAlign: 'center', marginBottom: '16px' }}>
+                        <Heading level={2} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-primary)' }}>{koperasiName}</Heading>
                       </div>
 
                       {/* Report Title */}
