@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   VStack,
   HStack,
@@ -13,19 +13,19 @@ import { Text, Heading } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
-import { useApiQuery } from '../hooks/useApiQuery';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useApiAction } from '../hooks/useApiAction';
-import { api } from '../services/api';
-import { formatRp } from '../utils/format';
-import { Pagination } from '../components/Pagination';
-import { DataStateView } from '../components/DataStateView';
 import { useA11yDialog } from '../hooks/useA11yDialog';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { DateInput } from '@astryxdesign/core/DateInput';
 import { Selector } from '@astryxdesign/core/Selector';
-import type { AccountRow, JournalEntryRow, PaginatedResponse } from '../shared/types';
-import { IconButton } from '@astryxdesign/core/IconButton';
-import { TrashIcon, PlusIcon, EyeIcon } from '@heroicons/react/24/outline';
+import type { AccountRow, JournalEntryRow } from '../shared/types';
+import { useApiQuery } from '../hooks/useApiQuery';
+import { api } from '../services/api';
+import { formatRp } from '../utils/format';
+import { DataStateView } from '../components/DataStateView';
+import { TrashIcon, PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../contexts/AuthContext';
 
 // We just borrow some UI styles from expenses or loans.
 
@@ -175,28 +175,22 @@ function JournalDialog({
 }
 
 export default function Accounting() {
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
-  
+  const { isSuperAdmin } = useAuth();
   const dialog = useA11yDialog();
   const apiAction = useApiAction();
 
   const {
-    data: journalsRes,
+    items: journalRows,
     isLoading,
+    isFetchingMore,
+    hasMore,
     error,
+    sentinelRef,
     refetch,
-  } = useApiQuery<PaginatedResponse<JournalEntryRow & { creator_name: string, total_amount: number }>>(
-    `/api/accounting/journals?page=${page}&limit=${limit}`
+  } = useInfiniteScroll<JournalEntryRow & { creator_name: string; total_amount: number }>(
+    '/api/accounting/journals',
+    { limit: 20 }
   );
-
-  const [journalRows, setJournalRows] = useState<(JournalEntryRow & { creator_name: string, total_amount: number })[]>([]);
-
-  useEffect(() => {
-    if (journalsRes?.data) {
-      setJournalRows(journalsRes.data);
-    }
-  }, [journalsRes]);
 
   const { data: accountsData } = useApiQuery<AccountRow[]>('/api/accounting/accounts');
   const accounts = Array.isArray(accountsData) ? accountsData : [];
@@ -256,6 +250,7 @@ export default function Accounting() {
                     <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>Akun / Keterangan</th>
                     <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'right' }}>Debit</th>
                     <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'right' }}>Kredit</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)', textAlign: 'center', width: 120 }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,6 +269,58 @@ export default function Accounting() {
                              <Text style={{ fontWeight: 600 }}>{entry.description}</Text>
                              {entry.reference_type && <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Ref: {entry.reference_type}</Text>}
                            </VStack>
+                        </td>
+                        <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', textAlign: 'center' }}>
+                          <HStack gap={1} hAlign="center">
+                            {entry.reference_type !== 'reversal_of' && (
+                              <button
+                                title="Buat Jurnal Koreksi"
+                                onClick={() => {
+                                  if (!confirm(`Buat jurnal koreksi (reversal) untuk "${entry.description}"?\n\nIni akan membuat entri baru yang membalik semua Debit dan Kredit jurnal ini.`)) return;
+                                  apiAction.execute(
+                                    () => api.post(`/api/accounting/journals/${entry.id}/reverse`, {}),
+                                    {
+                                      successMsg: 'Jurnal koreksi berhasil dibuat',
+                                      errorMsg: 'Gagal membuat koreksi',
+                                      onSuccess: () => refetch(),
+                                    }
+                                  );
+                                }}
+                                style={{
+                                  background: 'none', border: '1px solid var(--color-border)', borderRadius: 6,
+                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-warning-600, #d97706)',
+                                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
+                                }}
+                              >
+                                <ArrowPathIcon width={14} />
+                                Koreksi
+                              </button>
+                            )}
+                            {isSuperAdmin && (
+                              <button
+                                title="Hapus Jurnal"
+                                onClick={() => {
+                                  if (!confirm(`HAPUS PERMANEN jurnal "${entry.description}"?\n\nData tidak dapat dipulihkan. Yakin?`)) return;
+                                  apiAction.execute(
+                                    () => api.delete(`/api/accounting/journals/${entry.id}`),
+                                    {
+                                      successMsg: 'Jurnal berhasil dihapus',
+                                      errorMsg: 'Gagal menghapus jurnal',
+                                      onSuccess: () => refetch(),
+                                    }
+                                  );
+                                }}
+                                style={{
+                                  background: 'none', border: '1px solid var(--color-critical-300, #fca5a5)', borderRadius: 6,
+                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-critical-600, #dc2626)',
+                                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
+                                }}
+                              >
+                                <TrashIcon width={14} />
+                                Hapus
+                              </button>
+                            )}
+                          </HStack>
                         </td>
                       </tr>
                       {entry.lines?.map((line: any) => (
@@ -294,7 +341,7 @@ export default function Accounting() {
                       ))}
                       <tr>
                         <td></td>
-                        <td colSpan={3} style={{ padding: '4px 16px 16px 16px' }}>
+                        <td colSpan={4} style={{ padding: '4px 16px 16px 16px' }}>
                            <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Dicatat oleh: {entry.creator_name || 'Sistem'}</Text>
                         </td>
                       </tr>
@@ -303,13 +350,22 @@ export default function Accounting() {
                 </tbody>
               </table>
             </div>
-            {journalsRes && (journalsRes.total || 0) > limit && (
-              <Pagination
-                page={page}
-                limit={limit}
-                total={journalsRes.total || 0}
-                onPageChange={setPage}
+            {/* Sentinel element — when visible, triggers next page load */}
+            {hasMore && (
+              <div
+                ref={sentinelRef as React.RefCallback<HTMLDivElement>}
+                style={{ height: 1 }}
               />
+            )}
+            {isFetchingMore && (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <Text type="supporting" color="secondary">Memuat lebih banyak...</Text>
+              </div>
+            )}
+            {!hasMore && journalRows.length > 0 && (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <Text type="supporting" color="secondary">Semua jurnal sudah ditampilkan ({journalRows.length} entri)</Text>
+              </div>
             )}
           </VStack>
         </DataStateView>
