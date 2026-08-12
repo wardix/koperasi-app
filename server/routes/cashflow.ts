@@ -10,92 +10,66 @@ cashflow.get('/', requirePermission('read:cashflow'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
-  const totalInflowRes = await db.query(`
-    SELECT SUM(amount) as total FROM (
-      SELECT t.amount FROM transactions t WHERE t.type LIKE 'setor_%'
-      UNION ALL
-      SELECT p.amount FROM loan_payments p
-        INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
-    ) as inflows
-  `).get() as { total: number }
+  // Ambil total Debit Kas (Inflow) dan Kredit Kas (Outflow)
+  // Berdasarkan akun kas: 11101 (Kas Kecil) dan 11102 (Bank Mandiri)
+  const totalsRes = await db.query(`
+    SELECT 
+      SUM(jl.debit) as total_inflow,
+      SUM(jl.credit) as total_outflow
+    FROM journal_lines jl
+    JOIN accounts a ON jl.account_id = a.id
+    WHERE a.code IN ('11101', '11102')
+  `).get() as { total_inflow: number | null; total_outflow: number | null }
 
-  const totalOutflowRes = await db.query(`
-    SELECT SUM(amount) as total FROM (
-      SELECT t.amount FROM transactions t WHERE t.type LIKE 'tarik_%'
-      UNION ALL
-      SELECT l.amount FROM loans l
-        WHERE l.status IN ('Disetujui', 'Lunas') AND l.deletedAt IS NULL
-    ) as outflows
-  `).get() as { total: number }
-
-  // Postgres SUM may arrive as string; coerce so JSON clients format correctly
-  const totalInflow = Number(totalInflowRes?.total ?? 0) || 0
-  const totalOutflow = Number(totalOutflowRes?.total ?? 0) || 0
+  const totalInflow = Number(totalsRes?.total_inflow ?? 0) || 0
+  const totalOutflow = Number(totalsRes?.total_outflow ?? 0) || 0
   const netCash = totalInflow - totalOutflow
 
   const queryStr = `
     SELECT 
-      'savings' as source,
-      t.id,
-      t.createdAt as "date",
-      m.name as "partyName",
-      t.type as description,
-      t.amount,
-      CASE WHEN t.type LIKE 'setor_%' THEN 'inflow' ELSE 'outflow' END as "flowType"
-    FROM transactions t
-    LEFT JOIN members m ON t.memberId = m.id
-
-    UNION ALL
-
-    SELECT 
-      'loan_payment' as source,
-      p.id,
-      p.paymentDate as "date",
-      COALESCE(m.name, l.name) as "partyName",
-      'Angsuran Pinjaman' as description,
-      p.amount,
-      'inflow' as "flowType"
-    FROM loan_payments p
-    INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
-    LEFT JOIN members m ON m.id = l.memberId
-
-    UNION ALL
-
-    SELECT 
-      'loan_disbursement' as source,
-      l.id,
-      COALESCE(l.approvedAt::text, l.createdAt::text, '2026-01-01T00:00:00.000Z') as "date",
-      COALESCE(m.name, l.name) as "partyName",
-      'Pencairan Pinjaman' as description,
-      l.amount,
-      'outflow' as "flowType"
-    FROM loans l
-    LEFT JOIN members m ON m.id = l.memberId
-    WHERE l.status IN ('Disetujui', 'Lunas')
-      AND l.deletedAt IS NULL
-
-    ORDER BY "date" DESC
+      'journal' as source,
+      jl.id as id,
+      je.transaction_date as "date",
+      'Koperasi' as "partyName",
+      je.description as description,
+      CASE WHEN jl.debit > 0 THEN jl.debit ELSE jl.credit END as amount,
+      CASE WHEN jl.debit > 0 THEN 'inflow' ELSE 'outflow' END as "flowType"
+    FROM journal_lines jl
+    JOIN journal_entries je ON jl.journal_entry_id = je.id
+    JOIN accounts a ON jl.account_id = a.id
+    WHERE a.code IN ('11101', '11102')
+    ORDER BY je.transaction_date DESC, je.created_at DESC
     LIMIT ? OFFSET ?
   `
 
   const rows = await db.query(queryStr).all<CashflowRow>(limit, offset)
 
+  const mappedRows = rows.map(r => {
+    let partyName = r.partyName;
+    let description = r.description;
+    
+    // Extract party name if formatted as "Some Action — Person Name"
+    if (description && description.includes(' — ')) {
+      const parts = description.split(' — ');
+      description = parts[0];
+      partyName = parts[1];
+    }
+    
+    return { ...r, partyName, description };
+  });
+
   const countQuery = `
-    SELECT COUNT(*) as count FROM (
-      SELECT id FROM transactions
-      UNION ALL
-      SELECT p.id FROM loan_payments p
-        INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
-      UNION ALL
-      SELECT id FROM loans WHERE status IN ('Disetujui', 'Lunas') AND deletedAt IS NULL
-    ) as combined
+    SELECT COUNT(*) as count 
+    FROM journal_lines jl
+    JOIN accounts a ON jl.account_id = a.id
+    WHERE a.code IN ('11101', '11102')
   `
   const totalRes = await db.query(countQuery).get() as { count: number }
 
   return c.json({
     success: true,
     data: {
-      data: rows,
+      data: mappedRows,
       total: totalRes?.count ?? 0,
       page,
       limit,

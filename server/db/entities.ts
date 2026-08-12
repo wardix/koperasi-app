@@ -220,7 +220,7 @@ export const shuAllocationRowSchema = z.object({
 export type ShuAllocationRow = z.infer<typeof shuAllocationRowSchema>;
 
 export const cashflowRowSchema = z.object({
-  source: z.enum(["savings", "loan_payment", "loan_disbursement", "expense"]),
+  source: z.enum(["savings", "loan_payment", "loan_disbursement", "expense", "journal"]),
   id: str,
   date: str,
   partyName: strNull,

@@ -142,52 +142,31 @@ reports.get('/savings-member', requirePermission('read:reports'), async (c) => {
 reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) => {
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
-  let dateFilterTx = '';
-  let dateFilterLp = '';
-  let dateFilterL = '';
-  const params: string[] = [];
 
+
+  let dateFilterJe = '';
+  const params: string[] = [];
   if (startDate && endDate) {
-    dateFilterTx = `AND createdAt >= ? AND createdAt <= ?`;
-    dateFilterLp = `AND paymentDate >= ? AND paymentDate <= ?`;
-    dateFilterL = `AND createdAt >= ? AND createdAt <= ?`;
-    params.push(startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate);
+    dateFilterJe = `AND je.transaction_date >= ? AND je.transaction_date <= ?`;
+    params.push(startDate, endDate);
   } else if (startDate) {
-    dateFilterTx = `AND createdAt >= ?`;
-    dateFilterLp = `AND paymentDate >= ?`;
-    dateFilterL = `AND createdAt >= ?`;
-    params.push(startDate, startDate, startDate, startDate);
+    dateFilterJe = `AND je.transaction_date >= ?`;
+    params.push(startDate);
   } else if (endDate) {
-    dateFilterTx = `AND createdAt <= ?`;
-    dateFilterLp = `AND paymentDate <= ?`;
-    dateFilterL = `AND createdAt <= ?`;
-    params.push(endDate, endDate, endDate, endDate);
+    dateFilterJe = `AND je.transaction_date <= ?`;
+    params.push(endDate);
   }
 
   const query = `
-    SELECT 'inflow' as category, type as subcategory, SUM(amount) as total
-    FROM transactions 
-    WHERE type LIKE 'setor_%' ${dateFilterTx}
-    GROUP BY type
-    
-    UNION ALL
-    
-    SELECT 'inflow' as category, 'angsuran_pinjaman' as subcategory, COALESCE(SUM(amount), 0) as total
-    FROM loan_payments 
-    WHERE 1=1 ${dateFilterLp}
-    
-    UNION ALL
-    
-    SELECT 'outflow' as category, type as subcategory, SUM(amount) as total
-    FROM transactions 
-    WHERE type LIKE 'tarik_%' ${dateFilterTx}
-    GROUP BY type
-    
-    UNION ALL
-    
-    SELECT 'outflow' as category, 'pencairan_pinjaman' as subcategory, COALESCE(SUM(amount), 0) as total
-    FROM loans 
-    WHERE status IN ('Disetujui', 'Lunas', 'Macet') AND deletedAt IS NULL ${dateFilterL}
+    SELECT 
+      CASE WHEN jl.debit > 0 THEN 'inflow' ELSE 'outflow' END as category, 
+      COALESCE(je.reference_type, 'jurnal_umum') as subcategory, 
+      SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE jl.credit END) as total
+    FROM journal_lines jl
+    JOIN journal_entries je ON jl.journal_entry_id = je.id
+    JOIN accounts a ON jl.account_id = a.id
+    WHERE a.code IN ('11101', '11102') ${dateFilterJe}
+    GROUP BY category, subcategory
   `;
 
   const rows = await db.query(query).all(...params);
