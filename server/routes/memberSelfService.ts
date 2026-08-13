@@ -81,4 +81,60 @@ memberSelfService.get('/loans/:loanId/schedule', async (c) => {
   return c.json({ success: true, data: schedule });
 });
 
+// Submit new loan application by member
+memberSelfService.post('/loans/apply', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+
+  const member = await db.query(
+    "SELECT id, name, status FROM members WHERE id = ? AND deletedAt IS NULL"
+  ).get<{ id: string; name: string; status: string }>(memberId);
+
+  if (!member) {
+    return c.json({ success: false, message: 'Data anggota tidak ditemukan' }, 404);
+  }
+
+  const body = await c.req.json();
+  const amount = Number(body.amount);
+  const tenor = Number(body.tenor);
+  const purpose = String(body.purpose || '').trim();
+
+  if (!amount || isNaN(amount) || amount <= 0) {
+    return c.json({ success: false, message: 'Nominal pinjaman harus lebih dari 0' }, 400);
+  }
+  if (!tenor || isNaN(tenor) || tenor <= 0 || !Number.isInteger(tenor)) {
+    return c.json({ success: false, message: 'Tenor pinjaman harus berupa angka bulan yang valid (> 0)' }, 400);
+  }
+  if (!purpose) {
+    return c.json({ success: false, message: 'Keperluan pinjaman wajib diisi' }, 400);
+  }
+
+  // Check if member already has a pending loan application
+  const existingPending = await db.query(
+    "SELECT id FROM loans WHERE memberId = ? AND status = 'Menunggu' AND deletedAt IS NULL"
+  ).get(memberId);
+
+  if (existingPending) {
+    return c.json({
+      success: false,
+      message: 'Anda masih memiliki pengajuan pinjaman yang sedang menunggu persetujuan pengurus.'
+    }, 400);
+  }
+
+  const loanId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+
+  await db.run(
+    `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, 'Menunggu', ?)`,
+    [loanId, memberId, member.name, amount, tenor, purpose, createdAt]
+  );
+
+  return c.json({
+    success: true,
+    message: 'Pengajuan pinjaman berhasil dikirim dan sedang menunggu persetujuan pengurus.',
+    data: { id: loanId, amount, tenor, purpose, status: 'Menunggu', createdAt }
+  });
+});
+
 export default memberSelfService;

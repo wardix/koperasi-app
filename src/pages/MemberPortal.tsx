@@ -90,6 +90,55 @@ export default function MemberPortal() {
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
+  const [showApplyForm, setShowApplyForm] = useState(false);
+  const [applyAmount, setApplyAmount] = useState('');
+  const [applyTenor, setApplyTenor] = useState('12');
+  const [applyPurpose, setApplyPurpose] = useState('');
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [applyError, setApplyError] = useState('');
+  const [applySuccess, setApplySuccess] = useState('');
+
+  const handleApplyLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = readPortalToken();
+    if (!token) return;
+    setApplyLoading(true);
+    setApplyError('');
+    setApplySuccess('');
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
+      const res = await fetch('/api/v1/portal/loans/apply', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          amount: parseFloat(applyAmount),
+          tenor: parseInt(applyTenor, 10),
+          purpose: applyPurpose,
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        setApplySuccess(res.message || 'Pengajuan pinjaman berhasil dikirim!');
+        setApplyAmount('');
+        setApplyPurpose('');
+        loadData();
+        setTimeout(() => {
+          setShowApplyForm(false);
+          setApplySuccess('');
+        }, 2000);
+      } else {
+        setApplyError(res.message || 'Gagal mengajukan pinjaman');
+      }
+    } catch {
+      setApplyError('Terjadi kesalahan jaringan');
+    } finally {
+      setApplyLoading(false);
+    }
+  };
+
   const clearPreviewSession = useCallback(() => {
     sessionStorage.removeItem(PREVIEW_TOKEN_KEY);
     sessionStorage.removeItem(PREVIEW_NAME_KEY);
@@ -648,9 +697,122 @@ export default function MemberPortal() {
 
           <Card>
             <VStack gap={4}>
-              <Heading level={4}>
-                {activeTab === 'savings' ? 'Riwayat Simpanan' : 'Daftar Pinjaman'}
-              </Heading>
+              <HStack justify="space-between" vAlign="center">
+                <Heading level={4}>
+                  {activeTab === 'savings' ? 'Riwayat Simpanan' : 'Daftar Pinjaman'}
+                </Heading>
+                {activeTab === 'loans' && (
+                  <Button
+                    label={showApplyForm ? 'Tutup Formulir' : '+ Ajukan Pinjaman Baru'}
+                    variant={showApplyForm ? 'ghost' : 'primary'}
+                    onClick={() => {
+                      setShowApplyForm(!showApplyForm);
+                      setApplyError('');
+                      setApplySuccess('');
+                    }}
+                  />
+                )}
+              </HStack>
+
+              {activeTab === 'loans' && showApplyForm && (
+                <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary, #f8fafc)', border: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                  <form onSubmit={handleApplyLoan} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <Heading level={4}>Formulir Pengajuan Pinjaman Baru</Heading>
+
+                    {applyError ? (
+                      <Text type="supporting" color="accent" style={{ fontWeight: 600 }}>
+                        ⚠️ {applyError}
+                      </Text>
+                    ) : null}
+
+                    {applySuccess ? (
+                      <Text type="supporting" color="primary" style={{ fontWeight: 600 }}>
+                        ✅ {applySuccess}
+                      </Text>
+                    ) : null}
+
+                    <Grid gap={4}>
+                      <VStack gap={2}>
+                        <Text type="supporting">Nominal Pinjaman (Rp)</Text>
+                        <input
+                          type="number"
+                          min="100000"
+                          step="100000"
+                          placeholder="Contoh: 5000000"
+                          value={applyAmount}
+                          onChange={(e) => setApplyAmount(e.target.value)}
+                          style={{ padding: '8px 12px', border: '1px solid var(--color-border-primary, #ccc)', borderRadius: 6 }}
+                          required
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting">Tenor (Bulan)</Text>
+                        <select
+                          value={applyTenor}
+                          onChange={(e) => setApplyTenor(e.target.value)}
+                          style={{ padding: '8px 12px', border: '1px solid var(--color-border-primary, #ccc)', borderRadius: 6, backgroundColor: 'white' }}
+                          required
+                        >
+                          <option value="3">3 Bulan</option>
+                          <option value="6">6 Bulan</option>
+                          <option value="12">12 Bulan (1 Tahun)</option>
+                          <option value="18">18 Bulan</option>
+                          <option value="24">24 Bulan (2 Tahun)</option>
+                          <option value="36">36 Bulan (3 Tahun)</option>
+                        </select>
+                      </VStack>
+                    </Grid>
+
+                    <VStack gap={2}>
+                      <Text type="supporting">Keperluan / Tujuan Pinjaman</Text>
+                      <textarea
+                        rows={3}
+                        placeholder="Jelaskan keperluan pengajuan pinjaman (contoh: Biaya pendidikan, Renovasi rumah, Modal usaha)"
+                        value={applyPurpose}
+                        onChange={(e) => setApplyPurpose(e.target.value)}
+                        style={{ padding: '8px 12px', border: '1px solid var(--color-border-primary, #ccc)', borderRadius: 6, fontFamily: 'inherit' }}
+                        required
+                      />
+                    </VStack>
+
+                    {/* Estimasi Simulasi */}
+                    {parseFloat(applyAmount) > 0 && (
+                      <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary, #fff)' }}>
+                        <VStack gap={1}>
+                          <Text type="supporting" color="secondary">Estimasi Angsuran Per Bulan (Bunga 1,5%/th Anuitas)</Text>
+                          <Text type="body" weight="bold" color="primary">
+                            {(() => {
+                              const P = parseFloat(applyAmount) || 0;
+                              const n = parseInt(applyTenor, 10) || 12;
+                              const r = 0.015 / 12;
+                              const pmt = Math.round((P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+                              return formatRp(pmt);
+                            })()} / bulan
+                          </Text>
+                        </VStack>
+                      </Card>
+                    )}
+
+                    <HStack gap={3} justify="end">
+                      <Button
+                        label="Batal"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => setShowApplyForm(false)}
+                        isDisabled={applyLoading}
+                      />
+                      <Button
+                        label={applyLoading ? 'Mengirim...' : 'Kirim Pengajuan'}
+                        variant="primary"
+                        type="submit"
+                        isDisabled={applyLoading}
+                      />
+                    </HStack>
+                  </form>
+                </Card>
+              )}
+
               {activeTab === 'savings' ? (
                 transactions.length > 0 ? (
                   <Table data={transactions} columns={txCols} idKey="id" density="balanced" />
