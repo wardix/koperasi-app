@@ -85,10 +85,33 @@ export default function MemberPortal() {
   const [profile, setProfile] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loans, setLoans] = useState<PortalLoan[]>([]);
-  const [activeTab, setActiveTab] = useState<'savings' | 'loans'>('savings');
+  const [activeTab, setActiveTab] = useState<'savings' | 'loans' | 'reports'>('savings');
   const [selectedLoan, setSelectedLoan] = useState<PortalLoan | null>(null);
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  const [incomeData, setIncomeData] = useState<any>(null);
+  const [balanceData, setBalanceData] = useState<any>(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
+
+  const loadReports = async () => {
+    const token = readPortalToken();
+    if (!token) return;
+    setReportsLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [incRes, balRes] = await Promise.all([
+        fetch('/api/v1/portal/reports/income-statement', { headers }).then((r) => r.json()),
+        fetch('/api/v1/portal/reports/balance-sheet', { headers }).then((r) => r.json()),
+      ]);
+      if (incRes.success) setIncomeData(incRes.data);
+      if (balRes.success) setBalanceData(balRes.data);
+    } catch {
+      setError('Gagal memuat laporan keuangan');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
 
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [applyAmount, setApplyAmount] = useState('');
@@ -693,13 +716,27 @@ export default function MemberPortal() {
               variant={activeTab === 'loans' ? 'primary' : 'ghost'}
               onClick={() => setActiveTab('loans')}
             />
+            <Button
+              label="Laporan Keuangan"
+              variant={activeTab === 'reports' ? 'primary' : 'ghost'}
+              onClick={() => {
+                setActiveTab('reports');
+                if (!incomeData || !balanceData) {
+                  loadReports();
+                }
+              }}
+            />
           </HStack>
 
           <Card>
             <VStack gap={4}>
               <HStack justify="space-between" vAlign="center">
                 <Heading level={4}>
-                  {activeTab === 'savings' ? 'Riwayat Simpanan' : 'Daftar Pinjaman'}
+                  {activeTab === 'savings'
+                    ? 'Riwayat Simpanan'
+                    : activeTab === 'loans'
+                    ? 'Daftar Pinjaman'
+                    : 'Ringkasan Laporan Keuangan Koperasi'}
                 </Heading>
                 {activeTab === 'loans' && (
                   <Button
@@ -818,6 +855,75 @@ export default function MemberPortal() {
                   <Table data={transactions} columns={txCols} idKey="id" density="balanced" />
                 ) : (
                   <Text type="supporting">Belum ada transaksi</Text>
+                )
+              ) : activeTab === 'reports' ? (
+                reportsLoading ? (
+                  <Spinner size="md" />
+                ) : (
+                  <VStack gap={6}>
+                    {/* Laporan Laba Rugi */}
+                    <VStack gap={3}>
+                      <Heading level={4}>1. Laporan Laba Rugi (Income Statement)</Heading>
+                      <Grid gap={4}>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Pendapatan</Text>
+                            <Heading level={3} color="primary">{formatRp(incomeData?.totalRevenue || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Beban Operasional</Text>
+                            <Heading level={3}>{formatRp(incomeData?.totalExpense || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">SHU / Laba Bersih Tahun Berjalan</Text>
+                            <Heading level={3} color="primary">{formatRp(incomeData?.netIncome || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                      </Grid>
+                    </VStack>
+
+                    {/* Laporan Neraca */}
+                    <VStack gap={3}>
+                      <Heading level={4}>2. Laporan Neraca Koperasi (Balance Sheet)</Heading>
+                      <Grid gap={4}>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Aset Koperasi</Text>
+                            <Heading level={3} color="primary">{formatRp(balanceData?.totalAssets || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Kewajiban / Liabilitas</Text>
+                            <Heading level={3}>{formatRp(balanceData?.totalLiabilities || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Ekuitas / Modal</Text>
+                            <Heading level={3}>{formatRp(balanceData?.totalEquity || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                      </Grid>
+
+                      {/* Ringkasan Neraca */}
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary, #f8fafc)', border: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                        <VStack gap={2}>
+                          <Text type="body" weight="bold">Keseimbangan Neraca (Aset = Kewajiban + Ekuitas)</Text>
+                          <HStack justify="space-between" wrap="wrap" gap={2}>
+                            <Text type="supporting">Total Aset: {formatRp(balanceData?.totalAssets || 0)}</Text>
+                            <Text type="body" weight="semibold">
+                              Total Pasiva: {formatRp((balanceData?.totalLiabilities || 0) + (balanceData?.totalEquity || 0))}
+                            </Text>
+                          </HStack>
+                        </VStack>
+                      </Card>
+                    </VStack>
+                  </VStack>
                 )
               ) : loans.length > 0 ? (
                 <VStack gap={4}>
