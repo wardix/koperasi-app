@@ -714,6 +714,10 @@ export async function recordLoanPayment(
       throw new ServiceError("Total pembayaran melebihi jumlah pinjaman");
     }
 
+    const schedulesBefore = await database
+      .query("SELECT id, principalAmount, interestAmount, paidAmount FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC")
+      .all<{ id: string; principalAmount: number; interestAmount: number; paidAmount: number }>(loanId);
+
     await database
       .prepare(
         `INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
@@ -722,15 +726,48 @@ export async function recordLoanPayment(
       .run(id, loanId, input.amount, paymentDate, input.method);
 
     await rebuildLoanPaymentAllocations(database, loanId);
+
+    const schedulesAfter = await database
+      .query("SELECT id, principalAmount, interestAmount, paidAmount FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC")
+      .all<{ id: string; principalAmount: number; interestAmount: number; paidAmount: number }>(loanId);
     
     // Otomatisasi Jurnal
     try {
       const kasCode = input.method === 'Cash' ? '11101' : '11102';
-      const principalRatio = Number(loan.amount) / totalAmount;
-      const interestRatio = 1 - principalRatio;
-      
-      const principalPaid = Math.round(input.amount * principalRatio);
-      const interestPaid = input.amount - principalPaid;
+      let principalPaid = 0;
+      let interestPaid = 0;
+
+      if (schedulesBefore.length > 0) {
+        const scheduleAfterMap = new Map(schedulesAfter.map(s => [s.id, s]));
+        for (const sBefore of schedulesBefore) {
+          const sAfter = scheduleAfterMap.get(sBefore.id);
+          if (!sAfter) continue;
+
+          const P = Number(sBefore.principalAmount || 0);
+          const I = Number(sBefore.interestAmount || 0);
+
+          const paidBefore = Number(sBefore.paidAmount || 0);
+          const paidAfter = Number(sAfter.paidAmount || 0);
+
+          const interestBefore = Math.min(I, paidBefore);
+          const principalBefore = Math.max(0, Math.min(P, paidBefore - I));
+
+          const interestAfter = Math.min(I, paidAfter);
+          const principalAfter = Math.max(0, Math.min(P, paidAfter - I));
+
+          interestPaid += (interestAfter - interestBefore);
+          principalPaid += (principalAfter - principalBefore);
+        }
+
+        const allocated = principalPaid + interestPaid;
+        if (allocated < input.amount) {
+          principalPaid += (input.amount - allocated);
+        }
+      } else {
+        const principalRatio = Number(loan.amount) / totalAmount;
+        principalPaid = Math.round(input.amount * principalRatio);
+        interestPaid = input.amount - principalPaid;
+      }
 
       await recordAutoJournal({
         transaction_date: paymentDate,
