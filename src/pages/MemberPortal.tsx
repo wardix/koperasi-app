@@ -10,6 +10,10 @@ import { formatRp } from '../utils/format';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { Icon } from '@astryxdesign/core/Icon';
+import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { useThemeMode } from '../contexts/ThemeContext';
 
 const PREVIEW_TOKEN_KEY = 'memberPreviewToken';
 const PREVIEW_NAME_KEY = 'memberPreviewName';
@@ -73,6 +77,8 @@ type ScheduleRow = {
 
 export default function MemberPortal() {
   const navigate = useNavigate();
+  const { mode, setMode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [isPreview] = useState(() => !!sessionStorage.getItem(PREVIEW_TOKEN_KEY));
   const [previewName] = useState(() => sessionStorage.getItem(PREVIEW_NAME_KEY) || '');
   const [memberToken, setMemberToken] = useState<string | null>(() => readPortalToken());
@@ -442,7 +448,15 @@ export default function MemberPortal() {
           padding: 16,
         }}
       >
-        <Card style={{ width: '100%', maxWidth: 400, padding: 32 }}>
+        <Card style={{ width: '100%', maxWidth: 400, padding: 32, position: 'relative' }}>
+          <div style={{ position: 'absolute', top: 16, right: 16 }}>
+            <IconButton
+              label={isDark ? "Mode Terang" : "Mode Gelap"}
+              icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+              variant="ghost"
+              onClick={() => setMode(isDark ? 'light' : 'dark')}
+            />
+          </div>
           <VStack gap={6}>
             <Heading level={2} align="center">
               Portal Anggota
@@ -675,13 +689,21 @@ export default function MemberPortal() {
             </Card>
           )}
 
-          <HStack justify="space-between" vAlign="center" wrap="wrap">
+          <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
             <Heading level={2}>Selamat Datang, {profile?.name}</Heading>
-            <Button
-              label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
-              onClick={handleLogout}
-              variant="ghost"
-            />
+            <HStack gap={2} vAlign="center">
+              <IconButton
+                label={isDark ? "Mode Terang" : "Mode Gelap"}
+                icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+                variant="ghost"
+                onClick={() => setMode(isDark ? 'light' : 'dark')}
+              />
+              <Button
+                label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
+                onClick={handleLogout}
+                variant="ghost"
+              />
+            </HStack>
           </HStack>
 
           {error ? (
