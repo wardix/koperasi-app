@@ -249,150 +249,45 @@ export default function ReportsTemplate() {
                 <VStack gap={3}>
                   <Heading level={3}>Pilih Laporan</Heading>
                   <VStack gap={2}>
-                    <button
-                      onClick={() => setSelectedReport('cooperative_summary')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'cooperative_summary' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'cooperative_summary' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      📊 Laporan Ringkasan Koperasi
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('savings_summary')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'savings_summary' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'savings_summary' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      💰 Laporan Mutasi & Simpanan
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('loans_summary')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'loans_summary' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'loans_summary' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      📈 Laporan Portofolio Pinjaman
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('interest_income')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'interest_income' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'interest_income' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      💵 Laporan Pendapatan Bunga
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('ar_summary')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'ar_summary' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'ar_summary' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      📋 Daftar Piutang Pinjaman
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('savings_member')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'savings_member' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'savings_member' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      🗂️ Rekap Simpanan Anggota
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('cashflow_statement')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'cashflow_statement' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'cashflow_statement' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      💵 Laporan Arus Kas
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('income_statement')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'income_statement' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'income_statement' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      📈 Laporan Laba Rugi
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport('balance_sheet')}
-                      style={{
-                        textAlign: 'left',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: selectedReport === 'balance_sheet' ? 'var(--color-primary-500)' : 'transparent',
-                        color: selectedReport === 'balance_sheet' ? 'white' : 'inherit',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      ⚖️ Neraca Koperasi
-                    </button>
+                    {[
+                      { id: 'cooperative_summary' as const, label: 'Laporan Ringkasan Koperasi', icon: '📊' },
+                      { id: 'savings_summary' as const, label: 'Laporan Mutasi & Simpanan', icon: '💰' },
+                      { id: 'loans_summary' as const, label: 'Laporan Portofolio Pinjaman', icon: '📈' },
+                      { id: 'interest_income' as const, label: 'Laporan Pendapatan Bunga', icon: '💵' },
+                      { id: 'ar_summary' as const, label: 'Daftar Piutang Pinjaman', icon: '📋' },
+                      { id: 'savings_member' as const, label: 'Rekap Simpanan Anggota', icon: '🗂️' },
+                      { id: 'cashflow_statement' as const, label: 'Laporan Arus Kas', icon: '💵' },
+                      { id: 'income_statement' as const, label: 'Laporan Laba Rugi', icon: '📈' },
+                      { id: 'balance_sheet' as const, label: 'Neraca Koperasi', icon: '⚖️' },
+                    ].map((item) => {
+                      const isSelected = selectedReport === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setSelectedReport(item.id)}
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 14px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            backgroundColor: isSelected ? 'var(--color-primary-500, #0171E3)' : 'transparent',
+                            color: isSelected ? '#ffffff' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            fontWeight: isSelected ? 600 : 500,
+                            fontSize: '14px',
+                            transition: 'all 0.15s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            boxShadow: isSelected ? '0 1px 3px rgba(0, 0, 0, 0.15)' : 'none',
+                          }}
+                        >
+                          <span>{item.icon}</span>
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </VStack>
                   
                   {selectedReport === 'cashflow_statement' && (
