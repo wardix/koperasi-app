@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
+import { Layout, LayoutContent, LayoutHeader } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
@@ -663,48 +663,60 @@ export default function MemberPortal() {
   ];
 
   return (
-    <Layout>
-      <LayoutContent padding={4}>
-        <VStack gap={6}>
-          {isPreview && (
-            <Card
-              style={{
-                padding: 16,
-                backgroundColor: 'var(--color-background-secondary)',
-                border: '1px solid var(--color-warning-500, #f59e0b)',
-              }}
-            >
-              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
-                <VStack gap={1}>
-                  <Text type="body" weight="bold">
-                    Mode pratinjau admin
-                  </Text>
-                  <Text type="supporting" color="secondary">
-                    Anda melihat portal sebagai {previewName || profile?.name || 'anggota'}.
-                    Perubahan tidak disimpan ke sesi anggota. Token pratinjau berlaku ~15 menit.
-                  </Text>
-                </VStack>
-                <Button label="Kembali ke Admin" variant="primary" onClick={exitPreview} />
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-background-subtle)' }}>
+      <Layout
+        header={
+          <LayoutHeader hasDivider>
+            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3} style={{ width: '100%' }}>
+              <VStack gap={1}>
+                <Heading level={2} style={{ margin: 0 }}>
+                  Selamat Datang, {profile?.name}
+                </Heading>
+                <Text type="supporting" color="secondary">
+                  {profile?.memberId ? `No. Anggota: ${profile.memberId}` : 'Portal Layanan Mandiri Anggota'}
+                </Text>
+              </VStack>
+              <HStack gap={2} vAlign="center">
+                <IconButton
+                  label={isDark ? "Mode Terang" : "Mode Gelap"}
+                  icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+                  variant="ghost"
+                  onClick={() => setMode(isDark ? 'light' : 'dark')}
+                />
+                <Button
+                  label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
+                  onClick={handleLogout}
+                  variant="secondary"
+                />
               </HStack>
-            </Card>
-          )}
-
-          <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
-            <Heading level={2}>Selamat Datang, {profile?.name}</Heading>
-            <HStack gap={2} vAlign="center">
-              <IconButton
-                label={isDark ? "Mode Terang" : "Mode Gelap"}
-                icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
-                variant="ghost"
-                onClick={() => setMode(isDark ? 'light' : 'dark')}
-              />
-              <Button
-                label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
-                onClick={handleLogout}
-                variant="ghost"
-              />
             </HStack>
-          </HStack>
+          </LayoutHeader>
+        }
+      >
+        <LayoutContent padding={4}>
+          <VStack gap={6}>
+            {isPreview && (
+              <Card
+                style={{
+                  padding: 16,
+                  backgroundColor: 'var(--color-background-secondary)',
+                  border: '1px solid var(--color-warning-500, #f59e0b)',
+                }}
+              >
+                <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                  <VStack gap={1}>
+                    <Text type="body" weight="bold">
+                      Mode pratinjau admin
+                    </Text>
+                    <Text type="supporting" color="secondary">
+                      Anda melihat portal sebagai {previewName || profile?.name || 'anggota'}.
+                      Perubahan tidak disimpan ke sesi anggota. Token pratinjau berlaku ~15 menit.
+                    </Text>
+                  </VStack>
+                  <Button label="Kembali ke Admin" variant="primary" onClick={exitPreview} />
+                </HStack>
+              </Card>
+            )}
 
           {error ? (
             <Text type="supporting" color="critical">
@@ -1051,6 +1063,7 @@ export default function MemberPortal() {
         </VStack>
       </LayoutContent>
     </Layout>
+  </div>
   );
 }
 
