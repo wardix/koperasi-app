@@ -357,6 +357,18 @@ export default function MemberPortal() {
     setSchedule([]);
   };
 
+  const inputStyle: React.CSSProperties = {
+    padding: '8px 12px',
+    border: '1px solid var(--color-border-primary)',
+    borderRadius: 'var(--radius-md, 6px)',
+    backgroundColor: 'var(--color-background-primary)',
+    color: 'var(--color-text-primary)',
+    fontFamily: 'inherit',
+    fontSize: '14px',
+    width: '100%',
+    boxSizing: 'border-box',
+  };
+
   const scheduleCols: TableColumn<ScheduleRow>[] = useMemo(
     () => [
       {
@@ -397,7 +409,7 @@ export default function MemberPortal() {
         width: pixel(100),
         renderCell: (i) => {
           const variant =
-            i.status === 'Paid' ? 'success' : i.status === 'Late' ? 'error' : 'neutral';
+            i.status === 'Paid' ? 'success' : i.status === 'Late' ? 'critical' : 'neutral';
           const label =
             i.status === 'Paid' ? 'Lunas' : i.status === 'Late' ? 'Terlambat' : 'Belum';
           return <Badge variant={variant} label={label} />;
@@ -439,7 +451,7 @@ export default function MemberPortal() {
               Masuk untuk melihat simpanan, pinjaman, dan jadwal angsuran Anda.
             </Text>
             {error ? (
-              <Text type="supporting" color="accent">
+              <Text type="supporting" color="critical">
                 {error}
               </Text>
             ) : null}
@@ -492,7 +504,7 @@ export default function MemberPortal() {
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6 }}
+                  style={inputStyle}
                   required
                 />
               </VStack>
@@ -502,7 +514,7 @@ export default function MemberPortal() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 6 }}
+                  style={inputStyle}
                   required
                 />
               </VStack>
@@ -519,7 +531,7 @@ export default function MemberPortal() {
               <a
                 href="/login"
                 style={{
-                  color: 'var(--color-text-primary, #0171E3)',
+                  color: 'var(--color-primary-500, #0171E3)',
                   textDecoration: 'underline',
                   cursor: 'pointer',
                 }}
@@ -602,12 +614,17 @@ export default function MemberPortal() {
       key: 'status',
       header: 'Status',
       width: pixel(100),
-      renderCell: (i) => (
-        <Badge
-          variant={i.status === 'Disetujui' ? 'success' : i.status === 'Lunas' ? 'success' : 'neutral'}
-          label={i.status}
-        />
-      ),
+      renderCell: (i) => {
+        const statusMap: Record<string, { variant: 'success' | 'warning' | 'critical' | 'neutral'; label: string }> = {
+          Disetujui: { variant: 'success', label: 'Disetujui' },
+          Lunas: { variant: 'success', label: 'Lunas' },
+          Menunggu: { variant: 'warning', label: 'Menunggu' },
+          Ditolak: { variant: 'critical', label: 'Ditolak' },
+          Macet: { variant: 'critical', label: 'Macet' },
+        };
+        const s = statusMap[i.status] || { variant: 'neutral', label: i.status };
+        return <Badge variant={s.variant} label={s.label} />;
+      },
     },
     {
       key: 'actions',
@@ -639,8 +656,8 @@ export default function MemberPortal() {
             <Card
               style={{
                 padding: 16,
-                backgroundColor: 'var(--color-background-secondary, #fef3c7)',
-                border: '1px solid var(--color-border-primary, #f59e0b)',
+                backgroundColor: 'var(--color-background-secondary)',
+                border: '1px solid var(--color-warning-500, #f59e0b)',
               }}
             >
               <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
@@ -668,7 +685,7 @@ export default function MemberPortal() {
           </HStack>
 
           {error ? (
-            <Text type="supporting" color="accent">
+            <Text type="supporting" color="critical">
               {error}
             </Text>
           ) : null}
@@ -752,18 +769,18 @@ export default function MemberPortal() {
               </HStack>
 
               {activeTab === 'loans' && showApplyForm && (
-                <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary, #f8fafc)', border: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
                   <form onSubmit={handleApplyLoan} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <Heading level={4}>Formulir Pengajuan Pinjaman Baru</Heading>
 
                     {applyError ? (
-                      <Text type="supporting" color="accent" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
                         ⚠️ {applyError}
                       </Text>
                     ) : null}
 
                     {applySuccess ? (
-                      <Text type="supporting" color="primary" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
                         ✅ {applySuccess}
                       </Text>
                     ) : null}
@@ -778,7 +795,7 @@ export default function MemberPortal() {
                           placeholder="Contoh: 5000000"
                           value={applyAmount}
                           onChange={(e) => setApplyAmount(e.target.value)}
-                          style={{ padding: '8px 12px', border: '1px solid var(--color-border-primary, #ccc)', borderRadius: 6 }}
+                          style={inputStyle}
                           required
                         />
                       </VStack>
@@ -788,7 +805,7 @@ export default function MemberPortal() {
                         <select
                           value={applyTenor}
                           onChange={(e) => setApplyTenor(e.target.value)}
-                          style={{ padding: '8px 12px', border: '1px solid var(--color-border-primary, #ccc)', borderRadius: 6, backgroundColor: 'white' }}
+                          style={inputStyle}
                           required
                         >
                           <option value="3">3 Bulan</option>
@@ -808,14 +825,14 @@ export default function MemberPortal() {
                         placeholder="Jelaskan keperluan pengajuan pinjaman (contoh: Biaya pendidikan, Renovasi rumah, Modal usaha)"
                         value={applyPurpose}
                         onChange={(e) => setApplyPurpose(e.target.value)}
-                        style={{ padding: '8px 12px', border: '1px solid var(--color-border-primary, #ccc)', borderRadius: 6, fontFamily: 'inherit' }}
+                        style={inputStyle}
                         required
                       />
                     </VStack>
 
                     {/* Estimasi Simulasi */}
                     {parseFloat(applyAmount) > 0 && (
-                      <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary, #fff)' }}>
+                      <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)' }}>
                         <VStack gap={1}>
                           <Text type="supporting" color="secondary">Estimasi Angsuran Per Bulan (Bunga 1,5%/th Anuitas)</Text>
                           <Text type="body" weight="bold" color="primary">
@@ -911,7 +928,7 @@ export default function MemberPortal() {
                       </Grid>
 
                       {/* Ringkasan Neraca */}
-                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary, #f8fafc)', border: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
                         <VStack gap={2}>
                           <Text type="body" weight="bold">Keseimbangan Neraca (Aset = Kewajiban + Ekuitas)</Text>
                           <HStack justify="space-between" wrap="wrap" gap={2}>
@@ -983,12 +1000,12 @@ export default function MemberPortal() {
   );
 }
 
-const Grid = ({ children, gap }: { children: React.ReactNode; gap: number }) => (
+const Grid = ({ children, gap = 4 }: { children: React.ReactNode; gap?: number }) => (
   <div
     style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: `${gap * 4}px`,
+      gap: `var(--spacing-${gap}, ${gap * 4}px)`,
     }}
   >
     {children}
