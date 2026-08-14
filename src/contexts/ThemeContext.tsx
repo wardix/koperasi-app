@@ -22,6 +22,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const className = mode === 'dark' ? 'dark' : 'light';
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(className);
+    document.documentElement.style.colorScheme = mode;
+    document.documentElement.setAttribute('data-color-scheme', mode);
+    document.documentElement.setAttribute('data-astryx-theme', 'neutral');
   }, [mode]);
 
   const setMode = (newMode: ThemeMode) => {

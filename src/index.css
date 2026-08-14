@@ -6,23 +6,40 @@
  * - Untuk warna semantic, gunakan tokens dari src/design/tokens.ts
  */
 
-:root {
+:root, .light {
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 14px/1.5 var(--sans);
-  color-scheme: light dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f4f4f5;
+  --color-background-subtle: #f8fafc;
+  --color-border-primary: #e4e4e7;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #71717a;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-background-primary: #18181b;
+  --color-background-secondary: #27272a;
+  --color-background-subtle: #09090b;
+  --color-border-primary: rgba(255, 255, 255, 0.12);
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
 }
 
 body {
   margin: 0;
   transition: background-color 0.3s ease, color 0.3s ease;
-  background-color: var(--color-background-primary);
+  background-color: var(--color-background-subtle);
   color: var(--color-text-primary);
 }
 

@@ -666,30 +666,32 @@ export default function MemberPortal() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-background-subtle)' }}>
       <Layout
         header={
-          <LayoutHeader hasDivider>
-            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3} style={{ width: '100%' }}>
-              <VStack gap={1}>
-                <Heading level={2} style={{ margin: 0 }}>
-                  Selamat Datang, {profile?.name}
-                </Heading>
-                <Text type="supporting" color="secondary">
-                  {profile?.memberId ? `No. Anggota: ${profile.memberId}` : 'Portal Layanan Mandiri Anggota'}
-                </Text>
-              </VStack>
-              <HStack gap={2} vAlign="center">
-                <IconButton
-                  label={isDark ? "Mode Terang" : "Mode Gelap"}
-                  icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
-                  variant="ghost"
-                  onClick={() => setMode(isDark ? 'light' : 'dark')}
-                />
-                <Button
-                  label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
-                  onClick={handleLogout}
-                  variant="secondary"
-                />
+          <LayoutHeader hasDivider style={{ backgroundColor: 'var(--color-background-primary)', borderBottom: '1px solid var(--color-border-primary)' }}>
+            <div style={{ padding: '16px 24px', width: '100%', boxSizing: 'border-box' }}>
+              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3} style={{ width: '100%' }}>
+                <VStack gap={1}>
+                  <Heading level={2} style={{ margin: 0, color: 'var(--color-text-primary)' }}>
+                    Selamat Datang, {profile?.name}
+                  </Heading>
+                  <Text type="supporting" color="secondary">
+                    {profile?.memberId ? `No. Anggota: ${profile.memberId}` : 'Portal Layanan Mandiri Anggota'}
+                  </Text>
+                </VStack>
+                <HStack gap={2} vAlign="center">
+                  <IconButton
+                    label={isDark ? "Mode Terang" : "Mode Gelap"}
+                    icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+                    variant="ghost"
+                    onClick={() => setMode(isDark ? 'light' : 'dark')}
+                  />
+                  <Button
+                    label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
+                    onClick={handleLogout}
+                    variant="secondary"
+                  />
+                </HStack>
               </HStack>
-            </HStack>
+            </div>
           </LayoutHeader>
         }
       >
