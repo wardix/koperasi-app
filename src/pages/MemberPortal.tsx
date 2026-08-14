@@ -12,7 +12,7 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, BanknotesIcon, ClipboardDocumentCheckIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useThemeMode } from '../contexts/ThemeContext';
 
 const PREVIEW_TOKEN_KEY = 'memberPreviewToken';
@@ -741,31 +741,63 @@ export default function MemberPortal() {
             </Card>
           </Grid>
 
-          <HStack gap={4}>
-            <Button
-              label="Simpanan"
-              variant={activeTab === 'savings' ? 'primary' : 'ghost'}
-              onClick={() => {
-                setActiveTab('savings');
-                setSelectedLoan(null);
-              }}
-            />
-            <Button
-              label="Pinjaman"
-              variant={activeTab === 'loans' ? 'primary' : 'ghost'}
-              onClick={() => setActiveTab('loans')}
-            />
-            <Button
-              label="Laporan Keuangan"
-              variant={activeTab === 'reports' ? 'primary' : 'ghost'}
-              onClick={() => {
-                setActiveTab('reports');
-                if (!incomeData || !balanceData) {
-                  loadReports();
-                }
-              }}
-            />
-          </HStack>
+          <div
+            style={{
+              display: 'inline-flex',
+              padding: 4,
+              backgroundColor: 'var(--color-background-secondary)',
+              borderRadius: 'var(--radius-lg, 8px)',
+              border: '1px solid var(--color-border-primary)',
+              gap: 4,
+              width: 'fit-content',
+              flexWrap: 'wrap',
+            }}
+          >
+            {[
+              { id: 'savings' as const, label: 'Simpanan', icon: BanknotesIcon },
+              { id: 'loans' as const, label: 'Pinjaman', icon: ClipboardDocumentCheckIcon },
+              { id: 'reports' as const, label: 'Laporan Keuangan', icon: ChartBarIcon },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id === 'savings') setSelectedLoan(null);
+                    if (tab.id === 'reports' && (!incomeData || !balanceData)) {
+                      loadReports();
+                    }
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-md, 6px)',
+                    border: 'none',
+                    fontSize: '14px',
+                    fontWeight: isActive ? 600 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    backgroundColor: isActive
+                      ? 'var(--color-background-primary)'
+                      : 'transparent',
+                    color: isActive
+                      ? 'var(--color-primary-500, var(--color-text-primary))'
+                      : 'var(--color-text-secondary)',
+                    boxShadow: isActive
+                      ? '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)'
+                      : 'none',
+                  }}
+                >
+                  <tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
           <Card>
             <VStack gap={4}>
