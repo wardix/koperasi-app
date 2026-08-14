@@ -770,7 +770,7 @@ export default function ReportsTemplate() {
                                       Subtotal {cat}
                                     </td>
                                     <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                      {formatRp(cashflowRes.filter(c => c.category === cat).reduce((sum, item) => sum + item.total, 0))}
+                                      {formatRp(cashflowRes.filter(c => c.category === cat).reduce((sum, item) => sum + Number(item.total || 0), 0))}
                                     </td>
                                   </tr>
                                 </React.Fragment>
@@ -780,8 +780,8 @@ export default function ReportsTemplate() {
                                 <td colSpan={2} style={{ padding: '16px 8px' }}>NET CASH (KAS BERSIH PERIODE)</td>
                                 <td style={{ padding: '16px 8px', textAlign: 'right' }}>
                                   {formatRp(
-                                    cashflowRes.filter(c => c.category === 'inflow').reduce((sum, item) => sum + item.total, 0) -
-                                    cashflowRes.filter(c => c.category === 'outflow').reduce((sum, item) => sum + item.total, 0)
+                                    cashflowRes.filter(c => c.category === 'inflow').reduce((sum, item) => sum + Number(item.total || 0), 0) -
+                                    cashflowRes.filter(c => c.category === 'outflow').reduce((sum, item) => sum + Number(item.total || 0), 0)
                                   )}
                                 </td>
                               </tr>

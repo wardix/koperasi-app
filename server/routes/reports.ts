@@ -170,7 +170,12 @@ reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) 
   `;
 
   const rows = await db.query(query).all(...params);
-  return c.json({ success: true, data: rows });
+  const mapped = rows.map((r: any) => ({
+    category: r.category,
+    subcategory: r.subcategory,
+    total: Number(r.total || 0)
+  }));
+  return c.json({ success: true, data: mapped });
 })
 reports.get('/income-statement', requirePermission('read:reports'), async (c) => {
   const query = `
