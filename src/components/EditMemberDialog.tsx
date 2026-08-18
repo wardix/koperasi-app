@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {DialogHeader} from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -29,6 +29,15 @@ export function EditMemberDialogContent({
   const [role, setRole] = useState(initialData.role);
   const [status, setStatus] = useState(initialData.status);
   const [localError, setLocalError] = useState('');
+
+  useEffect(() => {
+    setName(initialData.name);
+    setNik(initialData.nik || '');
+    setPhone(initialData.phone || '');
+    setRole(initialData.role);
+    setStatus(initialData.status);
+    setLocalError('');
+  }, [initialData]);
 
   const handleSave = () => {
     setLocalError('');

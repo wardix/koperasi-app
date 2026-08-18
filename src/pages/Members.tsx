@@ -128,6 +128,7 @@ export default function MembersTemplate() {
   const handleUpdateSavings = useCallback((member: MemberRow) => {
     dialog.show(
       <UpdateSavingsDialogContent 
+        key={`update-savings-${member.id}`}
         onClose={() => dialog.hide()}
         onSave={({ additionalSavings, savingsType, transactionDate }) => {
           apiAction.execute(
@@ -152,6 +153,7 @@ export default function MembersTemplate() {
   const handleShowHistory = useCallback((member: MemberRow) => {
     dialog.show(
       <TransactionHistoryDialogContent
+        key={`history-${member.id}`}
         member={member}
         onClose={() => dialog.hide()}
       />
@@ -161,6 +163,7 @@ export default function MembersTemplate() {
   const handleEditMember = useCallback((member: MemberRow) => {
     dialog.show(
       <EditMemberDialogContent
+        key={`edit-${member.id}`}
         initialData={member}
         onClose={() => dialog.hide()}
         onEdit={(data) => {
@@ -192,6 +195,7 @@ export default function MembersTemplate() {
   const handlePortalAccess = useCallback((member: MemberRow) => {
     dialog.show(
       <PortalAccessDialogContent
+        key={`portal-access-${member.id}`}
         member={member}
         onClose={() => dialog.hide()}
         onSave={(payload) => {

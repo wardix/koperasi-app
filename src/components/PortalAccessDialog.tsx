@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
@@ -25,6 +25,13 @@ export function PortalAccessDialogContent({
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [localError, setLocalError] = useState('');
+
+  useEffect(() => {
+    setEmail(member.email || '');
+    setPassword('');
+    setPasswordConfirm('');
+    setLocalError('');
+  }, [member]);
 
   const handleSave = () => {
     setLocalError('');
