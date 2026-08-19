@@ -241,12 +241,26 @@ export function AddMemberDialogContent({
                 control={control}
                 render={({ field }) => (
                   <VStack gap={1}>
-                    <TextInput
-                      label="Jabatan"
+                    <Text type="supporting">Jabatan</Text>
+                    <select
                       value={field.value}
                       onChange={field.onChange}
-                      placeholder="Contoh: Anggota, Pengurus"
-                    />
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-md, 6px)',
+                        border: '1px solid var(--color-border-primary)',
+                        backgroundColor: 'var(--color-background-primary)',
+                        color: 'var(--color-text-primary)',
+                        fontSize: '14px',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <option value="Anggota">Anggota</option>
+                      <option value="Ketua">Ketua</option>
+                      <option value="Sekretaris">Sekretaris</option>
+                      <option value="Bendahara">Bendahara</option>
+                    </select>
                     {errors.role && (
                       <Text type="supporting" color="critical">
                         {errors.role.message}

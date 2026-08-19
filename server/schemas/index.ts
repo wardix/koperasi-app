@@ -45,8 +45,21 @@ const defaultSimpananPokok = defaultSimpananPokokEnv ? Number(defaultSimpananPok
 
 export const memberSchema = z.object({
   name: z.string().min(1, "Name is required").transform(sanitize),
-  role: z.enum(["Anggota", "Ketua", "Bendahara", "Sekretaris"]),
-  status: z.enum(["Aktif", "Pasif"]),
+  role: z
+    .string()
+    .transform((val) => {
+      const lower = String(val || "").trim().toLowerCase();
+      if (lower === "ketua") return "Ketua";
+      if (lower === "bendahara") return "Bendahara";
+      if (lower === "sekretaris") return "Sekretaris";
+      return "Anggota";
+    }),
+  status: z
+    .string()
+    .transform((val) => {
+      const lower = String(val || "").trim().toLowerCase();
+      return lower === "pasif" ? "Pasif" : "Aktif";
+    }),
   joinDate: z.string().min(1, "Join date is required").transform(sanitize),
   nik: nikField.optional().default(null),
   phone: phoneField.optional().default(null),

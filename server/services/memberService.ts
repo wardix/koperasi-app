@@ -396,7 +396,7 @@ export async function batchImportMembers(
     try {
       await createMember(database, {
         name: item.name.trim(),
-        role: "anggota",
+        role: "Anggota",
         status: "Aktif",
         joinDate: item.joinDate || today,
         nik: item.nik || null,

@@ -117,18 +117,48 @@ export function EditMemberDialogContent({
               description="Opsional — 8–15 digit, boleh diawali +"
               type="text"
             />
-            <TextInput
-              label="Jabatan"
-              value={role}
-              onChange={setRole}
-              placeholder="Contoh: Anggota, Pengurus"
-            />
-            <TextInput
-              label="Status"
-              value={status}
-              onChange={setStatus}
-              placeholder="Aktif / Pasif"
-            />
+            <VStack gap={1}>
+              <Text type="supporting">Jabatan</Text>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-md, 6px)',
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-background-primary)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="Anggota">Anggota</option>
+                <option value="Ketua">Ketua</option>
+                <option value="Sekretaris">Sekretaris</option>
+                <option value="Bendahara">Bendahara</option>
+              </select>
+            </VStack>
+            <VStack gap={1}>
+              <Text type="supporting">Status</Text>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-md, 6px)',
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-background-primary)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="Aktif">Aktif</option>
+                <option value="Pasif">Pasif</option>
+              </select>
+            </VStack>
             {localError ? (
               <Text type="supporting" color="critical">
                 {localError}
