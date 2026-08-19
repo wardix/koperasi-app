@@ -6,8 +6,9 @@ import {
   VStack,
   HStack,
   Layout,
+  LayoutHeader,
   LayoutContent,
-
+  StackItem,
 } from '@astryxdesign/core/Layout';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
@@ -386,22 +387,31 @@ export default function DashboardTemplate() {
   return (
     <Layout
       height="auto"
+      header={
+        <LayoutHeader hasDivider>
+          <HStack hAlign="between" vAlign="center" style={{ width: '100%' }}>
+            <StackItem>
+              <Heading level={2}>Dasbor Utama</Heading>
+            </StackItem>
+            <StackItem>
+              <Button
+                label="Muat Ulang"
+                variant="secondary"
+                size="md"
+                icon={<Icon icon={ArrowPathIcon} size="sm" />}
+                onClick={fetchStats}
+              />
+            </StackItem>
+          </HStack>
+        </LayoutHeader>
+      }
       content={
-        <LayoutContent padding={6}>
+        <LayoutContent padding={4}>
           <DataStateView isLoading={isLoading} error={error} onRetry={fetchStats} errorTitle="Gagal Memuat Dasbor" loadingComponent={<DashboardSkeleton />}>
           <VStack gap={6}>
             {/* Trend Chart */}
-            <VStack gap={6}>
-              <HStack hAlign="between" vAlign="center">
-                <Heading level={3}>Tren Pertumbuhan Koperasi</Heading>
-                <Button
-                  label="Muat Ulang"
-                  variant="secondary"
-                  size="md"
-                  icon={<Icon icon={ArrowPathIcon} size="sm" />}
-                  onClick={fetchStats}
-                />
-              </HStack>
+            <VStack gap={4}>
+              <Heading level={3}>Tren Pertumbuhan Koperasi</Heading>
               {dashboardData?.monthlyData && dashboardData.monthlyData.length > 0 ? (
                 <MonthlyChart data={dashboardData.monthlyData} />
               ) : (

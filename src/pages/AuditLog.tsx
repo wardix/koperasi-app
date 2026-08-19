@@ -5,13 +5,14 @@ import {
   VStack,
   HStack,
   Layout,
+  LayoutHeader,
   LayoutContent,
+  StackItem,
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
-import { Divider } from '@astryxdesign/core/Divider';
 import { Icon } from '@astryxdesign/core/Icon';
 import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/solid';
 import { useApiQuery } from '../hooks/useApiQuery';
@@ -152,113 +153,133 @@ export default function AuditLog() {
     { key: 'ip', header: 'IP', width: pixel(100), renderCell: (item) => item.ip || '-' },
   ];
 
+  const inputStyle: React.CSSProperties = {
+    padding: '6px 10px',
+    borderRadius: 'var(--radius-md, 6px)',
+    border: '1px solid var(--color-border-primary)',
+    backgroundColor: 'var(--color-background-primary)',
+    color: 'var(--color-text-primary)',
+    fontSize: '13px',
+  };
+
   return (
-    <Layout height="auto" content={<LayoutContent padding={6}>
-      <DataStateView isLoading={isLoading} error={error} onRetry={() => window.location.reload()} errorTitle="Gagal Memuat Log Audit">
-        <VStack gap={6}>
-          {/* Header */}
-          <HStack hAlign="between" vAlign="center">
-            <HStack gap={2} vAlign="center">
-              <Icon icon={ClipboardDocumentCheckIcon} size="md" color="primary" />
-              <Heading level={3}>Log Audit</Heading>
-            </HStack>
-            <Text type="supporting">Catatan semua operasi administratif sensitif</Text>
-          </HStack>
-
-          {/* Filters */}
-          <Card>
-            <VStack gap={4}>
-              <Heading level={4}>Filter</Heading>
-              <HStack gap={4} wrap="wrap">
-                <VStack gap={1}>
-                  <Text type="supporting" size="xs">Aktor</Text>
-                  <select
-                    value={filters.actor}
-                    onChange={(e) => setFilters(f => ({ ...f, actor: e.target.value }))}
-                    style={{ padding: '4px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-                  >
-                    <option value="">Semua</option>
-                    {uniqueActors.map(actor => (
-                      <option key={actor} value={actor}>{actor}</option>
-                    ))}
-                  </select>
-                </VStack>
-
-                <VStack gap={1}>
-                  <Text type="supporting" size="xs">Aksi</Text>
-                  <select
-                    value={filters.action}
-                    onChange={(e) => setFilters(f => ({ ...f, action: e.target.value }))}
-                    style={{ padding: '4px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-                  >
-                    <option value="">Semua</option>
-                    {uniqueActions.map(action => (
-                      <option key={action} value={action}>{ACTION_LABELS[action] || action}</option>
-                    ))}
-                  </select>
-                </VStack>
-
-                <VStack gap={1}>
-                  <Text type="supporting" size="xs">Entitas</Text>
-                  <select
-                    value={filters.entity}
-                    onChange={(e) => setFilters(f => ({ ...f, entity: e.target.value }))}
-                    style={{ padding: '4px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-                  >
-                    <option value="">Semua</option>
-                    {uniqueEntities.map(entity => (
-                      <option key={entity} value={entity}>{entity}</option>
-                    ))}
-                  </select>
-                </VStack>
-
-                <VStack gap={1}>
-                  <Text type="supporting" size="xs">Dari</Text>
-                  <input
-                    type="date"
-                    value={filters.from}
-                    onChange={(e) => setFilters(f => ({ ...f, from: e.target.value }))}
-                    style={{ padding: '4px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-                  />
-                </VStack>
-
-                <VStack gap={1}>
-                  <Text type="supporting" size="xs">Sampai</Text>
-                  <input
-                    type="date"
-                    value={filters.to}
-                    onChange={(e) => setFilters(f => ({ ...f, to: e.target.value }))}
-                    style={{ padding: '4px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-                  />
-                </VStack>
+    <Layout
+      header={
+        <LayoutHeader hasDivider>
+          <HStack hAlign="between" vAlign="center" style={{ width: '100%' }}>
+            <StackItem>
+              <HStack gap={2} vAlign="center">
+                <Icon icon={ClipboardDocumentCheckIcon} size="md" color="primary" />
+                <Heading level={2}>Log Audit</Heading>
               </HStack>
-            </VStack>
-          </Card>
+            </StackItem>
+            <StackItem>
+              <Text type="supporting" color="secondary">Catatan operasi administratif sensitif</Text>
+            </StackItem>
+          </HStack>
+        </LayoutHeader>
+      }
+    >
+      <LayoutContent padding={4}>
+        <DataStateView isLoading={isLoading} error={error} onRetry={() => window.location.reload()} errorTitle="Gagal Memuat Log Audit">
+          <VStack gap={4}>
+            {/* Filters */}
+            <Card style={{ padding: 16 }}>
+              <VStack gap={3}>
+                <Heading level={4}>Filter Riwayat</Heading>
+                <HStack gap={4} wrap="wrap">
+                  <VStack gap={1}>
+                    <Text type="supporting" size="xs">Aktor</Text>
+                    <select
+                      value={filters.actor}
+                      onChange={(e) => setFilters(f => ({ ...f, actor: e.target.value }))}
+                      style={inputStyle}
+                    >
+                      <option value="">Semua Aktor</option>
+                      {uniqueActors.map(actor => (
+                        <option key={actor} value={actor}>{actor}</option>
+                      ))}
+                    </select>
+                  </VStack>
 
-          <Divider />
+                  <VStack gap={1}>
+                    <Text type="supporting" size="xs">Aksi</Text>
+                    <select
+                      value={filters.action}
+                      onChange={(e) => setFilters(f => ({ ...f, action: e.target.value }))}
+                      style={inputStyle}
+                    >
+                      <option value="">Semua Aksi</option>
+                      {uniqueActions.map(action => (
+                        <option key={action} value={action}>{ACTION_LABELS[action] || action}</option>
+                      ))}
+                    </select>
+                  </VStack>
 
-          {/* Audit Log Table */}
-          {entries.length === 0 ? (
-            <Text type="supporting" color="secondary">Tidak ada log audit yang sesuai dengan filter</Text>
-          ) : (
-            <Table
-              data={entries}
-              columns={columns}
-              idKey="id"
-              density="compact"
-              dividers="rows"
-              hasHover
-            />
-          )}
+                  <VStack gap={1}>
+                    <Text type="supporting" size="xs">Entitas</Text>
+                    <select
+                      value={filters.entity}
+                      onChange={(e) => setFilters(f => ({ ...f, entity: e.target.value }))}
+                      style={inputStyle}
+                    >
+                      <option value="">Semua Entitas</option>
+                      {uniqueEntities.map(entity => (
+                        <option key={entity} value={entity}>{entity}</option>
+                      ))}
+                    </select>
+                  </VStack>
 
-          {/* Summary */}
-          {entries.length > 0 && (
-            <Text type="supporting" color="secondary">
-              Menampilkan {entries.length} entri
-            </Text>
-          )}
-        </VStack>
-      </DataStateView>
-    </LayoutContent>} />
+                  <VStack gap={1}>
+                    <Text type="supporting" size="xs">Dari Tanggal</Text>
+                    <input
+                      type="date"
+                      value={filters.from}
+                      onChange={(e) => setFilters(f => ({ ...f, from: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </VStack>
+
+                  <VStack gap={1}>
+                    <Text type="supporting" size="xs">Sampai Tanggal</Text>
+                    <input
+                      type="date"
+                      value={filters.to}
+                      onChange={(e) => setFilters(f => ({ ...f, to: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </VStack>
+                </HStack>
+              </VStack>
+            </Card>
+
+            {/* Audit Log Table */}
+            {entries.length === 0 ? (
+              <Card style={{ padding: 24, textAlign: 'center' }}>
+                <Text type="supporting" color="secondary">Tidak ada log audit yang sesuai dengan filter</Text>
+              </Card>
+            ) : (
+              <Card style={{ overflow: 'hidden' }}>
+                <Table
+                  data={entries}
+                  columns={columns}
+                  idKey="id"
+                  density="compact"
+                  dividers="rows"
+                  hasHover
+                />
+              </Card>
+            )}
+
+            {/* Summary */}
+            {entries.length > 0 && (
+              <Text type="supporting" color="secondary">
+                Menampilkan {entries.length} entri log
+              </Text>
+            )}
+          </VStack>
+        </DataStateView>
+      </LayoutContent>
+    </Layout>
   );
 }

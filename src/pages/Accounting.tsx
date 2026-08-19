@@ -159,11 +159,11 @@ function JournalDialog({
           </HStack>
         ))}
         
-        <HStack gap={4} hAlign="end" style={{ marginTop: 16, padding: '8px 32px', backgroundColor: isBalance ? 'var(--color-background-success-subtle, #e6f4ea)' : 'var(--color-background-danger-subtle, #fce8e6)', borderRadius: 8 }}>
+        <HStack gap={4} hAlign="end" style={{ marginTop: 16, padding: '8px 32px', backgroundColor: isBalance ? 'var(--color-background-success-subtle)' : 'var(--color-background-danger-subtle)', borderRadius: 'var(--radius-md, 8px)', border: `1px solid ${isBalance ? 'var(--color-success-500)' : 'var(--color-critical-500)'}` }}>
           <Text>Total Debit: <b>{formatRp(totalDebit)}</b></Text>
           <Text>Total Kredit: <b>{formatRp(totalCredit)}</b></Text>
         </HStack>
-        {!isBalance && <Text color="danger" type="supporting" style={{ textAlign: 'right', marginTop: 4 }}>Jurnal belum balance (selisih {formatRp(Math.abs(totalDebit - totalCredit))})</Text>}
+        {!isBalance && <Text color="critical" type="supporting" style={{ textAlign: 'right', marginTop: 4 }}>Jurnal belum balance (selisih {formatRp(Math.abs(totalDebit - totalCredit))})</Text>}
       </div>
 
       <HStack gap={2} hAlign="end" style={{ marginTop: 16 }}>

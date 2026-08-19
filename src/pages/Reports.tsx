@@ -17,6 +17,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {formatRp} from '../utils/format';
 import {DataStateView} from '../components/DataStateView';
+import {StatusBadge} from '../components/common/StatusBadge';
 import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
 import type {ReportData} from '../shared/types';
 
@@ -304,7 +305,16 @@ export default function ReportsTemplate() {
                           type="date" 
                           value={startDate} 
                           onChange={(e) => setStartDate(e.target.value)} 
-                          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginTop: '4px' }} 
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-md, 6px)',
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-background-primary)',
+                            color: 'var(--color-text-primary)',
+                            marginTop: '4px',
+                            boxSizing: 'border-box'
+                          }} 
                         />
                       </div>
                       <div>
@@ -313,7 +323,16 @@ export default function ReportsTemplate() {
                           type="date" 
                           value={endDate} 
                           onChange={(e) => setEndDate(e.target.value)} 
-                          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginTop: '4px' }} 
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-md, 6px)',
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-background-primary)',
+                            color: 'var(--color-text-primary)',
+                            marginTop: '4px',
+                            boxSizing: 'border-box'
+                          }} 
                         />
                       </div>
                     </VStack>
@@ -514,15 +533,7 @@ export default function ReportsTemplate() {
                                   <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(item.paidAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(item.remainingAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                                    <span style={{ 
-                                      padding: '4px 8px', 
-                                      borderRadius: '4px', 
-                                      fontSize: '0.85em',
-                                      backgroundColor: item.status === 'Macet' ? '#fee2e2' : '#dcfce7',
-                                      color: item.status === 'Macet' ? '#dc2626' : '#166534'
-                                    }}>
-                                      {item.status}
-                                    </span>
+                                    <StatusBadge status={item.status as any} />
                                   </td>
                                 </tr>
                               ))}

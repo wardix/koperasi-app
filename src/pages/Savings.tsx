@@ -79,8 +79,8 @@ export default function SavingsTemplate() {
       width: proportional(2),
       renderCell: (item: SavingsTransactionRow) => {
         let label = item.type;
-        let variant: 'success' | 'error' | 'neutral' | 'warning' = 'neutral';
-
+        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        
         const match = transactionTypeValues.find(t => t.value === item.type);
         if (match) {
           label = match.label;
@@ -89,7 +89,7 @@ export default function SavingsTemplate() {
         if (item.type.startsWith('setor_')) {
           variant = 'success';
         } else if (item.type.startsWith('tarik_')) {
-          variant = 'error';
+          variant = 'critical';
         }
 
         return <Badge variant={variant} label={label} />;
@@ -100,7 +100,7 @@ export default function SavingsTemplate() {
       header: 'Nominal',
       width: proportional(1.5),
       renderCell: (item: SavingsTransactionRow) => (
-        <Text type="body" style={{ fontWeight: 500, color: item.type.startsWith('setor_') ? '#10b981' : '#ef4444' }}>
+        <Text type="body" style={{ fontWeight: 500, color: item.type.startsWith('setor_') ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
           {item.type.startsWith('setor_') ? '+' : '-'} {formatRp(item.amount)}
         </Text>
       ),
