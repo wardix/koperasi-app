@@ -20,19 +20,16 @@ import {DataStateView} from '../components/DataStateView';
 import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
 import type {ReportData} from '../shared/types';
 
-type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'interest_income' | 'ar_summary' | 'savings_member' | 'cashflow_statement' | 'income_statement' | 'balance_sheet';
+type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'ar_summary' | 'savings_member' | 'cashflow_statement' | 'income_statement' | 'balance_sheet';
 
 export default function ReportsTemplate() {
   const { hasPermission } = useAuth();
   const canExportReports = hasPermission('export:reports');
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
-  const currentYear = new Date().getFullYear().toString();
-
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   const { data: reportResponse, isLoading: isSummaryLoading, error: summaryError, refetch: fetchSummary } = useApiQuery<ReportData>('/api/reports/summary');
-  const { data: monthlyInterestRes, isLoading: isInterestLoading, error: interestError, refetch: fetchInterest } = useApiQuery<Array<{ monthKey: string, monthName: string, interestIncome: number }>>(`/api/reports/monthly-interest?year=${currentYear}`);
   const { data: arRes, isLoading: isArLoading, error: arError, refetch: fetchAr } = useApiQuery<Array<{ memberName: string, principal: number, totalAmount: number, paidAmount: number, remainingAmount: number, status: string }>>('/api/reports/ar');
   const { data: savingsMemberRes, isLoading: isSavingsMemberLoading, error: savingsMemberError, refetch: fetchSavingsMember } = useApiQuery<Array<{ memberName: string, simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number }>>('/api/reports/savings-member');
   
@@ -50,9 +47,7 @@ export default function ReportsTemplate() {
   let error: string | null = null;
   let refetch = () => {};
 
-  if (selectedReport === 'interest_income') {
-    isLoading = isInterestLoading; error = interestError; refetch = fetchInterest;
-  } else if (selectedReport === 'ar_summary') {
+  if (selectedReport === 'ar_summary') {
     isLoading = isArLoading; error = arError; refetch = fetchAr;
   } else if (selectedReport === 'savings_member') {
     isLoading = isSavingsMemberLoading; error = savingsMemberError; refetch = fetchSavingsMember;
@@ -74,17 +69,8 @@ export default function ReportsTemplate() {
     let csvContent = "";
     let filename = "";
     
-    if (selectedReport === 'interest_income') {
-      if (!monthlyInterestRes) return;
-      filename = `laporan_pendapatan_bunga_${currentYear}.csv`;
-      csvContent += "Bulan,Pendapatan Bunga\r\n";
-      for (const item of monthlyInterestRes) {
-        csvContent += `${item.monthName},${item.interestIncome}\r\n`;
-      }
-      csvContent += `Total Pendapatan Bunga Tahunan,${monthlyInterestRes.reduce((sum, item) => sum + item.interestIncome, 0)}\r\n`;
-    } else {
-      if (!reportResponse) return;
-      if (selectedReport === 'cooperative_summary') {
+    if (!reportResponse) return;
+    if (selectedReport === 'cooperative_summary') {
         filename = "laporan_ringkasan_koperasi.csv";
         csvContent += "Parameter Keuangan & Operasional,Nilai/Jumlah\r\n";
         csvContent += `Total Anggota Terdaftar,${reportResponse.members.totalMembers}\r\n`;
@@ -141,7 +127,6 @@ export default function ReportsTemplate() {
         csvContent += `Total Aset,${balanceRes.totalAssets}\r\n`;
         csvContent += `Total Kewajiban & Ekuitas,${balanceRes.totalLiabilities + balanceRes.totalEquity}\r\n`;
       }
-    }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -274,7 +259,6 @@ export default function ReportsTemplate() {
                       { id: 'cooperative_summary' as const, label: 'Laporan Ringkasan Koperasi', icon: '📊' },
                       { id: 'savings_summary' as const, label: 'Laporan Mutasi & Simpanan', icon: '💰' },
                       { id: 'loans_summary' as const, label: 'Laporan Portofolio Pinjaman', icon: '📈' },
-                      { id: 'interest_income' as const, label: 'Laporan Pendapatan Bunga', icon: '💵' },
                       { id: 'ar_summary' as const, label: 'Daftar Piutang Pinjaman', icon: '📋' },
                       { id: 'savings_member' as const, label: 'Rekap Simpanan Anggota', icon: '🗂️' },
                       { id: 'cashflow_statement' as const, label: 'Laporan Arus Kas', icon: '💵' },
@@ -353,19 +337,17 @@ export default function ReportsTemplate() {
                       selectedReport === 'savings_summary' ||
                       selectedReport === 'loans_summary')
                       ? summaryReady
-                      : selectedReport === 'interest_income'
-                        ? Array.isArray(monthlyInterestRes)
-                        : selectedReport === 'ar_summary'
-                          ? Array.isArray(arRes)
-                          : selectedReport === 'savings_member'
-                            ? Array.isArray(savingsMemberRes)
-                            : selectedReport === 'cashflow_statement'
-                              ? Array.isArray(cashflowRes)
-                              : selectedReport === 'income_statement'
-                                ? !!incomeRes
-                                : selectedReport === 'balance_sheet'
-                                  ? !!balanceRes
-                                  : false;
+                      : selectedReport === 'ar_summary'
+                        ? Array.isArray(arRes)
+                        : selectedReport === 'savings_member'
+                          ? Array.isArray(savingsMemberRes)
+                          : selectedReport === 'cashflow_statement'
+                            ? Array.isArray(cashflowRes)
+                            : selectedReport === 'income_statement'
+                              ? !!incomeRes
+                              : selectedReport === 'balance_sheet'
+                                ? !!balanceRes
+                                : false;
 
                   if (!hasSelectedData) {
                     return (
@@ -389,7 +371,6 @@ export default function ReportsTemplate() {
                           {selectedReport === 'cooperative_summary' && 'LAPORAN RINGKASAN PERKEMBANGAN KOPERASI'}
                           {selectedReport === 'savings_summary' && 'LAPORAN PORTFOLIO SIMPANAN ANGGOTA'}
                           {selectedReport === 'loans_summary' && 'LAPORAN KINERJA DAN PORTOFOLIO PINJAMAN'}
-                          {selectedReport === 'interest_income' && 'LAPORAN REKAPITULASI PENDAPATAN BUNGA BULANAN'}
                           {selectedReport === 'ar_summary' && 'LAPORAN PIUTANG PINJAMAN'}
                           {selectedReport === 'savings_member' && 'LAPORAN SIMPANAN ANGGOTA'}
                           {selectedReport === 'cashflow_statement' && 'LAPORAN ARUS KAS PERIODE'}
@@ -502,54 +483,6 @@ export default function ReportsTemplate() {
                               <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)' }}>
                                 <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Kumulatif Penyaluran Pinjaman</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600 }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'interest_income' && monthlyInterestRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Laporan realisasi pendapatan bunga pinjaman koperasi per bulan untuk tahun buku {currentYear}.
-                          </Text>
-
-                          <div className="no-print" style={{ height: '300px', width: '100%', marginTop: '20px' }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={monthlyInterestRes}
-                                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                              >
-                                <CartesianGrid {...getThemedGridProps()} />
-                                <XAxis dataKey="monthName" {...getThemedAxisProps()} />
-                                <YAxis tickFormatter={(tick) => `Rp ${(tick / 1000).toLocaleString('id-ID')}k`} {...getThemedAxisProps()} />
-                                <RechartsTooltip formatter={(value: any) => formatRp(value)} {...getThemedTooltipProps()} />
-                                <Bar dataKey="interestIncome" fill={chartColors.success} radius={[4, 4, 0, 0]} name="Pendapatan Bunga" />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Bulan</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pendapatan Bunga</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {monthlyInterestRes.map((item) => (
-                                <tr key={item.monthKey} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px' }}>{item.monthName}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>
-                                    {formatRp(item.interestIncome)}
-                                  </td>
-                                </tr>
-                              ))}
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
-                                <td style={{ padding: '12px 8px' }}>Total Pendapatan Bunga Tahunan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
-                                  {formatRp(monthlyInterestRes.reduce((sum, item) => sum + item.interestIncome, 0))}
-                                </td>
                               </tr>
                             </tbody>
                           </table>
