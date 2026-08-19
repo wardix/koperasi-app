@@ -217,27 +217,48 @@ export default function ReportsTemplate() {
         <LayoutContent padding={3}>
           <style>{`
             @media print {
-              /* Hide all components except the printable report card */
+              /* Hide everything */
               body * {
                 visibility: hidden;
               }
-              #printable-report-area, #printable-report-area * {
+
+              /* Only show the printable report area */
+              #printable-report-area,
+              #printable-report-area * {
                 visibility: visible;
               }
+
+              /* Force the report to fill the entire page from the top-left corner */
               #printable-report-area {
-                position: absolute;
+                position: fixed;
                 left: 0;
                 top: 0;
+                right: 0;
+                bottom: auto;
                 width: 100%;
+                max-width: 100%;
+                margin: 0 !important;
+                padding: 24px 40px !important;
                 border: none !important;
                 box-shadow: none !important;
+                border-radius: 0 !important;
                 background: white !important;
                 color: black !important;
-                padding: 0 !important;
-                margin: 0 !important;
+                box-sizing: border-box;
               }
+
+              /* Suppress sidebar and non-print elements */
               .no-print {
                 display: none !important;
+              }
+
+              /* Ensure tables don't clip */
+              table {
+                width: 100% !important;
+                page-break-inside: auto;
+              }
+              tr {
+                page-break-inside: avoid;
               }
             }
           `}</style>
