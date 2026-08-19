@@ -17,6 +17,7 @@ reports.get('/summary', requirePermission('read:reports'), async (c) => {
       SUM(simpananSukarela) as "totalSukarela",
       SUM(totalSavings) as "totalSavings"
     FROM members
+    WHERE deletedAt IS NULL
   `).get<ReportMembersStats>()
 
   const loanStats = await db.query(`
@@ -27,10 +28,13 @@ reports.get('/summary', requirePermission('read:reports'), async (c) => {
       SUM(CASE WHEN status = 'Macet' THEN amount ELSE 0 END) as "badLoansAmount",
       SUM(CASE WHEN status = 'Lunas' THEN amount ELSE 0 END) as "paidLoansAmount"
     FROM loans
+    WHERE deletedAt IS NULL
   `).get<ReportLoansStats>()
 
   const loanPaymentsStats = await db.query(`
-    SELECT SUM(amount) as "totalPaymentsReceived" FROM loan_payments
+    SELECT SUM(lp.amount) as "totalPaymentsReceived"
+    FROM loan_payments lp
+    JOIN loans l ON lp.loanId = l.id AND l.deletedAt IS NULL
   `).get<{ totalPaymentsReceived: number | null }>()
 
   return c.json({
