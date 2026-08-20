@@ -197,4 +197,75 @@ memberSelfService.get('/reports/balance-sheet', async (c) => {
   return c.json({ success: true, data: { assets, liabilities, equity, totalAssets, totalLiabilities, totalEquity } });
 });
 
+// Financial Report: Cash Flow Statement for Members
+memberSelfService.get('/reports/cashflow-statement', async (c) => {
+  const query = `
+    SELECT 
+      CASE WHEN jl.debit > 0 THEN 'inflow' ELSE 'outflow' END as category, 
+      COALESCE(je.reference_type, 'jurnal_umum') as subcategory, 
+      SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE jl.credit END) as total
+    FROM journal_lines jl
+    JOIN journal_entries je ON jl.journal_entry_id = je.id
+    JOIN accounts a ON jl.account_id = a.id
+    WHERE a.code IN ('11101', '11102')
+    GROUP BY category, subcategory
+  `;
+  const rows = await db.query(query).all();
+
+  const getSubcategoryLabel = (cat: string, subcat: string) => {
+    switch (subcat) {
+      case 'savings_setor': return 'Setoran Simpanan Anggota';
+      case 'loan_payment': return 'Penerimaan Angsuran Pinjaman';
+      case 'savings_tarik': return 'Penarikan Simpanan Anggota';
+      case 'loan_disbursement': return 'Pencairan Pinjaman Anggota';
+      default: return cat === 'inflow' ? 'Penerimaan Kas Lainnya' : 'Pengeluaran Kas / Beban Operasional';
+    }
+  };
+
+  const inflows = rows
+    .filter((r: any) => r.category === 'inflow')
+    .map((r: any) => ({
+      subcategory: r.subcategory,
+      label: getSubcategoryLabel('inflow', r.subcategory),
+      total: Number(r.total || 0),
+    }));
+
+  const outflows = rows
+    .filter((r: any) => r.category === 'outflow')
+    .map((r: any) => ({
+      subcategory: r.subcategory,
+      label: getSubcategoryLabel('outflow', r.subcategory),
+      total: Number(r.total || 0),
+    }));
+
+  const totalInflow = inflows.reduce((sum, r) => sum + r.total, 0);
+  const totalOutflow = outflows.reduce((sum, r) => sum + r.total, 0);
+  const netCashFlow = totalInflow - totalOutflow;
+
+  const cashBalanceQuery = `
+    SELECT 
+      a.code, a.name,
+      COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0) as balance
+    FROM accounts a
+    LEFT JOIN journal_lines jl ON a.id = jl.account_id
+    WHERE a.code IN ('11101', '11102')
+    GROUP BY a.code, a.name
+  `;
+  const cashAccounts = await db.query(cashBalanceQuery).all();
+  const totalCashBalance = cashAccounts.reduce((sum: number, a: any) => sum + Number(a.balance || 0), 0);
+
+  return c.json({
+    success: true,
+    data: {
+      inflows,
+      outflows,
+      totalInflow,
+      totalOutflow,
+      netCashFlow,
+      totalCashBalance,
+      cashAccounts: cashAccounts.map((a: any) => ({ ...a, balance: Number(a.balance || 0) })),
+    },
+  });
+});
+
 export default memberSelfService;

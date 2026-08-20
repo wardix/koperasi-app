@@ -98,6 +98,7 @@ export default function MemberPortal() {
 
   const [incomeData, setIncomeData] = useState<any>(null);
   const [balanceData, setBalanceData] = useState<any>(null);
+  const [cashflowData, setCashflowData] = useState<any>(null);
   const [reportsLoading, setReportsLoading] = useState(false);
 
   const loadReports = async () => {
@@ -106,12 +107,14 @@ export default function MemberPortal() {
     setReportsLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [incRes, balRes] = await Promise.all([
+      const [incRes, balRes, cfRes] = await Promise.all([
         fetch('/api/v1/portal/reports/income-statement', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/reports/balance-sheet', { headers }).then((r) => r.json()),
+        fetch('/api/v1/portal/reports/cashflow-statement', { headers }).then((r) => r.json()),
       ]);
       if (incRes.success) setIncomeData(incRes.data);
       if (balRes.success) setBalanceData(balRes.data);
+      if (cfRes.success) setCashflowData(cfRes.data);
     } catch {
       setError('Gagal memuat laporan keuangan');
     } finally {
@@ -1005,6 +1008,77 @@ export default function MemberPortal() {
                               Total Pasiva: {formatRp((balanceData?.totalLiabilities || 0) + (balanceData?.totalEquity || 0))}
                             </Text>
                           </HStack>
+                        </VStack>
+                      </Card>
+                    </VStack>
+
+                    {/* Laporan Arus Kas */}
+                    <VStack gap={3}>
+                      <Heading level={4}>3. Laporan Arus Kas Periode (Cash Flow Statement)</Heading>
+                      <Grid gap={4}>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Kas Masuk (Inflow)</Text>
+                            <Heading level={3} color="success">{formatRp(cashflowData?.totalInflow || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Total Kas Keluar (Outflow)</Text>
+                            <Heading level={3} color="error">{formatRp(cashflowData?.totalOutflow || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Arus Kas Bersih (Net Cash)</Text>
+                            <Heading level={3} color={(cashflowData?.netCashFlow || 0) >= 0 ? "success" : "error"}>
+                              {formatRp(cashflowData?.netCashFlow || 0)}
+                            </Heading>
+                          </VStack>
+                        </Card>
+                        <Card style={{ padding: 16 }}>
+                          <VStack gap={1}>
+                            <Text type="supporting">Saldo Kas & Bank Akhir</Text>
+                            <Heading level={3} color="primary">{formatRp(cashflowData?.totalCashBalance || 0)}</Heading>
+                          </VStack>
+                        </Card>
+                      </Grid>
+
+                      {/* Rincian Arus Kas */}
+                      <Card style={{ padding: 16, border: '1px solid var(--color-border-primary)' }}>
+                        <VStack gap={3}>
+                          <Text type="body" weight="bold">Rincian Arus Kas Riil</Text>
+                          <Grid gap={4}>
+                            {/* Inflow List */}
+                            <VStack gap={2}>
+                              <Text type="supporting" weight="semibold" color="success">Penerimaan Kas (Inflow):</Text>
+                              {cashflowData?.inflows?.length > 0 ? (
+                                cashflowData.inflows.map((item: any, idx: number) => (
+                                  <HStack key={idx} justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-primary)' }}>
+                                    <Text type="supporting">{item.label}</Text>
+                                    <Text type="body" weight="medium" color="success">+{formatRp(item.total)}</Text>
+                                  </HStack>
+                                ))
+                              ) : (
+                                <Text type="supporting" color="secondary">Tidak ada kas masuk</Text>
+                              )}
+                            </VStack>
+
+                            {/* Outflow List */}
+                            <VStack gap={2}>
+                              <Text type="supporting" weight="semibold" color="error">Pengeluaran Kas (Outflow):</Text>
+                              {cashflowData?.outflows?.length > 0 ? (
+                                cashflowData.outflows.map((item: any, idx: number) => (
+                                  <HStack key={idx} justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-primary)' }}>
+                                    <Text type="supporting">{item.label}</Text>
+                                    <Text type="body" weight="medium" color="error">-{formatRp(item.total)}</Text>
+                                  </HStack>
+                                ))
+                              ) : (
+                                <Text type="supporting" color="secondary">Tidak ada kas keluar</Text>
+                              )}
+                            </VStack>
+                          </Grid>
                         </VStack>
                       </Card>
                     </VStack>
