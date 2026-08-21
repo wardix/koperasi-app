@@ -34,7 +34,11 @@ export type AuditAction =
   | 'create_account'
   | 'create_journal'
   | 'reverse_journal'
-  | 'delete_journal';
+  | 'delete_journal'
+  | 'disburse_ewa'
+  | 'reject_ewa'
+  | 'import_company_employees'
+  | 'settle_ewa_payroll';
 
 export interface AuditRecord {
   actor: string;        // admin email who performed the action
