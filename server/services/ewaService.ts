@@ -227,7 +227,7 @@ export async function createEwaRequest(
 export async function disburseEwa(
   db: Db,
   requestId: string,
-  adminId: string,
+  adminId?: string,
   paymentSourceAccountId?: string
 ): Promise<EWARequest> {
   const req = await db
@@ -345,7 +345,7 @@ export async function disburseEwa(
   return (await getEwaRequestById(db, requestId))!;
 }
 
-export async function rejectEwa(db: Db, requestId: string, adminId: string, reason: string): Promise<EWARequest> {
+export async function rejectEwa(db: Db, requestId: string, adminId?: string, reason?: string): Promise<EWARequest> {
   const req = await db.query("SELECT id, status FROM ewa_requests WHERE id = ?").get<{ id: string; status: string }>(requestId);
   if (!req) throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
   if (req.status !== "PENDING" && req.status !== "APPROVED") {
@@ -354,7 +354,7 @@ export async function rejectEwa(db: Db, requestId: string, adminId: string, reas
 
   await db.query(
     `UPDATE ewa_requests SET status = 'REJECTED', rejection_reason = ?, updated_at = NOW() WHERE id = ?`
-  ).run(reason, requestId);
+  ).run(reason || 'Ditolak oleh admin', requestId);
 
   return (await getEwaRequestById(db, requestId))!;
 }
@@ -538,7 +538,7 @@ export async function getPayrollRecap(
 export async function settlePayroll(
   db: Db,
   periodMonth: string,
-  adminId: string,
+  adminId?: string,
   targetAccountId?: string
 ): Promise<{ settledCount: number; totalSettledAmount: number }> {
   const recap = await getPayrollRecap(db, periodMonth);
