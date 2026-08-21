@@ -91,15 +91,92 @@ export default function MemberPortal() {
   const [profile, setProfile] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loans, setLoans] = useState<PortalLoan[]>([]);
-  const [activeTab, setActiveTab] = useState<'savings' | 'loans' | 'reports'>('savings');
+  const [activeTab, setActiveTab] = useState<'savings' | 'loans' | 'reports' | 'ewa'>('savings');
   const [selectedLoan, setSelectedLoan] = useState<PortalLoan | null>(null);
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  // EWA State
+  const [ewaQuota, setEwaQuota] = useState<any>(null);
+  const [ewaHistory, setEwaHistory] = useState<any[]>([]);
+  const [ewaLoading, setEwaLoading] = useState(false);
+  const [ewaAmount, setEwaAmount] = useState('');
+  const [ewaBank, setEwaBank] = useState('');
+  const [ewaAccount, setEwaAccount] = useState('');
+  const [ewaName, setEwaName] = useState('');
+  const [ewaSubmitLoading, setEwaSubmitLoading] = useState(false);
+  const [ewaError, setEwaError] = useState('');
+  const [ewaSuccess, setEwaSuccess] = useState('');
 
   const [incomeData, setIncomeData] = useState<any>(null);
   const [balanceData, setBalanceData] = useState<any>(null);
   const [cashflowData, setCashflowData] = useState<any>(null);
   const [reportsLoading, setReportsLoading] = useState(false);
+
+  const loadEwaData = async () => {
+    const token = readPortalToken();
+    if (!token) return;
+    setEwaLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [quotaRes, histRes] = await Promise.all([
+        fetch('/api/v1/portal/ewa/quota', { headers }).then((r) => r.json()),
+        fetch('/api/v1/portal/ewa/history', { headers }).then((r) => r.json()),
+      ]);
+      if (quotaRes.success) {
+        setEwaQuota(quotaRes.data);
+        if (quotaRes.data?.employee) {
+          if (!ewaBank && quotaRes.data.employee.bankName) setEwaBank(quotaRes.data.employee.bankName);
+          if (!ewaAccount && quotaRes.data.employee.bankAccountNumber) setEwaAccount(quotaRes.data.employee.bankAccountNumber);
+          if (!ewaName && quotaRes.data.employee.bankAccountName) setEwaName(quotaRes.data.employee.bankAccountName);
+        }
+      }
+      if (histRes.success) {
+        setEwaHistory(histRes.data || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEwaLoading(false);
+    }
+  };
+
+  const handleApplyEwa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = readPortalToken();
+    if (!token) return;
+    setEwaSubmitLoading(true);
+    setEwaError('');
+    setEwaSuccess('');
+    try {
+      const res = await fetch('/api/v1/portal/ewa/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: parseFloat(ewaAmount),
+          destinationBank: ewaBank,
+          destinationAccount: ewaAccount,
+          destinationName: ewaName,
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        setEwaSuccess(res.message || 'Pengajuan penarikan gaji awal berhasil dikirim!');
+        setEwaAmount('');
+        loadEwaData();
+        setTimeout(() => setEwaSuccess(''), 4000);
+      } else {
+        setEwaError(res.message || 'Gagal mengajukan penarikan EWA');
+      }
+    } catch {
+      setEwaError('Terjadi kesalahan jaringan');
+    } finally {
+      setEwaSubmitLoading(false);
+    }
+  };
 
   const loadReports = async () => {
     const token = readPortalToken();
@@ -203,13 +280,21 @@ export default function MemberPortal() {
         fetch('/api/v1/portal/loans', { headers }).then((r) => r.json()),
       ]);
 
-      if (profileRes.success) setProfile(profileRes.data);
+      if (profileRes.success) {
+        setProfile(profileRes.data);
+        if (profileRes.data.isCoopMember === false) {
+          setActiveTab('ewa');
+        }
+      }
       if (txRes.success) setTransactions(txRes.data || []);
       if (loansRes.success) {
         setLoans(loansRes.data || []);
       } else if (loansRes.message) {
         setError(loansRes.message || 'Gagal memuat data pinjaman');
       }
+
+      // Always load EWA quota info if user is employee or member
+      loadEwaData();
       if (!profileRes.success) {
         setError(profileRes.message || 'Sesi berakhir, silakan masuk lagi');
         if (sessionStorage.getItem(PREVIEW_TOKEN_KEY)) {
@@ -729,34 +814,59 @@ export default function MemberPortal() {
             </Text>
           ) : null}
 
-          <Grid gap={4}>
-            <Card>
-              <VStack gap={2}>
-                <Text type="supporting">Total Simpanan</Text>
-                <Heading level={2} color="primary">
-                  {formatRp(profile?.totalSavings || 0)}
-                </Heading>
-              </VStack>
+          {profile?.isCoopMember !== false ? (
+            <Grid gap={4}>
+              <Card>
+                <VStack gap={2}>
+                  <Text type="supporting">Total Simpanan</Text>
+                  <Heading level={2} color="primary">
+                    {formatRp(profile?.totalSavings || 0)}
+                  </Heading>
+                </VStack>
+              </Card>
+              <Card>
+                <VStack gap={2}>
+                  <Text type="supporting">Pokok</Text>
+                  <Heading level={3}>{formatRp(profile?.simpananPokok || 0)}</Heading>
+                </VStack>
+              </Card>
+              <Card>
+                <VStack gap={2}>
+                  <Text type="supporting">Wajib</Text>
+                  <Heading level={3}>{formatRp(profile?.simpananWajib || 0)}</Heading>
+                </VStack>
+              </Card>
+              <Card>
+                <VStack gap={2}>
+                  <Text type="supporting">Sukarela</Text>
+                  <Heading level={3}>{formatRp(profile?.simpananSukarela || 0)}</Heading>
+                </VStack>
+              </Card>
+            </Grid>
+          ) : (
+            <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500, #3b82f6)' }}>
+              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                <VStack gap={1}>
+                  <HStack gap={2} vAlign="center">
+                    <Badge variant="info">Karyawan Perusahaan Induk</Badge>
+                    <Badge variant="neutral">Non-Anggota Koperasi</Badge>
+                  </HStack>
+                  <Heading level={3} style={{ margin: 0 }}>
+                    Fasilitas Akses Gaji Awal (EWA)
+                  </Heading>
+                  <Text type="supporting" color="secondary">
+                    Gaji Pokok: {formatRp(ewaQuota?.baseSalary || profile?.employee?.baseSalary || 0)} • Kuota Maksimal 50%: {formatRp(ewaQuota?.maxMonthlyLimit || 0)}
+                  </Text>
+                </VStack>
+                <Card style={{ padding: '8px 16px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
+                  <VStack gap={0} hAlign="center">
+                    <Text type="supporting" size="sm">Sisa Kuota Tarik Bulan Ini</Text>
+                    <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
+                  </VStack>
+                </Card>
+              </HStack>
             </Card>
-            <Card>
-              <VStack gap={2}>
-                <Text type="supporting">Pokok</Text>
-                <Heading level={3}>{formatRp(profile?.simpananPokok || 0)}</Heading>
-              </VStack>
-            </Card>
-            <Card>
-              <VStack gap={2}>
-                <Text type="supporting">Wajib</Text>
-                <Heading level={3}>{formatRp(profile?.simpananWajib || 0)}</Heading>
-              </VStack>
-            </Card>
-            <Card>
-              <VStack gap={2}>
-                <Text type="supporting">Sukarela</Text>
-                <Heading level={3}>{formatRp(profile?.simpananSukarela || 0)}</Heading>
-              </VStack>
-            </Card>
-          </Grid>
+          )}
 
           <div
             style={{
@@ -771,8 +881,13 @@ export default function MemberPortal() {
             }}
           >
             {[
-              { id: 'savings' as const, label: 'Simpanan', icon: BanknotesIcon },
-              { id: 'loans' as const, label: 'Pinjaman', icon: ClipboardDocumentCheckIcon },
+              ...(profile?.isCoopMember !== false
+                ? [
+                    { id: 'savings' as const, label: 'Simpanan', icon: BanknotesIcon },
+                    { id: 'loans' as const, label: 'Pinjaman', icon: ClipboardDocumentCheckIcon },
+                  ]
+                : []),
+              { id: 'ewa' as const, label: 'Gaji Awal (EWA)', icon: BanknotesIcon },
               { id: 'reports' as const, label: 'Laporan Keuangan', icon: ChartBarIcon },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
@@ -781,10 +896,13 @@ export default function MemberPortal() {
                   key={tab.id}
                   type="button"
                   onClick={() => {
-                    setActiveTab(tab.id);
+                    setActiveTab(tab.id as any);
                     if (tab.id === 'savings') setSelectedLoan(null);
                     if (tab.id === 'reports' && (!incomeData || !balanceData)) {
                       loadReports();
+                    }
+                    if (tab.id === 'ewa' && !ewaQuota) {
+                      loadEwaData();
                     }
                   }}
                   style={{
@@ -943,6 +1061,237 @@ export default function MemberPortal() {
                   <Table data={transactions} columns={txCols} idKey="id" density="balanced" />
                 ) : (
                   <Text type="supporting">Belum ada transaksi</Text>
+                )
+              ) : activeTab === 'ewa' ? (
+                ewaLoading ? (
+                  <Spinner size="md" />
+                ) : (
+                  <VStack gap={6}>
+                    {/* EWA Header Info & Non-Member Conversion Banner */}
+                    {!profile?.isCoopMember && (
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-warning-500, #f59e0b)' }}>
+                        <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                          <VStack gap={1}>
+                            <Text type="body" weight="bold">
+                              💡 Hemat Biaya Layanan & Dapatkan SHU!
+                            </Text>
+                            <Text type="supporting" color="secondary">
+                              Tarif EWA untuk Bukan Anggota adalah {ewaQuota?.feePercentage || 3.5}%. Bergabunglah menjadi Anggota Koperasi untuk menikmati tarif hemat 2.0% serta pembagian Sisa Hasil Usaha (SHU) setiap tahun.
+                            </Text>
+                          </VStack>
+                          <Button
+                            label="Hubungi Pengurus Koperasi"
+                            variant="secondary"
+                            onClick={() => alert('Silakan hubungi bagian HRD / Pengurus Koperasi untuk formulir pendaftaran anggota baru.')}
+                          />
+                        </HStack>
+                      </Card>
+                    )}
+
+                    {/* Kuota Grid */}
+                    <Grid gap={4}>
+                      <Card style={{ padding: 16 }}>
+                        <VStack gap={1}>
+                          <Text type="supporting">Gaji Pokok Terdaftar</Text>
+                          <Heading level={3}>{formatRp(ewaQuota?.baseSalary || 0)}</Heading>
+                        </VStack>
+                      </Card>
+                      <Card style={{ padding: 16 }}>
+                        <VStack gap={1}>
+                          <Text type="supporting">Plafon Maksimal (50%)</Text>
+                          <Heading level={3}>{formatRp(ewaQuota?.maxMonthlyLimit || 0)}</Heading>
+                        </VStack>
+                      </Card>
+                      <Card style={{ padding: 16 }}>
+                        <VStack gap={1}>
+                          <Text type="supporting">Sudah Ditarik Bulan Ini</Text>
+                          <Heading level={3}>{formatRp(ewaQuota?.totalUsedThisMonth || 0)}</Heading>
+                        </VStack>
+                      </Card>
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
+                        <VStack gap={1}>
+                          <Text type="supporting">Sisa Kuota Tersedia</Text>
+                          <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
+                        </VStack>
+                      </Card>
+                    </Grid>
+
+                    {/* Form Pengajuan EWA */}
+                    <Card style={{ padding: 20, border: '1px solid var(--color-border-primary)' }}>
+                      <form onSubmit={handleApplyEwa} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <VStack gap={1}>
+                          <Heading level={4}>Formulir Tarik Gaji Lebih Awal (Kasbon)</Heading>
+                          <Text type="supporting" color="secondary">
+                            Dana yang ditarik akan langsung ditransfer ke rekening bank Anda dan dipotong otomatis pada payroll gajian berikutnya.
+                          </Text>
+                        </VStack>
+
+                        {ewaError && (
+                          <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                            ⚠️ {ewaError}
+                          </Text>
+                        )}
+                        {ewaSuccess && (
+                          <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                            ✅ {ewaSuccess}
+                          </Text>
+                        )}
+
+                        <Grid gap={4}>
+                          <VStack gap={2}>
+                            <Text type="supporting">Nominal Penarikan (Rp)</Text>
+                            <input
+                              type="number"
+                              min="50000"
+                              max={ewaQuota?.remainingQuota || 0}
+                              step="50000"
+                              placeholder="Contoh: 1000000"
+                              value={ewaAmount}
+                              onChange={(e) => setEwaAmount(e.target.value)}
+                              style={inputStyle}
+                              required
+                            />
+                            <Text type="supporting" size="sm" color="secondary">
+                              Maksimal tarik: {formatRp(ewaQuota?.remainingQuota || 0)}
+                            </Text>
+                          </VStack>
+
+                          <VStack gap={2}>
+                            <Text type="supporting">Bank Tujuan Pencairan</Text>
+                            <input
+                              type="text"
+                              placeholder="Contoh: Bank Mandiri / Bank BCA"
+                              value={ewaBank}
+                              onChange={(e) => setEwaBank(e.target.value)}
+                              style={inputStyle}
+                              required
+                            />
+                          </VStack>
+                        </Grid>
+
+                        <Grid gap={4}>
+                          <VStack gap={2}>
+                            <Text type="supporting">Nomor Rekening</Text>
+                            <input
+                              type="text"
+                              placeholder="Nomor rekening bank Anda"
+                              value={ewaAccount}
+                              onChange={(e) => setEwaAccount(e.target.value)}
+                              style={inputStyle}
+                              required
+                            />
+                          </VStack>
+
+                          <VStack gap={2}>
+                            <Text type="supporting">Nama Pemilik Rekening</Text>
+                            <input
+                              type="text"
+                              placeholder="Nama lengkap pada rekening"
+                              value={ewaName}
+                              onChange={(e) => setEwaName(e.target.value)}
+                              style={inputStyle}
+                              required
+                            />
+                          </VStack>
+                        </Grid>
+
+                        {/* Simulasi Live Fee & Potongan */}
+                        {parseFloat(ewaAmount) > 0 && (
+                          <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
+                            <VStack gap={2}>
+                              <Text type="body" weight="bold">Rincian & Simulasi Potongan Gaji</Text>
+                              <HStack justify="space-between" wrap="wrap" gap={2}>
+                                <Text type="supporting">Nominal Dana Yang Diterima:</Text>
+                                <Text type="body" weight="semibold" color="success">+{formatRp(parseFloat(ewaAmount) || 0)}</Text>
+                              </HStack>
+                              <HStack justify="space-between" wrap="wrap" gap={2}>
+                                <Text type="supporting">Biaya Layanan ({ewaQuota?.feePercentage || 2}%):</Text>
+                                <Text type="supporting">{formatRp(Math.round(((parseFloat(ewaAmount) || 0) * (ewaQuota?.feePercentage || 2)) / 100))}</Text>
+                              </HStack>
+                              <HStack justify="space-between" wrap="wrap" gap={2} style={{ paddingTop: 6, borderTop: '1px solid var(--color-border-primary)' }}>
+                                <Text type="body" weight="bold">Total Potongan Gaji Saat Payroll:</Text>
+                                <Text type="body" weight="bold" color="primary">
+                                  {formatRp(Math.round((parseFloat(ewaAmount) || 0) + (((parseFloat(ewaAmount) || 0) * (ewaQuota?.feePercentage || 2)) / 100)))}
+                                </Text>
+                              </HStack>
+                            </VStack>
+                          </Card>
+                        )}
+
+                        <HStack justify="end" gap={3}>
+                          <Button
+                            label={ewaSubmitLoading ? 'Mengirim Pengajuan...' : 'Kirim Pengajuan Tarik Gaji'}
+                            variant="primary"
+                            type="submit"
+                            isDisabled={ewaSubmitLoading || !parseFloat(ewaAmount) || parseFloat(ewaAmount) > (ewaQuota?.remainingQuota || 0)}
+                          />
+                        </HStack>
+                      </form>
+                    </Card>
+
+                    {/* Riwayat Penarikan EWA */}
+                    <VStack gap={3}>
+                      <Heading level={4}>Riwayat Penarikan Gaji Awal Anda</Heading>
+                      {ewaHistory.length > 0 ? (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid var(--color-border-primary)' }}>
+                                <th style={{ padding: '10px 12px' }}>Tanggal</th>
+                                <th style={{ padding: '10px 12px' }}>Rekening Tujuan</th>
+                                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Nominal Cair</th>
+                                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Fee Layanan</th>
+                                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Potong Payroll</th>
+                                <th style={{ padding: '10px 12px', textAlign: 'center' }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ewaHistory.map((h: any) => (
+                                <tr key={h.id} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '10px 12px' }}>
+                                    {new Date(h.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </td>
+                                  <td style={{ padding: '10px 12px' }}>{h.destinationBank} ({h.destinationAccount})</td>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: 'var(--color-primary-500)' }}>
+                                    {formatRp(h.disbursedAmount)}
+                                  </td>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(h.feeAmount)} ({h.feePercentage}%)</td>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold' }}>
+                                    {formatRp(h.totalPayrollDeduction)}
+                                  </td>
+                                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                    <Badge
+                                      variant={
+                                        h.status === 'DISBURSED'
+                                          ? 'info'
+                                          : h.status === 'PAID_SETTLED'
+                                          ? 'success'
+                                          : h.status === 'REJECTED'
+                                          ? 'critical'
+                                          : 'warning'
+                                      }
+                                    >
+                                      {h.status === 'PENDING'
+                                        ? 'Menunggu Cair'
+                                        : h.status === 'DISBURSED'
+                                        ? 'Sudah Cair'
+                                        : h.status === 'PAID_SETTLED'
+                                        ? 'Lunas Payroll'
+                                        : h.status === 'REJECTED'
+                                        ? 'Ditolak'
+                                        : h.status}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <Text type="supporting" color="secondary">Belum ada riwayat penarikan EWA</Text>
+                      )}
+                    </VStack>
+                  </VStack>
                 )
               ) : activeTab === 'reports' ? (
                 reportsLoading ? (

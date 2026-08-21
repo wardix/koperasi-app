@@ -47,6 +47,7 @@ const Reports = React.lazy(() => import('../pages/Reports'));
 const AuditLog = React.lazy(() => import('../pages/AuditLog'));
 const Accounting = React.lazy(() => import('../pages/Accounting'));
 const Ledger = React.lazy(() => import('../pages/Ledger'));
+const EWA = React.lazy(() => import('../pages/EWA'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
@@ -154,6 +155,12 @@ export default function Shell() {
               isSelected={path === '/loans-tx'}
               onClick={() => navigate('/loans-tx')}
             />
+            <SideNavItem 
+              label="Gaji Awal (EWA)" 
+              icon={BanknotesIcon} 
+              isSelected={path === '/ewa'}
+              onClick={() => navigate('/ewa')}
+            />
           </SideNavSection>
           <SideNavSection title="Keuangan">
             <SideNavItem 
@@ -241,6 +248,7 @@ export default function Shell() {
           <Route path="/report" element={<Navigate to="/reports" replace />} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/loans-tx" element={<LoansTx />} />
+          <Route path="/ewa" element={<EWA />} />
           <Route path="/cashflow" element={<ProtectedRoute permission="read:cashflow"><Cashflow /></ProtectedRoute>} />
 
           <Route path="/npl" element={<ProtectedRoute permission="read:npl"><NPL /></ProtectedRoute>} />

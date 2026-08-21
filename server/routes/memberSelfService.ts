@@ -13,20 +13,185 @@ memberSelfService.use('/*', async (c, next) => {
   return next();
 });
 
-// Get member profile and savings summary
+import {
+  getEmployeeByEmail,
+  getEmployeeById,
+  getEmployeeEwaQuota,
+  createEwaRequest,
+  getEwaRequestsList,
+} from '../services/ewaService';
+import { ewaRequestCreateSchema } from '../schemas';
+
+// Get member / employee profile and savings summary
 memberSelfService.get('/profile', async (c) => {
-  const payload = c.get('jwtPayload') as JwtPayload;
+  const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
   const memberId = payload.sub;
+  const email = payload.email;
 
   const member = await db.query(
     "SELECT id, name, role, status, joinDate, nik, phone, simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?"
-  ).get(memberId);
+  ).get<any>(memberId);
 
-  if (!member) {
-    return c.json({ success: false, message: 'Member not found' }, 404);
+  // Look up employee record by email or memberId
+  let employee = null;
+  if (email) {
+    employee = await getEmployeeByEmail(db, email);
+  }
+  if (!employee && memberId) {
+    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(memberId);
+    if (empByMember?.id) {
+      employee = await getEmployeeById(db, empByMember.id);
+    }
   }
 
-  return c.json({ success: true, data: member });
+  if (!member && !employee) {
+    return c.json({ success: false, message: 'Data pengguna tidak ditemukan' }, 404);
+  }
+
+  const isCoopMember = !!member;
+  const profileData = {
+    id: member?.id || employee?.id,
+    name: member?.name || employee?.name,
+    email: member?.email || employee?.email,
+    phone: member?.phone || employee?.phone,
+    role: member?.role || 'Karyawan',
+    status: member?.status || employee?.status || 'Aktif',
+    joinDate: member?.joinDate || employee?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+    nik: member?.nik || employee?.nik,
+    simpananPokok: Number(member?.simpananPokok || 0),
+    simpananWajib: Number(member?.simpananWajib || 0),
+    simpananSukarela: Number(member?.simpananSukarela || 0),
+    totalSavings: Number(member?.totalSavings || 0),
+    isCoopMember,
+    employee: employee ? {
+      id: employee.id,
+      nip: employee.nip,
+      department: employee.department,
+      position: employee.position,
+      baseSalary: employee.baseSalary,
+      isMember: employee.isMember,
+      bankName: employee.bankName,
+      bankAccountNumber: employee.bankAccountNumber,
+      bankAccountName: employee.bankAccountName,
+    } : null,
+  };
+
+  return c.json({ success: true, data: profileData });
+});
+
+// ---------------------------------------------------------------------------
+// EWA (Earned Wage Access) Portal Endpoints
+// ---------------------------------------------------------------------------
+
+// 1. Get current employee EWA quota & simulation
+memberSelfService.get('/ewa/quota', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
+  const email = payload.email;
+
+  let employee = null;
+  if (payload.employeeId) {
+    employee = await getEmployeeById(db, payload.employeeId);
+  }
+  if (!employee && email) {
+    employee = await getEmployeeByEmail(db, email);
+  }
+  if (!employee && payload.sub) {
+    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
+    if (empByMember?.id) {
+      employee = await getEmployeeById(db, empByMember.id);
+    }
+  }
+
+  if (!employee) {
+    return c.json({
+      success: false,
+      message: 'Data karyawan perusahaan tidak ditemukan. Layanan EWA hanya berlaku untuk karyawan perusahaan induk terdaftar.',
+    }, 404);
+  }
+
+  try {
+    const quota = await getEmployeeEwaQuota(db, employee.id);
+    return c.json({
+      success: true,
+      data: {
+        ...quota,
+        employee,
+      },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal memuat kuota EWA' }, 400);
+  }
+});
+
+// 2. Submit EWA Request
+memberSelfService.get('/ewa/history', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
+  const email = payload.email;
+
+  let employee = null;
+  if (payload.employeeId) {
+    employee = await getEmployeeById(db, payload.employeeId);
+  }
+  if (!employee && email) {
+    employee = await getEmployeeByEmail(db, email);
+  }
+  if (!employee && payload.sub) {
+    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
+    if (empByMember?.id) {
+      employee = await getEmployeeById(db, empByMember.id);
+    }
+  }
+
+  if (!employee) {
+    return c.json({ success: true, data: [] });
+  }
+
+  const list = await getEwaRequestsList(db, { employeeId: employee.id, limit: 50 });
+  return c.json({ success: true, data: list.data });
+});
+
+// 3. Submit EWA Request
+memberSelfService.post('/ewa/request', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
+  const email = payload.email;
+
+  let employee = null;
+  if (payload.employeeId) {
+    employee = await getEmployeeById(db, payload.employeeId);
+  }
+  if (!employee && email) {
+    employee = await getEmployeeByEmail(db, email);
+  }
+  if (!employee && payload.sub) {
+    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
+    if (empByMember?.id) {
+      employee = await getEmployeeById(db, empByMember.id);
+    }
+  }
+
+  if (!employee) {
+    return c.json({
+      success: false,
+      message: 'Data karyawan perusahaan tidak ditemukan. Layanan EWA hanya berlaku untuk karyawan perusahaan induk terdaftar.',
+    }, 404);
+  }
+
+  const body = await c.req.json();
+  const parsed = ewaRequestCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400);
+  }
+
+  try {
+    const result = await createEwaRequest(db, employee.id, parsed.data);
+    return c.json({
+      success: true,
+      message: 'Pengajuan penarikan EWA berhasil dikirim! Menunggu proses pencairan oleh bagian kasir/keuangan.',
+      data: result,
+    }, 201);
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal mengajukan EWA' }, 400);
+  }
 });
 
 // Get savings mutations

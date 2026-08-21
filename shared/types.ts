@@ -17,6 +17,71 @@ export interface DashboardData {
   recentActivities: Array<{id: string; activity: string; name: string; amount: number; date: string}>;
 }
 
+export interface PermissionDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: 'master' | 'financial' | 'reports' | 'system';
+}
+
+export interface CompanyEmployee {
+  id: string;
+  nip: string;
+  nik?: string | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  department?: string | null;
+  position?: string | null;
+  baseSalary: number;
+  memberId?: string | null;
+  isMember: boolean;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountName?: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface EWARequest {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  employeeNip?: string;
+  isMember?: boolean;
+  periodMonth: string;
+  salaryBasis: number;
+  maxLimit: number;
+  amountRequested: number;
+  feePercentage: number;
+  feeAmount: number;
+  disbursedAmount: number;
+  totalPayrollDeduction: number;
+  destinationBank?: string | null;
+  destinationAccount?: string | null;
+  destinationName?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'DISBURSED' | 'REJECTED' | 'PAID_SETTLED' | 'CANCELLED';
+  rejectionReason?: string | null;
+  disbursedAt?: string | null;
+  disbursedBy?: string | null;
+  settledAt?: string | null;
+  createdAt: string;
+}
+
+export interface EwaQuotaInfo {
+  employeeId: string;
+  employeeName: string;
+  isMember: boolean;
+  periodMonth: string;
+  baseSalary: number;
+  maxAllowedPercentage: number; // 50
+  maxMonthlyLimit: number; // 50% of baseSalary
+  totalUsedThisMonth: number;
+  remainingQuota: number;
+  feePercentage: number; // e.g. 2.0% (member) vs 3.5% (non-member)
+}
+
 export interface MemberRow {
   id: string;
   name: string;

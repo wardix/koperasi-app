@@ -455,3 +455,62 @@ export const batchScheduleImportSchema = z.object({
 });
 
 export type BatchScheduleImportItem = z.infer<typeof batchScheduleImportItemSchema>;
+
+// ---------------------------------------------------------------------------
+// Earned Wage Access (EWA) Schemas
+// ---------------------------------------------------------------------------
+
+export const ewaEmployeeSchema = z.object({
+  nip: z.string().min(1, "NIP wajib diisi").transform(sanitize),
+  nik: z.string().optional().nullable(),
+  name: z.string().min(1, "Nama karyawan wajib diisi").transform(sanitize),
+  email: z.string().email("Format email tidak valid").transform((v) => v.trim().toLowerCase()),
+  phone: z.string().optional().nullable(),
+  department: z.string().optional().nullable(),
+  position: z.string().optional().nullable(),
+  baseSalary: z.number().positive("Gaji pokok harus lebih dari 0"),
+  memberId: z.string().optional().nullable(),
+  isMember: z.boolean().default(false),
+  bankName: z.string().optional().nullable(),
+  bankAccountNumber: z.string().optional().nullable(),
+  bankAccountName: z.string().optional().nullable(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+});
+
+export const batchEwaEmployeeImportItemSchema = z.object({
+  nip: z.string().min(1, "NIP wajib diisi"),
+  nik: z.string().optional().nullable(),
+  name: z.string().min(1, "Nama wajib diisi"),
+  email: z.string().email("Format email tidak valid"),
+  phone: z.string().optional().nullable(),
+  department: z.string().optional().nullable(),
+  position: z.string().optional().nullable(),
+  baseSalary: z.number().positive("Gaji pokok harus lebih dari 0"),
+  bankName: z.string().optional().nullable(),
+  bankAccountNumber: z.string().optional().nullable(),
+  bankAccountName: z.string().optional().nullable(),
+});
+
+export const batchEwaEmployeeImportSchema = z.object({
+  items: z.array(batchEwaEmployeeImportItemSchema).min(1, "Minimal 1 data karyawan"),
+});
+
+export const ewaRequestCreateSchema = z.object({
+  amount: z.number().positive("Nominal penarikan harus lebih dari 0"),
+  destinationBank: z.string().min(1, "Bank tujuan wajib diisi").optional(),
+  destinationAccount: z.string().min(1, "Nomor rekening wajib diisi").optional(),
+  destinationName: z.string().min(1, "Nama pemilik rekening wajib diisi").optional(),
+});
+
+export const ewaDisburseSchema = z.object({
+  paymentSourceAccountId: z.string().uuid("Akun kas/bank tidak valid").optional(),
+});
+
+export const ewaRejectSchema = z.object({
+  reason: z.string().min(1, "Alasan penolakan wajib diisi"),
+});
+
+export const ewaPayrollSettleSchema = z.object({
+  periodMonth: z.string().regex(/^\d{4}-\d{2}$/, "Format periode harus YYYY-MM"),
+  targetAccountId: z.string().uuid("Akun kas/bank pelunasan tidak valid").optional(),
+});

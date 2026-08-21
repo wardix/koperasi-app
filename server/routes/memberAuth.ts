@@ -49,6 +49,47 @@ async function issueMemberSession(c: Context, member: MemberRow) {
     role: 'member' as const,
     memberId: member.id,
     name: member.name,
+    isMember: true,
+    expiresIn: ACCESS_TOKEN_TTL_SEC,
+  };
+}
+
+async function issueEmployeeSession(c: Context, employee: { id: string; email: string; name: string; is_member?: boolean; member_id?: string | null }) {
+  const payload = {
+    sub: employee.member_id || employee.id,
+    email: employee.email,
+    role: 'member' as const,
+    name: employee.name,
+    employeeId: employee.id,
+    exp: accessTokenExpUnix(),
+  };
+
+  const accessToken = await sign(payload, secretKey);
+
+  const refreshPayload = {
+    sub: employee.member_id || employee.id,
+    email: employee.email,
+    role: 'member' as const,
+    employeeId: employee.id,
+    exp: refreshTokenExpUnix(),
+  };
+  const refreshToken = await sign(refreshPayload, secretKey);
+
+  setCookie(c, 'memberRefreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Strict',
+    maxAge: REFRESH_TOKEN_TTL_SEC,
+    path: '/',
+  });
+
+  return {
+    token: accessToken,
+    role: 'member' as const,
+    memberId: employee.member_id || employee.id,
+    employeeId: employee.id,
+    name: employee.name,
+    isMember: Boolean(employee.is_member),
     expiresIn: ACCESS_TOKEN_TTL_SEC,
   };
 }
@@ -95,9 +136,9 @@ memberAuth.post('/login', async (c) => {
 });
 
 /**
- * Member Google SSO: match verified Google email to members.email (case-insensitive).
- * No auto-register. Member must already have email set via portal-access.
- * Password is not required for Google login.
+ * Member & Employee Google SSO:
+ * 1. Match verified Google email to members.email (Cooperative Member).
+ * 2. If not found in members, match to company_employees.email (Company Employee EWA).
  */
 memberAuth.post('/google', async (c) => {
   const ssoIp = getClientIp(c);
@@ -119,6 +160,8 @@ memberAuth.post('/google', async (c) => {
     }
 
     const email = googleUser.email.trim().toLowerCase();
+    
+    // 1. Check cooperative members first
     const member = await db
       .query(
         `SELECT * FROM members
@@ -129,33 +172,54 @@ memberAuth.post('/google', async (c) => {
       )
       .get<MemberRow>(email);
 
-    if (!member) {
-      return c.json(
-        {
-          success: false,
-          message:
-            'Email Google tidak terdaftar sebagai akses portal. Hubungi pengurus koperasi.',
+    if (member) {
+      if (member.status !== 'Aktif') {
+        return c.json({ success: false, message: 'Akun anggota tidak aktif.' }, 403);
+      }
+
+      const data = await issueMemberSession(c, member);
+      return c.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          ...data,
+          googleName: googleUser.name,
         },
-        403
-      );
+      });
     }
 
-    if (member.status !== 'Aktif') {
-      return c.json({ success: false, message: 'Akun anggota tidak aktif.' }, 403);
+    // 2. Check company employees (for non-member EWA access)
+    const employee = await db
+      .query(
+        `SELECT id, nip, name, email, is_member, member_id, status 
+         FROM company_employees 
+         WHERE lower(email) = ? AND status = 'ACTIVE' 
+         LIMIT 1`
+      )
+      .get<any>(email);
+
+    if (employee) {
+      const data = await issueEmployeeSession(c, employee);
+      return c.json({
+        success: true,
+        message: 'Login successful (Karyawan Perusahaan)',
+        data: {
+          ...data,
+          googleName: googleUser.name,
+        },
+      });
     }
 
-    const data = await issueMemberSession(c, member);
-    return c.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        ...data,
-        // surface Google display name only as extra metadata (JWT uses member.name)
-        googleName: googleUser.name,
+    return c.json(
+      {
+        success: false,
+        message:
+          'Email Google tidak terdaftar sebagai Anggota Koperasi maupun Karyawan Perusahaan. Hubungi HRD / Pengurus Koperasi.',
       },
-    });
+      403
+    );
   } catch (error) {
-    console.error('Member Google SSO error:', error);
+    console.error('Member/Employee Google SSO error:', error);
     return c.json({ success: false, message: 'Authentication failed' }, 500);
   }
 });

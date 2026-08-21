@@ -21,6 +21,7 @@ import docsRoutes from './routes/docs'
 import memberAuthRoutes from './routes/memberAuth'
 import cronRoutes from './routes/cron'
 import memberSelfServiceRoutes from './routes/memberSelfService'
+import ewaRoutes from './routes/ewa'
 import { registerLegacyAuthAliases } from './lib/authLegacy'
 
 import { HTTPException } from 'hono/http-exception'
@@ -131,6 +132,7 @@ app.route('/api/v1/npl', nplRoutes)
 app.route('/api/v1/reports', reportsRoutes)
 app.route('/api/v1/audit-logs', auditRoutes)
 app.route('/api/v1/accounting', accountingRoutes)
+app.route('/api/v1/ewa', ewaRoutes)
 
 // OpenAPI spec + Swagger UI (development only)
 if (process.env.NODE_ENV !== 'production') {
