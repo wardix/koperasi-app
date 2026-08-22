@@ -15,6 +15,7 @@ import {
   Cog6ToothIcon,
   BanknotesIcon,
   ClipboardDocumentCheckIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
   ArrowRightOnRectangleIcon,
   SunIcon,
@@ -48,6 +49,7 @@ const AuditLog = React.lazy(() => import('../pages/AuditLog'));
 const Accounting = React.lazy(() => import('../pages/Accounting'));
 const Ledger = React.lazy(() => import('../pages/Ledger'));
 const EWA = React.lazy(() => import('../pages/EWA'));
+const Letters = React.lazy(() => import('../pages/Letters'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
@@ -198,6 +200,12 @@ export default function Shell() {
               isSelected={path === '/loans'}
               onClick={() => navigate('/loans')}
             />
+            <SideNavItem
+              label="Buku Agenda Surat"
+              icon={DocumentTextIcon}
+              isSelected={path === '/letters'}
+              onClick={() => navigate('/letters')}
+            />
             {hasPermission('read:npl') && (
               <SideNavItem
                 label="Kredit Macet (NPL)"
@@ -240,6 +248,7 @@ export default function Shell() {
           <Route path="/dashboard" element={<App />} />
           <Route path="/members" element={<Members />} />
           <Route path="/loans" element={<Loans />} />
+          <Route path="/letters" element={<Letters />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/shu" element={<SHU />} />
           

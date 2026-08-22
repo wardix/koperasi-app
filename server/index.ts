@@ -23,6 +23,7 @@ import cronRoutes from './routes/cron'
 import memberSelfServiceRoutes from './routes/memberSelfService'
 import ewaRoutes from './routes/ewa'
 import uploadRoutes from './routes/upload'
+import lettersRoutes from './routes/letters'
 import { registerLegacyAuthAliases } from './lib/authLegacy'
 import { serveStatic } from 'hono/bun'
 
@@ -136,6 +137,7 @@ app.route('/api/v1/audit-logs', auditRoutes)
 app.route('/api/v1/accounting', accountingRoutes)
 app.route('/api/v1/ewa', ewaRoutes)
 app.route('/api/v1/upload', uploadRoutes)
+app.route('/api/v1/letters', lettersRoutes)
 
 // Serve uploaded files statically
 app.use('/uploads/*', serveStatic({ root: './' }))
