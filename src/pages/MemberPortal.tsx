@@ -1025,9 +1025,8 @@ export default function MemberPortal() {
                         <VStack gap={2}>
                           <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
                             <Text type="supporting" color="secondary">
-                              Estimasi Angsuran (Suku Bunga Koperasi: {Number(profile?.loanInterestRate ?? 9.1).toFixed(2)}%/th Anuitas)
+                              Estimasi Angsuran Per Bulan
                             </Text>
-                            <Badge variant="info">Metode Anuitas</Badge>
                           </HStack>
                           <HStack justify="space-between" vAlign="baseline" wrap="wrap" gap={2}>
                             <VStack gap={0}>
