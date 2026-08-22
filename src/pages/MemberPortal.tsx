@@ -149,6 +149,7 @@ export default function MemberPortal() {
     setEwaError('');
     setEwaSuccess('');
     try {
+      const numericAmount = parseFloat(ewaAmount.replace(/\D/g, '')) || 0;
       const res = await fetch('/api/v1/portal/ewa/request', {
         method: 'POST',
         headers: {
@@ -156,7 +157,7 @@ export default function MemberPortal() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          amount: parseFloat(ewaAmount),
+          amount: numericAmount,
           destinationBank: ewaBank,
           destinationAccount: ewaAccount,
           destinationName: ewaName,
@@ -215,6 +216,7 @@ export default function MemberPortal() {
     setApplyError('');
     setApplySuccess('');
     try {
+      const numericAmount = parseFloat(applyAmount.replace(/\D/g, '')) || 0;
       const headers = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
@@ -223,7 +225,7 @@ export default function MemberPortal() {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          amount: parseFloat(applyAmount),
+          amount: numericAmount,
           tenor: parseInt(applyTenor, 10),
           purpose: applyPurpose,
         }),
@@ -978,12 +980,14 @@ export default function MemberPortal() {
                       <VStack gap={2}>
                         <Text type="supporting">Nominal Pinjaman (Rp)</Text>
                         <input
-                          type="number"
-                          min="100000"
-                          step="100000"
-                          placeholder="Contoh: 5000000"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Contoh: 5.000.000"
                           value={applyAmount}
-                          onChange={(e) => setApplyAmount(e.target.value)}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setApplyAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
+                          }}
                           style={inputStyle}
                           required
                         />
@@ -1020,7 +1024,7 @@ export default function MemberPortal() {
                     </VStack>
 
                     {/* Estimasi Simulasi */}
-                    {parseFloat(applyAmount) > 0 && (
+                    {parseFloat(applyAmount.replace(/\D/g, '')) > 0 && (
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
                         <VStack gap={2}>
                           <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
@@ -1032,7 +1036,7 @@ export default function MemberPortal() {
                             <VStack gap={0}>
                               <Heading level={3} color="primary">
                                 {(() => {
-                                  const P = parseFloat(applyAmount) || 0;
+                                  const P = parseFloat(applyAmount.replace(/\D/g, '')) || 0;
                                   const n = parseInt(applyTenor, 10) || 12;
                                   const annualRate = Number(profile?.loanInterestRate ?? 9.1);
                                   if (annualRate <= 0) return formatRp(Math.ceil(P / n));
@@ -1046,7 +1050,7 @@ export default function MemberPortal() {
                             </VStack>
                             <Text type="supporting" size="sm" color="secondary">
                               Total Pengembalian: {(() => {
-                                const P = parseFloat(applyAmount) || 0;
+                                const P = parseFloat(applyAmount.replace(/\D/g, '')) || 0;
                                 const n = parseInt(applyTenor, 10) || 12;
                                 const annualRate = Number(profile?.loanInterestRate ?? 9.1);
                                 if (annualRate <= 0) return formatRp(P);
@@ -1165,13 +1169,14 @@ export default function MemberPortal() {
                           <VStack gap={2}>
                             <Text type="supporting">Nominal Penarikan (Rp)</Text>
                             <input
-                              type="number"
-                              min="50000"
-                              max={ewaQuota?.remainingQuota || 0}
-                              step="50000"
-                              placeholder="Contoh: 1000000"
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="Contoh: 1.000.000"
                               value={ewaAmount}
-                              onChange={(e) => setEwaAmount(e.target.value)}
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(/\D/g, '');
+                                setEwaAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
+                              }}
                               style={inputStyle}
                               required
                             />
@@ -1220,22 +1225,22 @@ export default function MemberPortal() {
                         </Grid>
 
                         {/* Simulasi Live Fee & Potongan */}
-                        {parseFloat(ewaAmount) > 0 && (
+                        {parseFloat(ewaAmount.replace(/\D/g, '')) > 0 && (
                           <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
                             <VStack gap={2}>
                               <Text type="body" weight="bold">Rincian & Simulasi Potongan Gaji</Text>
                               <HStack justify="space-between" wrap="wrap" gap={2}>
                                 <Text type="supporting">Nominal Dana Yang Diterima:</Text>
-                                <Text type="body" weight="semibold" color="success">+{formatRp(parseFloat(ewaAmount) || 0)}</Text>
+                                <Text type="body" weight="semibold" color="success">+{formatRp(parseFloat(ewaAmount.replace(/\D/g, '')) || 0)}</Text>
                               </HStack>
                               <HStack justify="space-between" wrap="wrap" gap={2}>
                                 <Text type="supporting">Biaya Layanan ({ewaQuota?.feePercentage || 2}%):</Text>
-                                <Text type="supporting">{formatRp(Math.round(((parseFloat(ewaAmount) || 0) * (ewaQuota?.feePercentage || 2)) / 100))}</Text>
+                                <Text type="supporting">{formatRp(Math.round(((parseFloat(ewaAmount.replace(/\D/g, '')) || 0) * (ewaQuota?.feePercentage || 2)) / 100))}</Text>
                               </HStack>
                               <HStack justify="space-between" wrap="wrap" gap={2} style={{ paddingTop: 6, borderTop: '1px solid var(--color-border-primary)' }}>
                                 <Text type="body" weight="bold">Total Potongan Gaji Saat Payroll:</Text>
                                 <Text type="body" weight="bold" color="primary">
-                                  {formatRp(Math.round((parseFloat(ewaAmount) || 0) + (((parseFloat(ewaAmount) || 0) * (ewaQuota?.feePercentage || 2)) / 100)))}
+                                  {formatRp(Math.round((parseFloat(ewaAmount.replace(/\D/g, '')) || 0) + (((parseFloat(ewaAmount.replace(/\D/g, '')) || 0) * (ewaQuota?.feePercentage || 2)) / 100)))}
                                 </Text>
                               </HStack>
                             </VStack>
@@ -1247,7 +1252,7 @@ export default function MemberPortal() {
                             label={ewaSubmitLoading ? 'Mengirim Pengajuan...' : 'Kirim Pengajuan Tarik Gaji'}
                             variant="primary"
                             type="submit"
-                            isDisabled={ewaSubmitLoading || !parseFloat(ewaAmount) || parseFloat(ewaAmount) > (ewaQuota?.remainingQuota || 0)}
+                            isDisabled={ewaSubmitLoading || !parseFloat(ewaAmount.replace(/\D/g, '')) || parseFloat(ewaAmount.replace(/\D/g, '')) > (ewaQuota?.remainingQuota || 0)}
                           />
                         </HStack>
                       </form>
