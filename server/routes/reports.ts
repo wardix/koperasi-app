@@ -147,7 +147,6 @@ reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) 
   const startDate = c.req.query('startDate');
   const endDate = c.req.query('endDate');
 
-
   let dateFilterJe = '';
   const params: string[] = [];
   if (startDate && endDate) {
@@ -164,19 +163,59 @@ reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) 
   const query = `
     SELECT 
       CASE WHEN jl.debit > 0 THEN 'inflow' ELSE 'outflow' END as category, 
-      COALESCE(je.reference_type, 'jurnal_umum') as subcategory, 
+      COALESCE(a_counter.code, 'other') as counter_code,
+      COALESCE(a_counter.name, 'Lain-lain') as counter_name,
+      COALESCE(a_counter.type, 'OTHER') as counter_type,
+      COALESCE(je.reference_type, 'jurnal_umum') as reference_type,
       SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE jl.credit END) as total
     FROM journal_lines jl
     JOIN journal_entries je ON jl.journal_entry_id = je.id
     JOIN accounts a ON jl.account_id = a.id
-    WHERE a.code IN ('11101', '11102') ${dateFilterJe}
-    GROUP BY category, subcategory
+    LEFT JOIN journal_lines jl_counter ON jl.journal_entry_id = jl_counter.journal_entry_id AND jl.id != jl_counter.id
+    LEFT JOIN accounts a_counter ON jl_counter.account_id = a_counter.id
+    WHERE a.code IN ('11101', '11102') AND (a_counter.code NOT IN ('11101', '11102') OR a_counter.code IS NULL) ${dateFilterJe}
+    GROUP BY category, counter_code, counter_name, counter_type, reference_type
+    ORDER BY category, total DESC
   `;
+
+  const getDetailLabel = (category: string, counterCode: string, counterName: string, refType: string) => {
+    if (category === 'inflow') {
+      switch (counterCode) {
+        case '31101': return 'Penerimaan Simpanan Pokok Anggota';
+        case '31102': return 'Penerimaan Simpanan Wajib Anggota';
+        case '21101': return 'Penerimaan Simpanan Sukarela Anggota';
+        case '11201': return 'Penerimaan Angsuran Pokok Pinjaman';
+        case '41101': return 'Penerimaan Jasa / Bunga Pinjaman';
+        case '41102': return 'Penerimaan Provisi & Administrasi Pinjaman';
+        case '41201': return 'Penerimaan Biaya Layanan Gaji Awal (EWA)';
+        case '11301': return 'Pelunasan Payroll Kasbon Gaji (EWA)';
+        case '42101': return 'Penerimaan Jasa Giro / Bunga Bank';
+        case '42102': return 'Penerimaan Pendapatan Denda';
+        case '21201': return 'Penerimaan Kas Awal / Beban Yang Masih Harus Dibayar';
+        default: return `Penerimaan: ${counterName}`;
+      }
+    } else {
+      switch (counterCode) {
+        case '11201': return 'Pencairan Penyaluran Pinjaman Anggota';
+        case '21101': return 'Penarikan Simpanan Sukarela Anggota';
+        case '11301': return 'Pencairan Kasbon Gaji Awal (EWA)';
+        case '61101': return 'Pembayaran Beban Gaji & Tunjangan';
+        case '61201': return 'Pembayaran Beban Operasional Kantor';
+        case '61301': return 'Pembayaran Beban Pelaksanaan RAT';
+        case '12101': return 'Pengeluaran Pembelian Peralatan Kantor';
+        case '11401': return 'Pengeluaran Pembelian Perlengkapan Kantor';
+        default: return `Pengeluaran: ${counterName}`;
+      }
+    }
+  };
 
   const rows = await db.query(query).all(...params);
   const mapped = rows.map((r: any) => ({
     category: r.category,
-    subcategory: r.subcategory,
+    subcategory: r.counter_name || r.reference_type,
+    accountCode: r.counter_code,
+    accountName: r.counter_name,
+    label: getDetailLabel(r.category, r.counter_code, r.counter_name, r.reference_type),
     total: Number(r.total || 0)
   }));
   return c.json({ success: true, data: mapped });

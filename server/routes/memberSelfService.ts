@@ -367,39 +367,70 @@ memberSelfService.get('/reports/cashflow-statement', async (c) => {
   const query = `
     SELECT 
       CASE WHEN jl.debit > 0 THEN 'inflow' ELSE 'outflow' END as category, 
-      COALESCE(je.reference_type, 'jurnal_umum') as subcategory, 
+      COALESCE(a_counter.code, 'other') as counter_code,
+      COALESCE(a_counter.name, 'Lain-lain') as counter_name,
+      COALESCE(a_counter.type, 'OTHER') as counter_type,
+      COALESCE(je.reference_type, 'jurnal_umum') as reference_type,
       SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE jl.credit END) as total
     FROM journal_lines jl
     JOIN journal_entries je ON jl.journal_entry_id = je.id
     JOIN accounts a ON jl.account_id = a.id
-    WHERE a.code IN ('11101', '11102')
-    GROUP BY category, subcategory
+    LEFT JOIN journal_lines jl_counter ON jl.journal_entry_id = jl_counter.journal_entry_id AND jl.id != jl_counter.id
+    LEFT JOIN accounts a_counter ON jl_counter.account_id = a_counter.id
+    WHERE a.code IN ('11101', '11102') AND (a_counter.code NOT IN ('11101', '11102') OR a_counter.code IS NULL)
+    GROUP BY category, counter_code, counter_name, counter_type, reference_type
+    ORDER BY category, total DESC
   `;
   const rows = await db.query(query).all();
 
-  const getSubcategoryLabel = (cat: string, subcat: string) => {
-    switch (subcat) {
-      case 'savings_setor': return 'Setoran Simpanan Anggota';
-      case 'loan_payment': return 'Penerimaan Angsuran Pinjaman';
-      case 'savings_tarik': return 'Penarikan Simpanan Anggota';
-      case 'loan_disbursement': return 'Pencairan Pinjaman Anggota';
-      default: return cat === 'inflow' ? 'Penerimaan Kas Lainnya' : 'Pengeluaran Kas / Beban Operasional';
+  const getDetailLabel = (category: string, counterCode: string, counterName: string) => {
+    if (category === 'inflow') {
+      switch (counterCode) {
+        case '31101': return 'Setoran Simpanan Pokok Anggota';
+        case '31102': return 'Setoran Simpanan Wajib Anggota';
+        case '21101': return 'Setoran Simpanan Sukarela Anggota';
+        case '11201': return 'Penerimaan Angsuran Pokok Pinjaman';
+        case '41101': return 'Penerimaan Jasa / Bunga Pinjaman';
+        case '41102': return 'Penerimaan Provisi & Administrasi';
+        case '41201': return 'Penerimaan Biaya Layanan Gaji Awal (EWA)';
+        case '11301': return 'Pelunasan Payroll Kasbon Gaji (EWA)';
+        case '42101': return 'Penerimaan Bunga Bank / Jasa Giro';
+        case '42102': return 'Penerimaan Pendapatan Denda';
+        case '21201': return 'Penerimaan Kas Awal Koperasi';
+        default: return `Penerimaan: ${counterName}`;
+      }
+    } else {
+      switch (counterCode) {
+        case '11201': return 'Pencairan Penyaluran Pinjaman';
+        case '21101': return 'Penarikan Simpanan Sukarela';
+        case '11301': return 'Pencairan Kasbon Gaji Awal (EWA)';
+        case '61101': return 'Pembayaran Beban Gaji & Tunjangan';
+        case '61201': return 'Pembayaran Beban Operasional Kantor';
+        case '61301': return 'Pembayaran Beban Pelaksanaan RAT';
+        case '12101': return 'Pengeluaran Pembelian Peralatan';
+        case '11401': return 'Pengeluaran Pembelian Perlengkapan';
+        default: return `Pengeluaran: ${counterName}`;
+      }
     }
   };
 
   const inflows = rows
     .filter((r: any) => r.category === 'inflow')
     .map((r: any) => ({
-      subcategory: r.subcategory,
-      label: getSubcategoryLabel('inflow', r.subcategory),
+      subcategory: r.counter_name || r.reference_type,
+      accountCode: r.counter_code,
+      accountName: r.counter_name,
+      label: getDetailLabel('inflow', r.counter_code, r.counter_name),
       total: Number(r.total || 0),
     }));
 
   const outflows = rows
     .filter((r: any) => r.category === 'outflow')
     .map((r: any) => ({
-      subcategory: r.subcategory,
-      label: getSubcategoryLabel('outflow', r.subcategory),
+      subcategory: r.counter_name || r.reference_type,
+      accountCode: r.counter_code,
+      accountName: r.counter_name,
+      label: getDetailLabel('outflow', r.counter_code, r.counter_name),
       total: Number(r.total || 0),
     }));
 
