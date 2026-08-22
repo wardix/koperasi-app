@@ -114,9 +114,9 @@ export default function ReportsTemplate() {
         }
       } else if (selectedReport === 'cashflow_statement' && cashflowRes) {
         filename = "laporan_arus_kas.csv";
-        csvContent += "Kategori,Pos Transaksi Arus Kas,Kode Akun Lawan,Nama Akun Lawan,Total Nominal\r\n";
+        csvContent += "Kategori,Pos Transaksi Arus Kas,Total Nominal\r\n";
         for (const item of cashflowRes) {
-          csvContent += `"${item.category === 'inflow' ? 'Arus Kas Masuk' : 'Arus Kas Keluar'}","${item.label || item.subcategory}","${item.accountCode || '-'}","${item.accountName || '-'}","${item.total}"\r\n`;
+          csvContent += `"${item.category === 'inflow' ? 'Arus Kas Masuk' : 'Arus Kas Keluar'}","${item.label || item.subcategory}","${item.total}"\r\n`;
         }
       } else if (selectedReport === 'income_statement' && incomeRes) {
         filename = "laporan_laba_rugi.csv";
@@ -605,21 +605,20 @@ export default function ReportsTemplate() {
                       {selectedReport === 'cashflow_statement' && cashflowRes && (
                         <VStack gap={4}>
                           <Text type="body">
-                            Laporan arus kas masuk (Inflow) dan keluar (Outflow) riil yang dirinci berdasarkan pos aktivitas dan akun lawan transaksi.
+                            Laporan arus kas masuk (Inflow) dan keluar (Outflow) riil berdasarkan pos aktivitas transaksi.
                           </Text>
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                             <thead>
                               <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, width: '50%' }}>Pos Transaksi Arus Kas</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, width: '25%' }}>Akun Lawan (COA)</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right', width: '25%' }}>Total Nominal</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Pos Transaksi Arus Kas</th>
+                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Nominal</th>
                               </tr>
                             </thead>
                             <tbody>
                               {['inflow', 'outflow'].map(cat => (
                                 <React.Fragment key={cat}>
                                   <tr>
-                                    <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
+                                    <td colSpan={2} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
                                       {cat === 'inflow' ? '🟢 ARUS KAS MASUK (INFLOW)' : '🔴 ARUS KAS KELUAR (OUTFLOW)'}
                                     </td>
                                   </tr>
@@ -628,9 +627,6 @@ export default function ReportsTemplate() {
                                       <td style={{ padding: '12px 8px', fontWeight: 500 }}>
                                         {item.label || item.subcategory}
                                       </td>
-                                      <td style={{ padding: '12px 8px', color: 'var(--color-text-secondary)' }}>
-                                        {item.accountCode ? `${item.accountCode} - ${item.accountName}` : item.subcategory}
-                                      </td>
                                       <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: cat === 'inflow' ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
                                         {cat === 'inflow' ? '+' : '-'}{formatRp(item.total)}
                                       </td>
@@ -638,13 +634,13 @@ export default function ReportsTemplate() {
                                   ))}
                                   {cashflowRes.filter(c => c.category === cat).length === 0 && (
                                     <tr>
-                                      <td colSpan={3} style={{ padding: '12px 8px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                      <td colSpan={2} style={{ padding: '12px 8px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
                                         Tidak ada transaksi kas pada periode ini.
                                       </td>
                                     </tr>
                                   )}
                                   <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600, backgroundColor: 'var(--color-background-subtle)' }}>
-                                    <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>
+                                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                                       Total {cat === 'inflow' ? 'Kas Masuk' : 'Kas Keluar'}
                                     </td>
                                     <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, color: cat === 'inflow' ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
@@ -655,7 +651,7 @@ export default function ReportsTemplate() {
                               ))}
                               
                               <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 700, fontSize: '15px' }}>
-                                <td colSpan={2} style={{ padding: '16px 8px' }}>ARUS KAS BERSIH (NET CASH FLOW)</td>
+                                <td style={{ padding: '16px 8px' }}>ARUS KAS BERSIH (NET CASH FLOW)</td>
                                 <td style={{ padding: '16px 8px', textAlign: 'right' }}>
                                   {formatRp(
                                     cashflowRes.filter(c => c.category === 'inflow').reduce((sum, item) => sum + Number(item.total || 0), 0) -

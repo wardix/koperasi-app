@@ -371,7 +371,7 @@ memberSelfService.get('/reports/cashflow-statement', async (c) => {
       COALESCE(a_counter.name, 'Lain-lain') as counter_name,
       COALESCE(a_counter.type, 'OTHER') as counter_type,
       COALESCE(je.reference_type, 'jurnal_umum') as reference_type,
-      SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE jl.credit END) as total
+      SUM(CASE WHEN jl.debit > 0 THEN jl_counter.credit ELSE jl_counter.debit END) as total
     FROM journal_lines jl
     JOIN journal_entries je ON jl.journal_entry_id = je.id
     JOIN accounts a ON jl.account_id = a.id
