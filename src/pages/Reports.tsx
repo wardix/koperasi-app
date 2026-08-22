@@ -44,8 +44,11 @@ export default function ReportsTemplate() {
     total: number;
   }>>(cashflowPath);
 
-  const { data: incomeRes, isLoading: isIncomeLoading, error: incomeError, refetch: fetchIncome } = useApiQuery<any>('/api/reports/income-statement');
-  const { data: balanceRes, isLoading: isBalanceLoading, error: balanceError, refetch: fetchBalance } = useApiQuery<any>('/api/reports/balance-sheet');
+  const incomePath = `/api/reports/income-statement?startDate=${startDate}&endDate=${endDate}`;
+  const { data: incomeRes, isLoading: isIncomeLoading, error: incomeError, refetch: fetchIncome } = useApiQuery<any>(incomePath);
+
+  const balancePath = `/api/reports/balance-sheet?endDate=${endDate}`;
+  const { data: balanceRes, isLoading: isBalanceLoading, error: balanceError, refetch: fetchBalance } = useApiQuery<any>(balancePath);
 
   const { data: settings } = useApiQuery<import('../shared/types').SettingsData>('/api/settings');
   const koperasiName = settings?.koperasiName?.trim() || 'Koperasi';
@@ -303,29 +306,35 @@ export default function ReportsTemplate() {
                     })}
                   </VStack>
                   
-                  {selectedReport === 'cashflow_statement' && (
-                    <VStack gap={2} style={{ marginTop: '20px' }}>
-                      <Heading level={4}>Filter Tanggal</Heading>
+                  {['cashflow_statement', 'income_statement', 'balance_sheet'].includes(selectedReport) && (
+                    <VStack gap={2} style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-border-primary)' }}>
+                      <Heading level={4}>
+                        {selectedReport === 'balance_sheet' ? 'Filter Posisi Neraca' : 'Filter Periode Tanggal'}
+                      </Heading>
+                      {selectedReport !== 'balance_sheet' && (
+                        <div>
+                          <Text type="supporting">Mulai Tanggal</Text>
+                          <input 
+                            type="date" 
+                            value={startDate} 
+                            onChange={(e) => setStartDate(e.target.value)} 
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: 'var(--radius-md, 6px)',
+                              border: '1px solid var(--color-border-primary)',
+                              backgroundColor: 'var(--color-background-primary)',
+                              color: 'var(--color-text-primary)',
+                              marginTop: '4px',
+                              boxSizing: 'border-box'
+                            }} 
+                          />
+                        </div>
+                      )}
                       <div>
-                        <Text type="supporting">Mulai</Text>
-                        <input 
-                          type="date" 
-                          value={startDate} 
-                          onChange={(e) => setStartDate(e.target.value)} 
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            borderRadius: 'var(--radius-md, 6px)',
-                            border: '1px solid var(--color-border-primary)',
-                            backgroundColor: 'var(--color-background-primary)',
-                            color: 'var(--color-text-primary)',
-                            marginTop: '4px',
-                            boxSizing: 'border-box'
-                          }} 
-                        />
-                      </div>
-                      <div>
-                        <Text type="supporting">Sampai</Text>
+                        <Text type="supporting">
+                          {selectedReport === 'balance_sheet' ? 'Posisi Per Tanggal' : 'Sampai Tanggal'}
+                        </Text>
                         <input 
                           type="date" 
                           value={endDate} 
@@ -342,6 +351,24 @@ export default function ReportsTemplate() {
                           }} 
                         />
                       </div>
+                      {(startDate || endDate) && (
+                        <button
+                          type="button"
+                          onClick={() => { setStartDate(''); setEndDate(''); }}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            color: 'var(--color-text-secondary)',
+                            background: 'transparent',
+                            border: '1px dashed var(--color-border-primary)',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            marginTop: '4px'
+                          }}
+                        >
+                          🔄 Reset Filter
+                        </button>
+                      )}
                     </VStack>
                   )}
                 </VStack>
@@ -404,7 +431,11 @@ export default function ReportsTemplate() {
                           {selectedReport === 'balance_sheet' && 'NERACA (POSISI KEUANGAN)'}
                         </Heading>
                         <Text type="supporting" color="secondary" style={{ marginTop: '4px' }}>
-                          Per Tanggal: {formattedDate} {selectedReport === 'cashflow_statement' && (startDate || endDate) && ` (Filter: ${startDate || 'Awal'} s.d ${endDate || 'Sekarang'})`}
+                          {selectedReport === 'balance_sheet'
+                            ? `Posisi Keuangan Per: ${endDate || formattedDate}`
+                            : (selectedReport === 'income_statement' || selectedReport === 'cashflow_statement') && (startDate || endDate)
+                            ? `Periode: ${startDate || 'Awal'} s.d ${endDate || 'Sekarang'} (Dicetak: ${formattedDate})`
+                            : `Per Tanggal: ${formattedDate}`}
                         </Text>
                       </div>
 

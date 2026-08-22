@@ -221,17 +221,38 @@ reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) 
   return c.json({ success: true, data: mapped });
 })
 reports.get('/income-statement', requirePermission('read:reports'), async (c) => {
+  const startDate = c.req.query('startDate');
+  const endDate = c.req.query('endDate');
+
+  let dateFilterJe = '';
+  const params: string[] = [];
+  if (startDate && endDate) {
+    dateFilterJe = `WHERE je.transaction_date >= ? AND je.transaction_date <= ?`;
+    params.push(startDate, endDate);
+  } else if (startDate) {
+    dateFilterJe = `WHERE je.transaction_date >= ?`;
+    params.push(startDate);
+  } else if (endDate) {
+    dateFilterJe = `WHERE je.transaction_date <= ?`;
+    params.push(endDate);
+  }
+
   const query = `
     SELECT 
       a.code, a.name, a.type, a.normal_balance,
       COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
     FROM accounts a
-    LEFT JOIN journal_lines jl ON a.id = jl.account_id
+    LEFT JOIN (
+      SELECT jl.* 
+      FROM journal_lines jl 
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      ${dateFilterJe}
+    ) jl ON a.id = jl.account_id
     WHERE a.type IN ('REVENUE', 'EXPENSE')
     GROUP BY a.code, a.name, a.type, a.normal_balance
     ORDER BY a.code
   `;
-  const rows = await db.query(query).all();
+  const rows = await db.query(query).all(...params);
   
   const revenues = rows.filter((r: any) => r.type === 'REVENUE').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
   const expenses = rows.filter((r: any) => r.type === 'EXPENSE').map((r: any) => ({ ...r, balance: Number(r.total_debit) - Number(r.total_credit) }));
@@ -244,17 +265,31 @@ reports.get('/income-statement', requirePermission('read:reports'), async (c) =>
 })
 
 reports.get('/balance-sheet', requirePermission('read:reports'), async (c) => {
+  const endDate = c.req.query('endDate') || c.req.query('asOfDate');
+
+  let dateFilterJe = '';
+  const params: string[] = [];
+  if (endDate) {
+    dateFilterJe = `WHERE je.transaction_date <= ?`;
+    params.push(endDate);
+  }
+
   const query = `
     SELECT 
       a.code, a.name, a.type, a.normal_balance,
       COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
     FROM accounts a
-    LEFT JOIN journal_lines jl ON a.id = jl.account_id
+    LEFT JOIN (
+      SELECT jl.* 
+      FROM journal_lines jl 
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      ${dateFilterJe}
+    ) jl ON a.id = jl.account_id
     WHERE a.type IN ('ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE')
     GROUP BY a.code, a.name, a.type, a.normal_balance
     ORDER BY a.code
   `;
-  const rows = await db.query(query).all();
+  const rows = await db.query(query).all(...params);
   
   const revenues = rows.filter((r: any) => r.type === 'REVENUE').map((r: any) => Number(r.total_credit) - Number(r.total_debit));
   const expenses = rows.filter((r: any) => r.type === 'EXPENSE').map((r: any) => Number(r.total_debit) - Number(r.total_credit));
