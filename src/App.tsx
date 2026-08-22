@@ -259,45 +259,6 @@ const StackedBarCard = React.memo(function StackedBarCard({
   );
 });
 
-// ============= TABLE COMPONENTS =============
-
-function RecentActivitiesTable({ data }: { data: DashboardData['recentActivities'] }) {
-  const columns: TableColumn<DashboardData['recentActivities'][0]>[] = React.useMemo(() => [
-    {key: 'activity', header: 'Aktivitas', width: pixel(160)},
-    {key: 'name', header: 'Nama / Subjek', width: proportional(1)},
-    {
-      key: 'amount', 
-      header: 'Nilai', 
-      width: pixel(150),
-      renderCell: (item) => formatRp(item.amount)
-    },
-    {
-      key: 'date', 
-      header: 'Tanggal', 
-      width: pixel(120),
-      renderCell: (item) => formatDate(item.date)
-    },
-  ], []);
-
-  return (
-    <Card className="hover-card">
-      <VStack gap={6}>
-        <HStack hAlign="between" vAlign="center">
-          <Heading level={4}>Aktivitas Terbaru</Heading>
-        </HStack>
-        <Table
-          data={data}
-          columns={columns}
-          idKey="id"
-          density="compact"
-          dividers="rows"
-          hasHover
-        />
-      </VStack>
-    </Card>
-  );
-}
-
 // ============= SKELETON COMPONENT =============
 
 function DashboardSkeleton() {
@@ -342,17 +303,6 @@ function DashboardSkeleton() {
           </Card>
         ))}
       </Grid>
-      
-      <Divider />
-      
-      <VStack gap={4}>
-         <div className="skeleton" style={{ width: '200px', height: '28px' }}></div>
-         <Card className="hover-card">
-            <VStack gap={4}>
-               {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ width: '100%', height: '40px' }}></div>)}
-            </VStack>
-         </Card>
-      </VStack>
     </VStack>
   );
 }
@@ -440,17 +390,6 @@ export default function DashboardTemplate() {
               <StackedBarCard title="Peran Anggota" data={dashboardData?.roleData || []} />
               <StackedBarCard title="Tujuan Pinjaman" data={dashboardData?.purposeData || []} />
             </Grid>
-
-            <Divider />
-
-            {/* Recent Activities */}
-            <VStack gap={4}>
-              {dashboardData?.recentActivities && dashboardData.recentActivities.length > 0 ? (
-                <RecentActivitiesTable data={dashboardData.recentActivities} />
-              ) : (
-                <Text type="supporting" color="secondary">Belum ada aktivitas</Text>
-              )}
-            </VStack>
           </VStack>
           </DataStateView>
         </LayoutContent>
