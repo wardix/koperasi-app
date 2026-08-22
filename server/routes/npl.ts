@@ -14,6 +14,9 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
   const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
   const bungaRate = parseFloat(bungaSetting?.value || '0');
 
+  // Optional filter by collectibility bucket
+  const filterBucket = c.req.query('bucket'); // 'Lancar' | 'DPK' | 'Kurang Lancar' | 'Diragukan' | 'Macet'
+
   // Get all active loans with their DPD (Days Past Due) based on schedules
   const rows = await db.query(`
     SELECT l.*,
@@ -25,7 +28,7 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
     GROUP BY l.id
     ORDER BY COALESCE((SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE)::text, l.createdAt) DESC NULLS LAST
     LIMIT ? OFFSET ?
-  `).all<LoanRow>(limit, offset)
+  `).all<LoanRow & { oldestOverdueDate: string | null }>(limit, offset)
 
   const mappedLoans = rows.map(loan => {
     // Calculate DPD based on oldest overdue schedule
@@ -33,7 +36,25 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
     if (loan.oldestOverdueDate) {
       const oldestDueDate = new Date(loan.oldestOverdueDate);
       const today = new Date();
-      dpd = Math.floor((today.getTime() - oldestDueDate.getTime()) / (1000 * 60 * 60 * 24));
+      dpd = Math.max(0, Math.floor((today.getTime() - oldestDueDate.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+
+    // Determine Kolektibilitas Standar (Kol 1 - Kol 5)
+    let collectibility = 'Lancar';
+    let agingBucket = 'Current';
+
+    if (loan.status === 'Macet' || dpd > 90) {
+      collectibility = 'Macet';
+      agingBucket = '90+';
+    } else if (dpd >= 61) {
+      collectibility = 'Diragukan';
+      agingBucket = '60-90';
+    } else if (dpd >= 31) {
+      collectibility = 'Kurang Lancar';
+      agingBucket = '30-60';
+    } else if (dpd >= 1) {
+      collectibility = 'Dalam Perhatian Khusus';
+      agingBucket = '1-30';
     }
 
     // Use snapshot values for approved loans (historical consistency)
@@ -52,7 +73,8 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
       totalAmount: Number(totalAmount),
       remainingAmount,
       dpd, // Days Past Due
-      agingBucket: dpd >= 90 ? '90+' : dpd >= 60 ? '60-90' : dpd >= 30 ? '30-60' : 'Current'
+      agingBucket,
+      collectibility,
     }
   })
 

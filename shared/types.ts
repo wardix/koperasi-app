@@ -225,6 +225,10 @@ export interface NplRow {
   interestAmount: number;
   totalAmount: number;
   remainingAmount: number;
+  dpd?: number;
+  agingBucket?: string;
+  collectibility?: string;
+  oldestOverdueDate?: string | null;
   createdAt?: string;
 }
 
@@ -238,6 +242,7 @@ export interface NplResponse {
     totalActivePrincipal: number;
     nplRatio: number;
     badAccountsCount: number;
+    agingBuckets?: Record<string, number>;
   };
 }
 
