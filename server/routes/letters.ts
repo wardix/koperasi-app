@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import db from '../db';
-import { requirePermission } from '../middleware/rbac';
+import { requirePermission } from '../middleware';
 import { getActor } from '../lib/audit';
 import { audit } from '../lib/audit';
 import {
