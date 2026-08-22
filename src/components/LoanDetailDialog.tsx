@@ -130,6 +130,42 @@ export function LoanDetailDialogContent({
               remainingDebt={remainingDebt}
             />
 
+            {/* Attachment section */}
+            {loan.attachmentUrl && (
+              <VStack
+                gap={2}
+                style={{
+                  padding: 'var(--spacing-4)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-background-secondary)',
+                }}
+              >
+                <Text type="body" weight="bold">Dokumen Lampiran Pengajuan</Text>
+                <HStack hAlign="space-between" vAlign="center" wrap="wrap" gap={2}>
+                  <HStack vAlign="center" gap={2}>
+                    <span style={{ fontSize: '24px' }}>
+                      {loan.attachmentName?.toLowerCase().endsWith('.pdf') || loan.attachmentUrl.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
+                    </span>
+                    <VStack gap={0}>
+                      <Text type="body" weight="semibold">
+                        {loan.attachmentName || 'Dokumen Lampiran Pinjaman'}
+                      </Text>
+                      <Text type="supporting" size="sm" color="secondary">
+                        File dokumen / foto terlampir
+                      </Text>
+                    </VStack>
+                  </HStack>
+                  <Button
+                    label="Buka / Unduh Lampiran"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => window.open(loan.attachmentUrl!, '_blank')}
+                  />
+                </HStack>
+              </VStack>
+            )}
+
             {/* Disbursement date */}
             {isApproved && (
               <VStack

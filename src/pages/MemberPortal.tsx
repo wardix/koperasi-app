@@ -62,6 +62,8 @@ type PortalLoan = {
   monthlyPayment?: number;
   interestAmount?: number;
   tenor?: number;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
 };
 
 type ScheduleRow = {
@@ -204,9 +206,55 @@ export default function MemberPortal() {
   const [applyAmount, setApplyAmount] = useState('');
   const [applyTenor, setApplyTenor] = useState('12');
   const [applyPurpose, setApplyPurpose] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [attachmentName, setAttachmentName] = useState<string>('');
+  const [attachmentSize, setAttachmentSize] = useState<number>(0);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyError, setApplyError] = useState('');
   const [applySuccess, setApplySuccess] = useState('');
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachmentError('');
+    if (file.size > 10 * 1024 * 1024) {
+      setAttachmentError('Ukuran file maksimal adalah 10 MB');
+      return;
+    }
+    const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.heic'];
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedExts.includes(ext)) {
+      setAttachmentError('Format file hanya boleh PDF, JPG, PNG, atau WebP');
+      return;
+    }
+
+    setUploadingAttachment(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = readPortalToken();
+      const res = await fetch('/api/v1/upload/loan-attachment', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then((r) => r.json());
+
+      if (res.success && res.data?.url) {
+        setAttachmentUrl(res.data.url);
+        setAttachmentName(res.data.name || file.name);
+        setAttachmentSize(file.size);
+      } else {
+        setAttachmentError(res.message || 'Gagal mengunggah file lampiran');
+      }
+    } catch {
+      setAttachmentError('Terjadi kesalahan saat mengunggah file');
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
 
   const handleApplyLoan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,6 +276,8 @@ export default function MemberPortal() {
           amount: numericAmount,
           tenor: parseInt(applyTenor, 10),
           purpose: applyPurpose,
+          attachmentUrl: attachmentUrl || null,
+          attachmentName: attachmentName || null,
         }),
       }).then((r) => r.json());
 
@@ -235,6 +285,10 @@ export default function MemberPortal() {
         setApplySuccess(res.message || 'Pengajuan pinjaman berhasil dikirim!');
         setApplyAmount('');
         setApplyPurpose('');
+        setAttachmentUrl('');
+        setAttachmentName('');
+        setAttachmentSize(0);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         loadData();
         setTimeout(() => {
           setShowApplyForm(false);
@@ -731,6 +785,21 @@ export default function MemberPortal() {
       },
     },
     {
+      key: 'attachment',
+      header: 'Lampiran',
+      width: pixel(110),
+      renderCell: (i) => i.attachmentUrl ? (
+        <Button
+          label="📎 Buka"
+          size="sm"
+          variant="secondary"
+          onClick={() => window.open(i.attachmentUrl!, '_blank')}
+        />
+      ) : (
+        <Text type="supporting" color="secondary">—</Text>
+      ),
+    },
+    {
       key: 'actions',
       header: 'Aksi',
       width: pixel(120),
@@ -1021,6 +1090,93 @@ export default function MemberPortal() {
                         style={inputStyle}
                         required
                       />
+                    </VStack>
+
+                    {/* Lampiran Dokumen Pendukung */}
+                    <VStack gap={2}>
+                      <HStack justify="space-between" vAlign="center">
+                        <Text type="supporting">Lampiran Dokumen Pendukung (Opsional)</Text>
+                        <Text type="supporting" size="sm" color="secondary">
+                          PDF, JPG, PNG (Maks. 10 MB)
+                        </Text>
+                      </HStack>
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.heic"
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                        id="loan-attachment-input"
+                      />
+
+                      {!attachmentUrl ? (
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            border: '2px dashed var(--color-border-primary)',
+                            borderRadius: '8px',
+                            padding: '16px',
+                            textAlign: 'center',
+                            cursor: uploadingAttachment ? 'wait' : 'pointer',
+                            backgroundColor: 'var(--color-background-primary)',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <VStack gap={1} vAlign="center">
+                            <Text type="body" weight="semibold">
+                              {uploadingAttachment ? '⏳ Sedang mengunggah file...' : '📎 Klik untuk Unggah Dokumen / Foto Pendukung'}
+                            </Text>
+                            <Text type="supporting" size="sm" color="secondary">
+                              Contoh: Slip Gaji, Foto KTP, Invoice / Rencana Anggaran Biaya, Surat Permohonan
+                            </Text>
+                          </VStack>
+                        </div>
+                      ) : (
+                        <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
+                          <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                            <HStack vAlign="center" gap={2}>
+                              <span style={{ fontSize: '24px' }}>
+                                {attachmentName.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
+                              </span>
+                              <VStack gap={0}>
+                                <Text type="body" weight="bold">{attachmentName}</Text>
+                                <Text type="supporting" size="sm" color="secondary">
+                                  {attachmentSize ? `${(attachmentSize / (1024 * 1024)).toFixed(2)} MB • ` : ''}
+                                  Lampiran siap dikirim
+                                </Text>
+                              </VStack>
+                            </HStack>
+                            <HStack gap={2}>
+                              <Button
+                                label="Lihat File"
+                                size="sm"
+                                variant="secondary"
+                                type="button"
+                                onClick={() => window.open(attachmentUrl, '_blank')}
+                              />
+                              <Button
+                                label="Hapus"
+                                size="sm"
+                                variant="ghost"
+                                type="button"
+                                onClick={() => {
+                                  setAttachmentUrl('');
+                                  setAttachmentName('');
+                                  setAttachmentSize(0);
+                                  if (fileInputRef.current) fileInputRef.current.value = '';
+                                }}
+                              />
+                            </HStack>
+                          </HStack>
+                        </Card>
+                      )}
+
+                      {attachmentError && (
+                        <Text type="supporting" color="critical" style={{ fontWeight: 500 }}>
+                          ⚠️ {attachmentError}
+                        </Text>
+                      )}
                     </VStack>
 
                     {/* Estimasi Simulasi */}

@@ -22,7 +22,9 @@ import memberAuthRoutes from './routes/memberAuth'
 import cronRoutes from './routes/cron'
 import memberSelfServiceRoutes from './routes/memberSelfService'
 import ewaRoutes from './routes/ewa'
+import uploadRoutes from './routes/upload'
 import { registerLegacyAuthAliases } from './lib/authLegacy'
+import { serveStatic } from 'hono/bun'
 
 import { HTTPException } from 'hono/http-exception'
 
@@ -133,6 +135,10 @@ app.route('/api/v1/reports', reportsRoutes)
 app.route('/api/v1/audit-logs', auditRoutes)
 app.route('/api/v1/accounting', accountingRoutes)
 app.route('/api/v1/ewa', ewaRoutes)
+app.route('/api/v1/upload', uploadRoutes)
+
+// Serve uploaded files statically
+app.use('/uploads/*', serveStatic({ root: './' }))
 
 // OpenAPI spec + Swagger UI (development only)
 if (process.env.NODE_ENV !== 'production') {

@@ -221,6 +221,7 @@ memberSelfService.get('/loans', async (c) => {
     `SELECT l.id, COALESCE(m.name, l.name) AS name, l.amount, l.tenor, l.purpose, l.status, l.createdAt,
             l.interestRate, l.monthlyPayment, l.interestAmount, l.totalAmount,
             l.approvedAt, l.totalInstallments, l.paidInstallments,
+            l."attachmentUrl", l."attachmentName",
             COALESCE(SUM(p.amount), 0) AS paidAmount
      FROM loans l
      LEFT JOIN members m ON m.id = l.memberId
@@ -269,6 +270,8 @@ memberSelfService.post('/loans/apply', async (c) => {
   const amount = Number(body.amount);
   const tenor = Number(body.tenor);
   const purpose = String(body.purpose || '').trim();
+  const attachmentUrl = body.attachmentUrl ? String(body.attachmentUrl).trim() : null;
+  const attachmentName = body.attachmentName ? String(body.attachmentName).trim() : null;
 
   if (!amount || isNaN(amount) || amount <= 0) {
     return c.json({ success: false, message: 'Nominal pinjaman harus lebih dari 0' }, 400);
@@ -296,15 +299,15 @@ memberSelfService.post('/loans/apply', async (c) => {
   const createdAt = new Date().toISOString();
 
   await db.run(
-    `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, 'Menunggu', ?)`,
-    [loanId, memberId, member.name, amount, tenor, purpose, createdAt]
+    `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, "attachmentUrl", "attachmentName")
+     VALUES (?, ?, ?, ?, ?, ?, 'Menunggu', ?, ?, ?)`,
+    [loanId, memberId, member.name, amount, tenor, purpose, createdAt, attachmentUrl, attachmentName]
   );
 
   return c.json({
     success: true,
     message: 'Pengajuan pinjaman berhasil dikirim dan sedang menunggu persetujuan pengurus.',
-    data: { id: loanId, amount, tenor, purpose, status: 'Menunggu', createdAt }
+    data: { id: loanId, amount, tenor, purpose, status: 'Menunggu', createdAt, attachmentUrl, attachmentName }
   });
 });
 

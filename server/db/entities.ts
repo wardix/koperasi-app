@@ -92,6 +92,8 @@ export const loanRowSchema = z.object({
   paidAmount: numNull,
   oldestOverdueDate: strNull,
   deletedAt: strNull,
+  attachmentUrl: strNull.optional(),
+  attachmentName: strNull.optional(),
 });
 export type LoanRow = z.infer<typeof loanRowSchema>;
 

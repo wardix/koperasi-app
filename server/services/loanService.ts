@@ -104,6 +104,8 @@ export type CreateLoanInput = {
   status: string;
   /** Optional backdated loan date as YYYY-MM-DD */
   loanDate?: string;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
 };
 
 export async function createLoan(database: Db, input: CreateLoanInput): Promise<{ id: string }> {
@@ -111,8 +113,8 @@ export async function createLoan(database: Db, input: CreateLoanInput): Promise<
   const createdAt = resolveCalendarDateIso(input.loanDate);
 
   const insert = database.prepare(`
-    INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, "attachmentUrl", "attachmentName")
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   await insert.run(
     id,
@@ -122,7 +124,9 @@ export async function createLoan(database: Db, input: CreateLoanInput): Promise<
     input.tenor,
     input.purpose,
     input.status,
-    createdAt
+    createdAt,
+    input.attachmentUrl ?? null,
+    input.attachmentName ?? null
   );
 
   return { id };

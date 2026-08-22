@@ -120,6 +120,10 @@ export interface LoanRow {
   createdAt?: string;
   /** Disbursement / approval timestamp (ISO) */
   approvedAt?: string;
+  /** Supporting document attachment URL */
+  attachmentUrl?: string | null;
+  /** Supporting document attachment original file name */
+  attachmentName?: string | null;
 }
 
 export interface PaginatedResponse<T> {
