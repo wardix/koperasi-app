@@ -1021,18 +1021,43 @@ export default function MemberPortal() {
 
                     {/* Estimasi Simulasi */}
                     {parseFloat(applyAmount) > 0 && (
-                      <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)' }}>
-                        <VStack gap={1}>
-                          <Text type="supporting" color="secondary">Estimasi Angsuran Per Bulan (Bunga 1,5%/th Anuitas)</Text>
-                          <Text type="body" weight="bold" color="primary">
-                            {(() => {
-                              const P = parseFloat(applyAmount) || 0;
-                              const n = parseInt(applyTenor, 10) || 12;
-                              const r = 0.015 / 12;
-                              const pmt = Math.round((P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
-                              return formatRp(pmt);
-                            })()} / bulan
-                          </Text>
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
+                        <VStack gap={2}>
+                          <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                            <Text type="supporting" color="secondary">
+                              Estimasi Angsuran (Suku Bunga Koperasi: {Number(profile?.loanInterestRate ?? 9.1).toFixed(2)}%/th Anuitas)
+                            </Text>
+                            <Badge variant="info">Metode Anuitas</Badge>
+                          </HStack>
+                          <HStack justify="space-between" vAlign="baseline" wrap="wrap" gap={2}>
+                            <VStack gap={0}>
+                              <Heading level={3} color="primary">
+                                {(() => {
+                                  const P = parseFloat(applyAmount) || 0;
+                                  const n = parseInt(applyTenor, 10) || 12;
+                                  const annualRate = Number(profile?.loanInterestRate ?? 9.1);
+                                  if (annualRate <= 0) return formatRp(Math.ceil(P / n));
+                                  const i = annualRate / 1200;
+                                  const power = Math.pow(1 + i, n);
+                                  const pmt = Math.ceil((P * (i * power)) / (power - 1));
+                                  return formatRp(pmt);
+                                })()}
+                                <Text type="supporting" color="secondary" style={{ display: 'inline', marginLeft: 6 }}>/ bulan</Text>
+                              </Heading>
+                            </VStack>
+                            <Text type="supporting" size="sm" color="secondary">
+                              Total Pengembalian: {(() => {
+                                const P = parseFloat(applyAmount) || 0;
+                                const n = parseInt(applyTenor, 10) || 12;
+                                const annualRate = Number(profile?.loanInterestRate ?? 9.1);
+                                if (annualRate <= 0) return formatRp(P);
+                                const i = annualRate / 1200;
+                                const power = Math.pow(1 + i, n);
+                                const pmt = Math.ceil((P * (i * power)) / (power - 1));
+                                return formatRp(pmt * n);
+                              })()} (Tenor {applyTenor} Bulan)
+                            </Text>
+                          </HStack>
                         </VStack>
                       </Card>
                     )}

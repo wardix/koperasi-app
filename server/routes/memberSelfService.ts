@@ -49,6 +49,11 @@ memberSelfService.get('/profile', async (c) => {
   }
 
   const isCoopMember = !!member;
+  const bungaSetting = await db
+    .query("SELECT value FROM settings WHERE key = 'bungaPinjaman'")
+    .get<{ value: string }>();
+  const loanInterestRate = parseFloat(bungaSetting?.value || "0");
+
   const profileData = {
     id: member?.id || employee?.id,
     name: member?.name || employee?.name,
@@ -63,6 +68,7 @@ memberSelfService.get('/profile', async (c) => {
     simpananSukarela: Number(member?.simpananSukarela || 0),
     totalSavings: Number(member?.totalSavings || 0),
     isCoopMember,
+    loanInterestRate,
     employee: employee ? {
       id: employee.id,
       nip: employee.nip,
