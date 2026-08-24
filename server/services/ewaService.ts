@@ -249,12 +249,12 @@ export async function disburseEwa(
 
   // 1. Determine Accounts for Auto-Journal
   // Dr. 11301 Piutang Potong Gaji (Payroll) = total_payroll_deduction
-  // Cr. Bank/Kas Account (11102 / 11101) = disbursed_amount
+  // Cr. 11101 Kas Kecil = disbursed_amount
   // Cr. 41103 Pendapatan Administrasi EWA = fee_amount
   let sourceAccountId = paymentSourceAccountId;
   if (!sourceAccountId) {
-    const bankAcc = await db.query("SELECT id FROM accounts WHERE code = '11102' LIMIT 1").get<{ id: string }>();
-    sourceAccountId = bankAcc?.id;
+    const kasAcc = await db.query("SELECT id FROM accounts WHERE code = '11101' LIMIT 1").get<{ id: string }>();
+    sourceAccountId = kasAcc?.id;
   }
 
   const payrollReceivableAcc = await db
