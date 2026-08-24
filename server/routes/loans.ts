@@ -40,8 +40,31 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
   const includeArchived = c.req.query('includeArchived') === 'true'
+  const search = c.req.query('search')?.trim() || ''
+  const status = c.req.query('status')?.trim() || ''
+  const fetchAll = c.req.query('all') === 'true'
 
-  const whereClause = includeArchived ? '' : 'WHERE l.deletedAt IS NULL'
+  const conditions: string[] = []
+  const params: unknown[] = []
+
+  if (!includeArchived) {
+    conditions.push('l.deletedAt IS NULL')
+  }
+
+  if (search) {
+    conditions.push('(LOWER(COALESCE(m.name, l.name)) LIKE ? OR LOWER(l.purpose) LIKE ?)')
+    const pattern = `%${search.toLowerCase()}%`
+    params.push(pattern, pattern)
+  }
+
+  if (status) {
+    conditions.push('l.status = ?')
+    params.push(status)
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  const limitClause = fetchAll ? '' : 'LIMIT ? OFFSET ?'
+  const queryParams = fetchAll ? params : [...params, limit, offset]
 
   const rows = await db.query(`
     SELECT l.*, COALESCE(m.name, l.name) as name, COALESCE(SUM(p.amount), 0) as paidAmount
@@ -51,18 +74,25 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
     ${whereClause}
     GROUP BY l.id, m.name
     ORDER BY l.id DESC
-    LIMIT ? OFFSET ?
-  `).all<LoanRow & { paidAmount?: number }>(limit, offset)
+    ${limitClause}
+  `).all<LoanRow & { paidAmount?: number }>(...queryParams)
 
   const bungaRate = await getBungaRatePercent(db)
   const mappedLoans = rows.map((loan) => enrichLoanForList(loan, bungaRate))
-  const totalRes = await db.query(`SELECT COUNT(*) as count FROM loans l ${whereClause}`).get() as { count: number }
+
+  const countQuery = `
+    SELECT COUNT(DISTINCT l.id) as count
+    FROM loans l
+    LEFT JOIN members m ON m.id = l.memberId
+    ${whereClause}
+  `
+  const totalRes = await db.query(countQuery).get(...params) as { count: number }
 
   return c.json({
     success: true,
     data: {
       data: mappedLoans,
-      total: totalRes?.count ?? 0,
+      total: totalRes?.count ? Number(totalRes.count) : 0,
       page,
       limit
     }

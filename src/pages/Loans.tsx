@@ -30,12 +30,11 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Avatar} from '@astryxdesign/core/Avatar';
 import {Badge} from '@astryxdesign/core/Badge';
-import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
-import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
+import {TextInput} from '@astryxdesign/core/TextInput';
+import {Selector} from '@astryxdesign/core/Selector';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {
-  FunnelIcon,
   CheckIcon,
   XMarkIcon,
   PlusIcon,
@@ -54,29 +53,50 @@ const ImportSchedulesDialogContent = lazy(() => import('../components/ImportSche
 
 import type {LoanRow, PaginatedResponse} from '../shared/types';
 
-const statusValues = [
-  {value: 'Menunggu', label: 'Menunggu'},
+const statusOptions = [
+  {value: '', label: 'Semua Status'},
+  {value: 'Menunggu', label: 'Menunggu Persetujuan'},
   {value: 'Disetujui', label: 'Disetujui'},
   {value: 'Ditolak', label: 'Ditolak'},
+  {value: 'Lunas', label: 'Lunas'},
+  {value: 'Macet', label: 'Macet'},
 ];
 
-const fieldDefs = [
-  {key: 'name', type: 'string', label: 'Nama Peminjam'},
-  {key: 'status', type: 'enum', label: 'Status', enumValues: statusValues},
-] as const;
-
 export default function LoansTemplate() {
-  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
-  const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const dialog = useA11yDialog({purpose: 'form', width: 520, maxHeight: '85vh'});
   const toast = useToast();
   const { hasPermission } = useAuth();
   const apiAction = useApiAction();
   
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<PaginatedResponse<LoanRow>>(`/api/loans?page=${page}&limit=${limit}`);
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
+
+  const queryParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (debouncedSearch) queryParams.set('search', debouncedSearch);
+  if (statusFilter) queryParams.set('status', statusFilter);
+
+  const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<PaginatedResponse<LoanRow>>(`/api/loans?${queryParams.toString()}`);
+  const loans = loansResponse?.data || [];
   const [localLoans, setLocalLoans] = useState<LoanRow[]>([]);
 
   useEffect(() => {
@@ -130,10 +150,6 @@ export default function LoansTemplate() {
     },
     [dialog, handleUpdateStatus]
   );
-
-  const filtered = useMemo(() => {
-    return applyFilters(filters, localLoans);
-  }, [filters, applyFilters, localLoans]);
 
   const handleAddLoan = useCallback(() => {
     dialog.show(
@@ -341,52 +357,65 @@ export default function LoansTemplate() {
             <StackItem size="fill">
               <Heading level={1}>Persetujuan Pinjaman</Heading>
             </StackItem>
-            <IconButton
-              label="Filter"
-              icon={<Icon icon={FunnelIcon} size="sm" />}
-              variant="ghost"
-            />
             {hasPermission('export:reports') && (
               <>
                 <IconButton
                   label="Unduh"
                   icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
                   variant="ghost"
-                  onClick={() => {
-                    if (localLoans.length === 0) {
+                  onClick={async () => {
+                    if (loans.length === 0) {
                       toast.show({ type: 'error', message: 'Data kosong' });
                       return;
                     }
-                    const columns = [
-                      { header: 'Nama Peminjam', key: 'name' },
-                      { header: 'Keperluan', key: 'purpose' },
-                      { header: 'Status', key: 'status' },
-                      { header: 'Tenor (Bulan)', key: 'tenor' },
-                      { header: 'Jumlah Pinjaman', key: 'amount', render: (item: any) => formatRp(item.amount) },
-                      { header: 'Total Tagihan', key: 'totalAmount', render: (item: any) => formatRp(item.totalAmount || item.amount) },
-                      { header: 'Telah Dibayar', key: 'paidAmount', render: (item: any) => formatRp(item.paidAmount || 0) },
-                      { header: 'Sisa Pinjaman', key: 'remainingAmount', render: (item: any) => formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0))) }
-                    ];
-                    exportToExcel(localLoans, columns, `Data_Pinjaman_${new Date().toISOString().slice(0,10)}`);
+                    try {
+                      const exportParams = new URLSearchParams({ all: 'true' });
+                      if (debouncedSearch) exportParams.set('search', debouncedSearch);
+                      if (statusFilter) exportParams.set('status', statusFilter);
+                      const res = await api.get<{ data: LoanRow[] }>(`/api/loans?${exportParams.toString()}`);
+                      const dataToExport = res?.data || loans;
+                      const columns = [
+                        { header: 'Nama Peminjam', key: 'name' },
+                        { header: 'Keperluan', key: 'purpose' },
+                        { header: 'Status', key: 'status' },
+                        { header: 'Tenor (Bulan)', key: 'tenor' },
+                        { header: 'Jumlah Pinjaman', key: 'amount', render: (item: any) => formatRp(item.amount) },
+                        { header: 'Total Tagihan', key: 'totalAmount', render: (item: any) => formatRp(item.totalAmount || item.amount) },
+                        { header: 'Telah Dibayar', key: 'paidAmount', render: (item: any) => formatRp(item.paidAmount || 0) },
+                        { header: 'Sisa Pinjaman', key: 'remainingAmount', render: (item: any) => formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0))) }
+                      ];
+                      exportToExcel(dataToExport, columns, `Data_Pinjaman_${new Date().toISOString().slice(0,10)}`);
+                    } catch {
+                      toast.show({ type: 'error', message: 'Gagal mengekspor data' });
+                    }
                   }}
                 />
                 <IconButton
                   label="Cetak PDF"
                   icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
                   variant="ghost"
-                  onClick={() => {
-                    if (localLoans.length === 0) {
+                  onClick={async () => {
+                    if (loans.length === 0) {
                       toast.show({ type: 'error', message: 'Data kosong' });
                       return;
                     }
-                    const columns = [
-                      { header: 'Nama Peminjam', key: 'name' },
-                      { header: 'Status', key: 'status' },
-                      { header: 'Tenor', key: 'tenor', render: (item: any) => `${item.tenor} Bln` },
-                      { header: 'Pinjaman', key: 'amount', render: (item: any) => formatRp(item.amount) },
-                      { header: 'Sisa', key: 'remainingAmount', render: (item: any) => formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0))) }
-                    ];
-                    exportToPDF(localLoans, columns, `Laporan_Pinjaman_${new Date().toISOString().slice(0,10)}`, 'DAFTAR PINJAMAN KOPERASI');
+                    try {
+                      const exportParams = new URLSearchParams({ all: 'true' });
+                      if (debouncedSearch) exportParams.set('search', debouncedSearch);
+                      if (statusFilter) exportParams.set('status', statusFilter);
+                      const res = await api.get<{ data: LoanRow[] }>(`/api/loans?${exportParams.toString()}`);
+                      const dataToExport = res?.data || loans;
+                      const columns = [
+                        { header: 'Nama Peminjam', key: 'name' },
+                        { header: 'Status', key: 'status' },
+                        { header: 'Tenor', key: 'tenor', render: (item: any) => `${item.tenor} Bln` },
+                        { header: 'Pinjaman', key: 'amount', render: (item: any) => formatRp(item.amount) },
+                        { header: 'Sisa', key: 'remainingAmount', render: (item: any) => formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0))) }
+                      ];
+                      exportToPDF(dataToExport, columns, `Laporan_Pinjaman_${new Date().toISOString().slice(0,10)}`, 'DAFTAR PINJAMAN KOPERASI');
+                    } catch {
+                      toast.show({ type: 'error', message: 'Gagal mengekspor PDF' });
+                    }
                   }}
                 />
               </>
@@ -421,17 +450,24 @@ export default function LoansTemplate() {
         <LayoutContent padding={3}>
           <DataStateView isLoading={isLoading} error={error} onRetry={fetchLoans} errorTitle="Gagal Memuat Data Pinjaman">
           <VStack gap={4}>
-            <PowerSearch
-              config={config}
-              filters={filters}
-              onChange={newFilters => {
-                setFilters([...newFilters]);
-              }}
-              placeholder="Cari pengajuan..."
-              resultCount={filtered.length}
-            />
+            <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
+              <StackItem size="fill">
+                <TextInput
+                  placeholder="Cari nama peminjam atau keperluan pinjaman..."
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                />
+              </StackItem>
+              <StackItem style={{ width: '220px' }}>
+                <Selector
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={statusOptions}
+                />
+              </StackItem>
+            </HStack>
             <Table<LoanRow>
-              data={filtered}
+              data={loans}
               columns={columns}
               idKey="id"
               density="balanced"
