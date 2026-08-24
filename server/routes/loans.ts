@@ -73,7 +73,17 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
     LEFT JOIN loan_payments p ON l.id = p.loanId
     ${whereClause}
     GROUP BY l.id, m.name
-    ORDER BY l.id DESC
+    ORDER BY 
+      CASE l.status
+        WHEN 'Menunggu' THEN 1
+        WHEN 'Disetujui' THEN 2
+        WHEN 'Lunas' THEN 3
+        WHEN 'Macet' THEN 4
+        WHEN 'Ditolak' THEN 5
+        ELSE 6
+      END ASC,
+      l.createdat DESC,
+      l.id DESC
     ${limitClause}
   `).all<LoanRow & { paidAmount?: number }>(...queryParams)
 
