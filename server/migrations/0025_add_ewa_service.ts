@@ -72,13 +72,13 @@ export function createAddEwaServiceMigration(db: {
 
       // 3. Add EWA specific revenue account in Chart of Accounts if not exists
       const existingAcc = (await db.query(
-        `SELECT id FROM accounts WHERE code = '41201' LIMIT 1`
+        `SELECT id FROM accounts WHERE code = '41103' LIMIT 1`
       ).get()) as { id?: string } | undefined;
 
       if (!existingAcc?.id) {
         await db.run(
           `INSERT INTO accounts (code, name, type, normal_balance) VALUES ($1, $2, $3, $4)`,
-          ['41201', 'Pendapatan Administrasi EWA', 'REVENUE', 'CREDIT']
+          ['41103', 'Pendapatan Administrasi EWA', 'REVENUE', 'CREDIT']
         );
       }
     },

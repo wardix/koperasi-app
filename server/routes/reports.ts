@@ -187,7 +187,7 @@ reports.get('/cashflow-statement', requirePermission('read:reports'), async (c) 
         case '11201': return 'Penerimaan Angsuran Pokok Pinjaman';
         case '41101': return 'Penerimaan Jasa / Bunga Pinjaman';
         case '41102': return 'Penerimaan Provisi & Administrasi Pinjaman';
-        case '41201': return 'Penerimaan Biaya Layanan Gaji Awal (EWA)';
+        case '41103': return 'Penerimaan Biaya Layanan Gaji Awal (EWA)';
         case '11301': return 'Pelunasan Payroll Kasbon Gaji (EWA)';
         case '42101': return 'Penerimaan Jasa Giro / Bunga Bank';
         case '42102': return 'Penerimaan Pendapatan Denda';

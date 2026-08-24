@@ -35,6 +35,7 @@ async function main() {
     // Pendapatan
     { code: '41101', name: 'Pendapatan Jasa Pinjaman', type: 'REVENUE', normal_balance: 'CREDIT' },
     { code: '41102', name: 'Pendapatan Provisi / Administrasi', type: 'REVENUE', normal_balance: 'CREDIT' },
+    { code: '41103', name: 'Pendapatan Administrasi EWA', type: 'REVENUE', normal_balance: 'CREDIT' },
     { code: '42101', name: 'Pendapatan Bunga Bank', type: 'REVENUE', normal_balance: 'CREDIT' },
     { code: '42102', name: 'Pendapatan Denda', type: 'REVENUE', normal_balance: 'CREDIT' },
     // Beban

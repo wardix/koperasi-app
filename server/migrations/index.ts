@@ -22,6 +22,7 @@ import { createAddTransactionSeqMigration } from "./0024_add_transaction_seq";
 import { createAddEwaServiceMigration } from "./0025_add_ewa_service";
 import { createAddLoanAttachmentMigration } from "./0026_add_loan_attachment";
 import { createAddLettersManagementMigration } from "./0027_add_letters_management";
+import { createUpdateEwaAccountCodeMigration } from "./0028_update_ewa_account_code";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -62,6 +63,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddEwaServiceMigration(db),
     createAddLoanAttachmentMigration(db),
     createAddLettersManagementMigration(db),
+    createUpdateEwaAccountCodeMigration(db),
   ];
 }
 
