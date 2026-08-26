@@ -4,8 +4,7 @@
 
 import {AppShell} from '@astryxdesign/core/AppShell';
 import {VStack} from '@astryxdesign/core/Stack';
-import {Heading, Text} from '@astryxdesign/core/Text';
-import {TopNav, TopNavHeading, TopNavItem} from '@astryxdesign/core/TopNav';
+import {TopNav, TopNavHeading} from '@astryxdesign/core/TopNav';
 import {SideNav, SideNavItem, SideNavSection} from '@astryxdesign/core/SideNav';
 import {
   ChartBarIcon,
@@ -108,13 +107,6 @@ export default function Shell() {
                 />
               }
             />
-          }
-          startContent={
-            <>
-              <TopNavItem label="Dasbor" isSelected={path === '/dashboard' || path === '/'} onClick={() => navigate('/')} />
-              <TopNavItem label="Layanan" />
-              <TopNavItem label="Pengaturan" isSelected={path === '/settings'} onClick={() => navigate('/settings')} />
-            </>
           }
           endContent={
             <IconButton
