@@ -6,7 +6,6 @@ import {AppShell} from '@astryxdesign/core/AppShell';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Heading, Text} from '@astryxdesign/core/Text';
 import {TopNav, TopNavHeading, TopNavItem} from '@astryxdesign/core/TopNav';
-import {NavIcon} from '@astryxdesign/core/NavIcon';
 import {SideNav, SideNavItem, SideNavSection} from '@astryxdesign/core/SideNav';
 import {
   ChartBarIcon,
@@ -22,7 +21,6 @@ import {
   MoonIcon,
 } from '@heroicons/react/24/outline';
 import {HomeIcon} from '@heroicons/react/24/solid';
-import {CubeIcon} from '@heroicons/react/24/outline';
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import React, { Suspense, type ReactNode } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
@@ -94,11 +92,19 @@ export default function Shell() {
         <TopNav
           label="Main navigation"
           heading={
-              <TopNavHeading
+            <TopNavHeading
               heading={koperasiName}
               logo={
-                <NavIcon
-                  icon={<CubeIcon style={{width: 16, height: 16}} />}
+                <img
+                  src="/nsp.png"
+                  alt={koperasiName}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
                 />
               }
             />
