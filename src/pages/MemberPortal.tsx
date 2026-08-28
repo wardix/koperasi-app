@@ -935,7 +935,7 @@ export default function MemberPortal() {
                     Fasilitas Akses Gaji Awal (EWA)
                   </Heading>
                   <Text type="supporting" color="secondary">
-                    Gaji Pokok: {formatRp(ewaQuota?.baseSalary || profile?.employee?.baseSalary || 0)} • Kuota Maksimal 50%: {formatRp(ewaQuota?.maxMonthlyLimit || 0)}
+                    Fasilitas kasbon penarikan gaji lebih awal untuk karyawan aktif • Plafon Maks. Sebulan: {formatRp(ewaQuota?.maxMonthlyLimit || 0)}
                   </Text>
                 </VStack>
                 <Card style={{ padding: '8px 16px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
