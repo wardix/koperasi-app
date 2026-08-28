@@ -6,11 +6,91 @@ export const EWA_MAX_PERCENTAGE = 50; // 50% from monthly base salary
 export const EWA_MEMBER_FEE_PCT = 2.0; // 2.0% for Cooperative Members
 export const EWA_NON_MEMBER_FEE_PCT = 3.5; // 3.5% for Non-Members
 
-function getCurrentPeriodMonth(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
+export function getEwaPayrollCutoffDay(): number {
+  const envVal =
+    process.env.EWA_PAYROLL_CUTOFF_DAY ||
+    (typeof Bun !== "undefined" ? Bun.env.EWA_PAYROLL_CUTOFF_DAY : undefined) ||
+    process.env.VITE_EWA_PAYROLL_CUTOFF_DAY ||
+    (typeof Bun !== "undefined" ? Bun.env.VITE_EWA_PAYROLL_CUTOFF_DAY : undefined);
+
+  if (envVal !== undefined && envVal !== "") {
+    const parsed = parseInt(String(envVal), 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
+      return parsed;
+    }
+  }
+
+  const startEnvVal =
+    process.env.EWA_CYCLE_START_DAY ||
+    (typeof Bun !== "undefined" ? Bun.env.EWA_CYCLE_START_DAY : undefined) ||
+    process.env.VITE_EWA_CYCLE_START_DAY ||
+    (typeof Bun !== "undefined" ? Bun.env.VITE_EWA_CYCLE_START_DAY : undefined);
+
+  if (startEnvVal !== undefined && startEnvVal !== "") {
+    const parsed = parseInt(String(startEnvVal), 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
+      return parsed === 1 ? 31 : parsed - 1;
+    }
+  }
+
+  return 25; // Default: 25th is the cutoff day
+}
+
+export function getCurrentPeriodMonth(asOfDate?: Date | string): string {
+  const target = asOfDate ? new Date(asOfDate) : new Date();
+  const year = target.getFullYear();
+  const month = target.getMonth() + 1;
+  const day = target.getDate();
+  const cutoff = getEwaPayrollCutoffDay();
+
+  let pYear = year;
+  let pMonth = month;
+
+  if (cutoff > 0 && cutoff < 31 && day > cutoff) {
+    pMonth += 1;
+    if (pMonth > 12) {
+      pMonth = 1;
+      pYear += 1;
+    }
+  }
+
+  return `${pYear}-${String(pMonth).padStart(2, "0")}`;
+}
+
+export function getPayrollCycleDates(periodMonth: string, cutoffDay: number = getEwaPayrollCutoffDay()) {
+  const [yearStr, monthStr] = periodMonth.split("-");
+  const pYear = parseInt(yearStr, 10);
+  const pMonth = parseInt(monthStr, 10);
+
+  let startYear = pYear;
+  let startMonth = pMonth - 1;
+  if (startMonth < 1) {
+    startMonth = 12;
+    startYear -= 1;
+  }
+
+  const startDay = cutoffDay === 31 ? 1 : cutoffDay + 1;
+  const endDay = cutoffDay;
+
+  const maxDaysInStartMonth = new Date(startYear, startMonth, 0).getDate();
+  const actualStartDay = Math.min(startDay, maxDaysInStartMonth);
+
+  const maxDaysInEndMonth = new Date(pYear, pMonth, 0).getDate();
+  const actualEndDay = Math.min(endDay, maxDaysInEndMonth);
+
+  const startDate = new Date(Date.UTC(startYear, startMonth - 1, actualStartDay));
+  const endDate = new Date(Date.UTC(pYear, pMonth - 1, actualEndDay));
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const totalDaysInCycle = Math.round((endDate.getTime() - startDate.getTime()) / msPerDay) + 1;
+
+  return {
+    cycleStartDateStr: startDate.toISOString().slice(0, 10),
+    cycleEndDateStr: endDate.toISOString().slice(0, 10),
+    startDate,
+    endDate,
+    totalDaysInCycle,
+  };
 }
 
 export async function syncEmployeeMemberStatus(db: Db, employeeId: string): Promise<void> {
@@ -173,28 +253,23 @@ export async function getEmployeeEwaQuota(
     throw new ServiceError("Data karyawan tidak ditemukan", 404);
   }
 
-  const period = periodMonth || getCurrentPeriodMonth();
+  const cutoffDay = getEwaPayrollCutoffDay();
+  const period = periodMonth || getCurrentPeriodMonth(asOfDate);
   const coopLoanDeduction = await getMemberActiveMonthlyLoanInstallment(db, emp.memberId, period);
   const effectiveSalary = Math.max(0, emp.baseSalary - coopLoanDeduction);
   const maxMonthlyLimit = Math.floor((effectiveSalary * EWA_MAX_PERCENTAGE) / 100);
 
-  // Progressive daily accrual calculation
+  // Progressive daily accrual calculation based on payroll cycle
+  const { cycleStartDateStr, cycleEndDateStr, startDate, endDate, totalDaysInCycle } = getPayrollCycleDates(period, cutoffDay);
+
   const targetDate = asOfDate ? new Date(asOfDate) : new Date();
-  const [yearStr, monthStr] = period.split("-");
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10);
-  const totalDaysInMonth = new Date(year, month, 0).getDate();
+  const targetUtc = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const msPerDay = 1000 * 60 * 60 * 24;
 
-  let currentDay = targetDate.getDate();
-  const targetPeriod = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`;
-  if (targetPeriod < period) {
-    currentDay = 1;
-  } else if (targetPeriod > period) {
-    currentDay = totalDaysInMonth;
-  }
+  const clampedTargetTime = Math.min(endDate.getTime(), Math.max(startDate.getTime(), targetUtc));
+  const currentDayInCycle = Math.round((clampedTargetTime - startDate.getTime()) / msPerDay) + 1;
 
-  currentDay = Math.min(totalDaysInMonth, Math.max(1, currentDay));
-  const progressiveRatio = currentDay / totalDaysInMonth;
+  const progressiveRatio = Math.min(1, Math.max(0, currentDayInCycle / totalDaysInCycle));
   const progressivePercentage = Math.round(progressiveRatio * 10000) / 100;
   const dailyAccumulatedLimit = Math.floor(maxMonthlyLimit * progressiveRatio);
 
@@ -232,8 +307,12 @@ export async function getEmployeeEwaQuota(
     effectiveSalary,
     maxAllowedPercentage: EWA_MAX_PERCENTAGE,
     maxMonthlyLimit,
-    currentDay,
-    totalDaysInMonth,
+    currentDay: targetDate.getDate(),
+    currentDayInCycle,
+    totalDaysInCycle,
+    cycleStartDate: cycleStartDateStr,
+    cycleEndDate: cycleEndDateStr,
+    cutoffDay,
     progressivePercentage,
     dailyAccumulatedLimit,
     totalUsedThisMonth,

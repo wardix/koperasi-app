@@ -11,6 +11,9 @@ import {
   settlePayroll,
   batchImportEmployees,
   getMemberActiveMonthlyLoanInstallment,
+  getCurrentPeriodMonth,
+  getPayrollCycleDates,
+  getEwaPayrollCutoffDay,
 } from '../services/ewaService';
 import {
   ewaEmployeeSchema,
@@ -166,10 +169,14 @@ ewa.get('/employees', requirePermission('read:members'), async (c) => {
     .all(...params, limit, offset);
 
   const now = new Date();
-  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const currentDay = now.getDate();
-  const progressiveRatio = currentDay / totalDaysInMonth;
+  const currentPeriod = getCurrentPeriodMonth(now);
+  const cutoffDay = getEwaPayrollCutoffDay();
+  const { startDate, endDate, totalDaysInCycle } = getPayrollCycleDates(currentPeriod, cutoffDay);
+  const targetUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const clampedTargetTime = Math.min(endDate.getTime(), Math.max(startDate.getTime(), targetUtc));
+  const currentDayInCycle = Math.round((clampedTargetTime - startDate.getTime()) / msPerDay) + 1;
+  const progressiveRatio = Math.min(1, Math.max(0, currentDayInCycle / totalDaysInCycle));
 
   const mapped = await Promise.all(
     rows.map(async (r: any) => {

@@ -83,9 +83,13 @@ export interface EwaQuotaInfo {
   effectiveSalary?: number;   // Gaji bersih setelah dikurangi angsuran pinjaman koperasi
   maxAllowedPercentage: number; // 50
   maxMonthlyLimit: number; // Plafon sebulan penuh (50% dari effectiveSalary)
-  currentDay?: number; // Tanggal ke-d hari ini (1..31)
-  totalDaysInMonth?: number; // Total hari dalam bulan ini (28..31)
-  progressivePercentage?: number; // Persentase progresif harian (e.g. 32.26%)
+  currentDay?: number; // Tanggal kalender (1..31)
+  currentDayInCycle?: number; // Hari ke-d dalam siklus penggajian berjalan
+  totalDaysInCycle?: number; // Total hari dalam siklus penggajian berjalan (e.g. 30/31)
+  cycleStartDate?: string; // Tanggal awal siklus penggajian (YYYY-MM-DD)
+  cycleEndDate?: string; // Tanggal akhir / cut-off siklus penggajian (YYYY-MM-DD)
+  cutoffDay?: number; // Tanggal cut-off (default: 25)
+  progressivePercentage?: number; // Persentase progresif akumulatif (e.g. 51.61%)
   dailyAccumulatedLimit?: number; // Plafon maksimal akumulatif progresif s/d hari ini
   totalUsedThisMonth: number;
   remainingQuota: number; // Sisa kuota yang dapat diajukan hari ini (dailyAccumulatedLimit - totalUsedThisMonth)

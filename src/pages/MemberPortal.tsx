@@ -1304,17 +1304,19 @@ export default function MemberPortal() {
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
                           <Text type="supporting">
-                            Plafon s/d Hari Ini (Tgl {ewaQuota?.currentDay || new Date().getDate()})
+                            Plafon Hari Ini (Hari {ewaQuota?.currentDayInCycle || 1}/{ewaQuota?.totalDaysInCycle || 31})
                           </Text>
                           <Heading level={3}>{formatRp(ewaQuota?.dailyAccumulatedLimit ?? ewaQuota?.maxMonthlyLimit ?? 0)}</Heading>
-                          <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
-                            Plafon Maks Sebulan: {formatRp(ewaQuota?.maxMonthlyLimit || 0)}
+                          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                            {ewaQuota?.cycleStartDate && ewaQuota?.cycleEndDate
+                              ? `Siklus: ${ewaQuota.cycleStartDate} s/d ${ewaQuota.cycleEndDate}`
+                              : `Plafon Maks Sebulan: ${formatRp(ewaQuota?.maxMonthlyLimit || 0)}`}
                           </Text>
                         </VStack>
                       </Card>
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Sudah Ditarik Bulan Ini</Text>
+                          <Text type="supporting">Sudah Ditarik Siklus Ini</Text>
                           <Heading level={3}>{formatRp(ewaQuota?.totalUsedThisMonth || 0)}</Heading>
                         </VStack>
                       </Card>
