@@ -237,6 +237,43 @@ export default function EWA() {
   };
 
   // Handle CSV Import
+  function parseCSVLine(text: string): string[] {
+    const result: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c === '"') {
+        if (inQuotes && text[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        result.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  // Handle CSV File Upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      if (text) setImportCsvText(text);
+    };
+    reader.readAsText(file);
+  };
+
+  // Handle CSV Import
   const handleImportCsv = async (e: React.FormEvent) => {
     e.preventDefault();
     setImportLoading(true);
@@ -244,37 +281,40 @@ export default function EWA() {
     setImportSuccess('');
 
     try {
-      const lines = importCsvText.trim().split('\n');
+      const lines = importCsvText.trim().split(/\r?\n/);
       if (lines.length < 2) {
         setImportError('Data CSV kosong atau tidak memiliki baris data');
         setImportLoading(false);
         return;
       }
 
-      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+      const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ''));
       const items: any[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        const vals = line.split(',').map((v) => v.trim().replace(/^"|"$/g, ''));
-        const obj: any = {};
+        const vals = parseCSVLine(line);
+        const obj: Record<string, string> = {};
         headers.forEach((h, idx) => {
-          obj[h] = vals[idx] || '';
+          obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g, '');
         });
 
+        const rawSalary = obj['jumlah gaji'] || obj['gaji_pokok'] || obj['gaji'] || obj['basesalary'] || obj['salary'] || '0';
+        const cleanSalary = rawSalary.replace(/[^\d.]/g, '');
+
         items.push({
-          nip: obj.nip || obj['no_karyawan'] || '',
-          nik: obj.nik || null,
-          name: obj.nama || obj.name || '',
-          email: obj.email || '',
-          phone: obj.telepon || obj.phone || null,
-          department: obj.departemen || obj.department || null,
-          position: obj.jabatan || obj.position || null,
-          baseSalary: parseFloat(obj.gaji_pokok || obj.gaji || obj.basesalary || '0') || 0,
-          bankName: obj.bank || obj.nama_bank || null,
-          bankAccountNumber: obj.rekening || obj.no_rekening || null,
-          bankAccountName: obj.nama_rekening || obj.atas_nama || null,
+          nip: obj['emp. id'] || obj['nip'] || obj['no_karyawan'] || obj['employee_id'] || '',
+          nik: obj['no. ktp'] || obj['nik'] || obj['ktp'] || null,
+          name: obj['nama lengkap karyawan'] || obj['nama'] || obj['name'] || '',
+          email: obj['email'] || '',
+          phone: obj['no. hp'] || obj['telepon'] || obj['phone'] || obj['no_hp'] || null,
+          department: obj['departemen'] || obj['department'] || obj['divisi'] || null,
+          position: obj['posisi/jabatan'] || obj['jabatan'] || obj['position'] || null,
+          baseSalary: parseFloat(cleanSalary) || 0,
+          bankName: obj['bank payroll'] || obj['bank'] || obj['nama_bank'] || null,
+          bankAccountNumber: obj['no. rekening'] || obj['rekening'] || obj['no_rekening'] || null,
+          bankAccountName: obj['nama di rekening'] || obj['nama_rekening'] || obj['atas_nama'] || obj['nama lengkap karyawan'] || null,
         });
       }
 
@@ -909,7 +949,7 @@ export default function EWA() {
                   <VStack gap={4}>
                     <Heading level={4}>Import Data Karyawan (CSV)</Heading>
                     <Text type="supporting" color="secondary">
-                      Format header: <code>nip,nik,nama,email,departemen,jabatan,gaji_pokok,bank,rekening,nama_rekening</code>
+                      Mendukung format ekspor HRIS / Wagely (<code>Nama Lengkap Karyawan, No. KTP, Emp. ID, Jumlah Gaji, dll.</code>) maupun format standar.
                     </Text>
 
                     {importError && (
@@ -923,10 +963,23 @@ export default function EWA() {
                       </Text>
                     )}
 
+                    <VStack gap={2}>
+                      <HStack gap={2} vAlign="center">
+                        <Text type="supporting" style={{ fontWeight: 500 }}>Pilih File CSV:</Text>
+                        <input
+                          type="file"
+                          accept=".csv,text/csv"
+                          onChange={handleFileUpload}
+                          style={{ fontSize: 13 }}
+                        />
+                      </HStack>
+                      <Text type="supporting" color="secondary">atau tempel isi teks CSV di bawah ini:</Text>
+                    </VStack>
+
                     <textarea
                       rows={8}
                       required
-                      placeholder={`nip,nik,nama,email,departemen,jabatan,gaji_pokok,bank,rekening,nama_rekening\nEMP001,3201010001,Budi Santoso,budi@holding.com,IT,Staff,8000000,Bank Mandiri,1400012345,Budi Santoso`}
+                      placeholder={`Nama Lengkap Karyawan,No. KTP,Emp. ID,Email,No. HP,Bank Payroll,No. Rekening,Nama di rekening,Posisi/Jabatan,Jumlah Gaji\nBudi Santoso,1271111310970003,0202169,budi@nusa.id,6282370071235,Bank Mandiri,1060015016754,Budi Santoso,Engineer,"3,219,069"`}
                       value={importCsvText}
                       onChange={(e) => setImportCsvText(e.target.value)}
                       style={{
