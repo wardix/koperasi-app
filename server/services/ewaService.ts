@@ -624,6 +624,28 @@ export async function settlePayroll(
   };
 }
 
+/**
+ * Resolves and caps the base salary for EWA.
+ * If EWA_MAX_BASE_SALARY environment variable is set (e.g. 10000000),
+ * base salary will be capped at that value so that very high salaries are not disclosed to cooperative admins.
+ */
+export function getCappedBaseSalary(salary: number): number {
+  const maxEnv =
+    process.env.EWA_MAX_BASE_SALARY ||
+    (typeof Bun !== "undefined" ? Bun.env.EWA_MAX_BASE_SALARY : undefined) ||
+    process.env.VITE_EWA_MAX_BASE_SALARY ||
+    (typeof Bun !== "undefined" ? Bun.env.VITE_EWA_MAX_BASE_SALARY : undefined);
+
+  const numSalary = Math.max(0, Number(salary) || 0);
+  if (maxEnv) {
+    const cap = parseFloat(maxEnv);
+    if (!isNaN(cap) && cap > 0) {
+      return Math.min(numSalary, cap);
+    }
+  }
+  return numSalary;
+}
+
 export async function batchImportEmployees(
   db: Db,
   items: Array<{
@@ -649,6 +671,7 @@ export async function batchImportEmployees(
       const email = item.email.trim().toLowerCase();
       const nip = item.nip.trim();
       const name = item.name.trim();
+      const cappedSalary = getCappedBaseSalary(item.baseSalary);
 
       // Check if employee already exists by NIP or email
       const existing = await db
@@ -669,7 +692,7 @@ export async function batchImportEmployees(
           item.phone || null,
           item.department || null,
           item.position || null,
-          Number(item.baseSalary || 0),
+          cappedSalary,
           item.bankName || null,
           item.bankAccountNumber || null,
           item.bankAccountName || name,
@@ -692,7 +715,7 @@ export async function batchImportEmployees(
           item.phone || null,
           item.department || null,
           item.position || null,
-          Number(item.baseSalary || 0),
+          cappedSalary,
           item.bankName || null,
           item.bankAccountNumber || null,
           item.bankAccountName || name

@@ -295,13 +295,27 @@ export default function EWA() {
         const line = lines[i].trim();
         if (!line) continue;
         const vals = parseCSVLine(line);
-        const obj: Record<string, string> = {};
         headers.forEach((h, idx) => {
           obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g, '');
         });
 
-        const rawSalary = obj['jumlah gaji'] || obj['gaji_pokok'] || obj['gaji'] || obj['basesalary'] || obj['salary'] || '0';
-        const cleanSalary = rawSalary.replace(/[^\d.]/g, '');
+        const rawSalaryStr = obj['jumlah gaji'] || obj['gaji_pokok'] || obj['gaji'] || obj['basesalary'] || obj['salary'] || '0';
+        const rawLoanStr = obj['jumlah potongan pinjaman (jika ada)'] || obj['jumlah potongan pinjaman'] || obj['potongan_pinjaman'] || obj['potongan_gaji'] || obj['potongan'] || '0';
+
+        const rawSalary = parseFloat(rawSalaryStr.replace(/[^\d.]/g, '')) || 0;
+        const rawLoanDeduction = parseFloat(rawLoanStr.replace(/[^\d.]/g, '')) || 0;
+
+        // Net base salary = Gaji - Potongan Pinjaman
+        let netSalary = Math.max(0, rawSalary - rawLoanDeduction);
+
+        // Cap with env limit if configured (e.g. VITE_EWA_MAX_BASE_SALARY = 10000000)
+        const maxCapEnv = (import.meta as any).env?.VITE_EWA_MAX_BASE_SALARY;
+        if (maxCapEnv) {
+          const cap = parseFloat(maxCapEnv);
+          if (!isNaN(cap) && cap > 0) {
+            netSalary = Math.min(netSalary, cap);
+          }
+        }
 
         items.push({
           nip: obj['emp. id'] || obj['nip'] || obj['no_karyawan'] || obj['employee_id'] || '',
@@ -311,7 +325,7 @@ export default function EWA() {
           phone: obj['no. hp'] || obj['telepon'] || obj['phone'] || obj['no_hp'] || null,
           department: obj['departemen'] || obj['department'] || obj['divisi'] || null,
           position: obj['posisi/jabatan'] || obj['jabatan'] || obj['position'] || null,
-          baseSalary: parseFloat(cleanSalary) || 0,
+          baseSalary: netSalary,
           bankName: obj['bank payroll'] || obj['bank'] || obj['nama_bank'] || null,
           bankAccountNumber: obj['no. rekening'] || obj['rekening'] || obj['no_rekening'] || null,
           bankAccountName: obj['nama di rekening'] || obj['nama_rekening'] || obj['atas_nama'] || obj['nama lengkap karyawan'] || null,
