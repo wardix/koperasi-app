@@ -14,6 +14,7 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { SunIcon, MoonIcon, BanknotesIcon, ClipboardDocumentCheckIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useThemeMode } from '../contexts/ThemeContext';
+import type { EwaFeeTier } from '../../shared/types';
 
 const PREVIEW_TOKEN_KEY = 'memberPreviewToken';
 const PREVIEW_NAME_KEY = 'memberPreviewName';
@@ -101,6 +102,7 @@ export default function MemberPortal() {
   // EWA State
   const [ewaQuota, setEwaQuota] = useState<any>(null);
   const [ewaHistory, setEwaHistory] = useState<any[]>([]);
+  const [feeTiers, setFeeTiers] = useState<EwaFeeTier[]>([]);
   const [ewaLoading, setEwaLoading] = useState(false);
   const [ewaAmount, setEwaAmount] = useState('');
   const [ewaBank, setEwaBank] = useState('');
@@ -121,9 +123,10 @@ export default function MemberPortal() {
     setEwaLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [quotaRes, histRes] = await Promise.all([
+      const [quotaRes, histRes, tiersRes] = await Promise.all([
         fetch('/api/v1/portal/ewa/quota', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/ewa/history', { headers }).then((r) => r.json()),
+        fetch('/api/v1/ewa/fee-tiers').then((r) => r.json()).catch(() => ({ success: false })),
       ]);
       if (quotaRes.success) {
         setEwaQuota(quotaRes.data);
@@ -135,6 +138,9 @@ export default function MemberPortal() {
       }
       if (histRes.success) {
         setEwaHistory(histRes.data || []);
+      }
+      if (tiersRes.success) {
+        setFeeTiers(tiersRes.data || []);
       }
     } catch {
       // ignore
@@ -1409,27 +1415,47 @@ export default function MemberPortal() {
                         </Grid>
 
                         {/* Simulasi Live Fee & Potongan */}
-                        {parseFloat(ewaAmount.replace(/\D/g, '')) > 0 && (
-                          <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
-                            <VStack gap={2}>
-                              <Text type="body" weight="bold">Rincian & Simulasi Potongan Gaji</Text>
-                              <HStack justify="space-between" wrap="wrap" gap={2}>
-                                <Text type="supporting">Nominal Dana Yang Diterima:</Text>
-                                <Text type="body" weight="semibold" color="success">+{formatRp(parseFloat(ewaAmount.replace(/\D/g, '')) || 0)}</Text>
-                              </HStack>
-                              <HStack justify="space-between" wrap="wrap" gap={2}>
-                                <Text type="supporting">Biaya Layanan ({ewaQuota?.feePercentage || 2}%):</Text>
-                                <Text type="supporting">{formatRp(Math.round(((parseFloat(ewaAmount.replace(/\D/g, '')) || 0) * (ewaQuota?.feePercentage || 2)) / 100))}</Text>
-                              </HStack>
-                              <HStack justify="space-between" wrap="wrap" gap={2} style={{ paddingTop: 6, borderTop: '1px solid var(--color-border-primary)' }}>
-                                <Text type="body" weight="bold">Total Potongan Gaji Saat Payroll:</Text>
-                                <Text type="body" weight="bold" color="primary">
-                                  {formatRp(Math.round((parseFloat(ewaAmount.replace(/\D/g, '')) || 0) + (((parseFloat(ewaAmount.replace(/\D/g, '')) || 0) * (ewaQuota?.feePercentage || 2)) / 100)))}
-                                </Text>
-                              </HStack>
-                            </VStack>
-                          </Card>
-                        )}
+                        {parseFloat(ewaAmount.replace(/\D/g, '')) > 0 && (() => {
+                          const numericAmount = parseFloat(ewaAmount.replace(/\D/g, '')) || 0;
+                          const isMember = Boolean(ewaQuota?.isMember ?? profile?.isCoopMember);
+                          const matchedTier = feeTiers.find((t) => {
+                            if (numericAmount < t.minAmount) return false;
+                            if (t.maxAmount != null && numericAmount > t.maxAmount) return false;
+                            return true;
+                          });
+
+                          const feeAmount = matchedTier
+                            ? (isMember ? matchedTier.memberFee : matchedTier.nonMemberFee)
+                            : Math.round((numericAmount * (isMember ? 2 : 3.5)) / 100);
+
+                          const tierLabel = matchedTier
+                            ? `Tier ${matchedTier.tierOrder} (${formatRp(matchedTier.minAmount)} s/d ${matchedTier.maxAmount != null ? formatRp(matchedTier.maxAmount) : 'Diatasnya'})`
+                            : `${isMember ? '2.0%' : '3.5%'}`;
+
+                          const totalDeduction = numericAmount + feeAmount;
+
+                          return (
+                            <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
+                              <VStack gap={2}>
+                                <Text type="body" weight="bold">Rincian & Simulasi Potongan Gaji</Text>
+                                <HStack justify="space-between" wrap="wrap" gap={2}>
+                                  <Text type="supporting">Nominal Dana Yang Diterima:</Text>
+                                  <Text type="body" weight="semibold" color="success">+{formatRp(numericAmount)}</Text>
+                                </HStack>
+                                <HStack justify="space-between" wrap="wrap" gap={2}>
+                                  <Text type="supporting">Biaya Admin ({tierLabel}):</Text>
+                                  <Text type="supporting">{formatRp(feeAmount)}</Text>
+                                </HStack>
+                                <HStack justify="space-between" wrap="wrap" gap={2} style={{ paddingTop: 6, borderTop: '1px solid var(--color-border-primary)' }}>
+                                  <Text type="body" weight="bold">Total Potongan Gaji Saat Payroll:</Text>
+                                  <Text type="body" weight="bold" color="primary">
+                                    {formatRp(totalDeduction)}
+                                  </Text>
+                                </HStack>
+                              </VStack>
+                            </Card>
+                          );
+                        })()}
 
                         <HStack justify="end" gap={3}>
                           <Button

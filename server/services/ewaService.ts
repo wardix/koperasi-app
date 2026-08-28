@@ -1,10 +1,93 @@
 import type { Db } from "../db";
 import { ServiceError } from "./errors";
-import type { CompanyEmployee, EWARequest, EwaQuotaInfo } from "../../shared/types";
+import type { CompanyEmployee, EWARequest, EwaQuotaInfo, EwaFeeTier } from "../../shared/types";
 
 export const EWA_MAX_PERCENTAGE = 50; // 50% from monthly base salary
 export const EWA_MEMBER_FEE_PCT = 2.0; // 2.0% for Cooperative Members
 export const EWA_NON_MEMBER_FEE_PCT = 3.5; // 3.5% for Non-Members
+
+export async function getEwaFeeTiers(db: Db): Promise<EwaFeeTier[]> {
+  const rows = await db
+    .query(
+      `SELECT 
+        id, min_amount as "minAmount", max_amount as "maxAmount",
+        member_fee as "memberFee", non_member_fee as "nonMemberFee",
+        tier_order as "tierOrder", created_at as "createdAt", updated_at as "updatedAt"
+       FROM ewa_fee_tiers
+       ORDER BY tier_order ASC, min_amount ASC`
+    )
+    .all<any>();
+
+  return rows.map((r) => ({
+    id: r.id,
+    minAmount: Number(r.minAmount),
+    maxAmount: r.maxAmount != null ? Number(r.maxAmount) : null,
+    memberFee: Number(r.memberFee),
+    nonMemberFee: Number(r.nonMemberFee),
+    tierOrder: Number(r.tierOrder || 1),
+    createdAt: r.createdAt ? String(r.createdAt) : undefined,
+    updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
+  }));
+}
+
+export async function saveEwaFeeTiers(
+  db: Db,
+  tiers: Array<{
+    id?: string;
+    minAmount: number;
+    maxAmount?: number | null;
+    memberFee: number;
+    nonMemberFee: number;
+    tierOrder?: number;
+  }>
+): Promise<EwaFeeTier[]> {
+  await db.transaction(async () => {
+    // Delete existing
+    await db.run("DELETE FROM ewa_fee_tiers");
+
+    // Insert new
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i];
+      const id = t.id || crypto.randomUUID();
+      const order = t.tierOrder ?? (i + 1);
+      const minAmount = Math.max(0, Number(t.minAmount || 0));
+      const maxAmount = t.maxAmount != null ? Number(t.maxAmount) : null;
+      const memberFee = Math.max(0, Number(t.memberFee || 0));
+      const nonMemberFee = Math.max(0, Number(t.nonMemberFee || 0));
+
+      await db.query(
+        `INSERT INTO ewa_fee_tiers (id, min_amount, max_amount, member_fee, non_member_fee, tier_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`
+      ).run(id, minAmount, maxAmount, memberFee, nonMemberFee, order);
+    }
+  })();
+
+  return getEwaFeeTiers(db);
+}
+
+export async function calculateEwaFee(
+  db: Db,
+  requestedAmount: number,
+  isMember: boolean
+): Promise<{ feeAmount: number; feePercentage: number; tier: EwaFeeTier | null }> {
+  const tiers = await getEwaFeeTiers(db);
+  const matched = tiers.find((t) => {
+    if (requestedAmount < t.minAmount) return false;
+    if (t.maxAmount != null && requestedAmount > t.maxAmount) return false;
+    return true;
+  });
+
+  if (matched) {
+    const feeAmount = isMember ? matched.memberFee : matched.nonMemberFee;
+    const feePercentage = requestedAmount > 0 ? Math.round((feeAmount / requestedAmount) * 10000) / 100 : 0;
+    return { feeAmount, feePercentage, tier: matched };
+  }
+
+  // Fallback to percentage if no tier matched
+  const feePercentage = isMember ? EWA_MEMBER_FEE_PCT : EWA_NON_MEMBER_FEE_PCT;
+  const feeAmount = Math.round((requestedAmount * feePercentage) / 100);
+  return { feeAmount, feePercentage, tier: null };
+}
 
 export function getEwaPayrollCutoffDay(): number {
   const envVal =
@@ -368,8 +451,9 @@ export async function createEwaRequest(
   const destAcc = input.destinationAccount || emp?.bankAccountNumber || "-";
   const destName = input.destinationName || emp?.bankAccountName || emp?.name || "-";
 
-  const feePercentage = quota.feePercentage;
-  const feeAmount = Math.round((requestedAmount * feePercentage) / 100);
+  const feeCalc = await calculateEwaFee(db, requestedAmount, emp.isMember);
+  const feePercentage = feeCalc.feePercentage;
+  const feeAmount = feeCalc.feeAmount;
   const disbursedAmount = requestedAmount;
   const totalPayrollDeduction = requestedAmount + feeAmount;
 

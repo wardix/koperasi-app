@@ -24,6 +24,7 @@ import { createAddLoanAttachmentMigration } from "./0026_add_loan_attachment";
 import { createAddLettersManagementMigration } from "./0027_add_letters_management";
 import { createUpdateEwaAccountCodeMigration } from "./0028_update_ewa_account_code";
 import { createAddContractEndDateMigration } from "./0029_add_contract_end_date";
+import { createEwaFeeTiersMigration } from "./0030_create_ewa_fee_tiers";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -66,6 +67,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddLettersManagementMigration(db),
     createUpdateEwaAccountCodeMigration(db),
     createAddContractEndDateMigration(db),
+    createEwaFeeTiersMigration(db),
   ];
 }
 

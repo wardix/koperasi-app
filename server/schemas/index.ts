@@ -517,3 +517,16 @@ export const ewaPayrollSettleSchema = z.object({
   periodMonth: z.string().regex(/^\d{4}-\d{2}$/, "Format periode harus YYYY-MM"),
   targetAccountId: z.string().uuid("Akun kas/bank pelunasan tidak valid").optional(),
 });
+
+export const ewaFeeTierItemSchema = z.object({
+  id: z.string().optional(),
+  minAmount: z.number().min(0, "Batas bawah tidak boleh negatif"),
+  maxAmount: z.number().positive("Batas atas harus positif").nullable().optional(),
+  memberFee: z.number().min(0, "Biaya admin anggota tidak boleh negatif"),
+  nonMemberFee: z.number().min(0, "Biaya admin non-anggota tidak boleh negatif"),
+  tierOrder: z.number().int().optional(),
+});
+
+export const saveEwaFeeTiersSchema = z.object({
+  tiers: z.array(ewaFeeTierItemSchema).min(1, "Minimal harus ada satu rentang tarif"),
+});

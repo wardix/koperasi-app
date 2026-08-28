@@ -99,6 +99,17 @@ export interface EwaQuotaInfo {
   contractEndDate?: string | null;
 }
 
+export interface EwaFeeTier {
+  id: string;
+  minAmount: number;
+  maxAmount: number | null;
+  memberFee: number;
+  nonMemberFee: number;
+  tierOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface MemberRow {
   id: string;
   name: string;

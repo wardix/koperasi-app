@@ -14,6 +14,9 @@ import {
   getCurrentPeriodMonth,
   getPayrollCycleDates,
   getEwaPayrollCutoffDay,
+  getEwaFeeTiers,
+  saveEwaFeeTiers,
+  calculateEwaFee,
 } from '../services/ewaService';
 import {
   ewaEmployeeSchema,
@@ -21,6 +24,7 @@ import {
   ewaDisburseSchema,
   ewaRejectSchema,
   ewaPayrollSettleSchema,
+  saveEwaFeeTiersSchema,
 } from '../schemas';
 
 const ewa = new Hono();
@@ -287,6 +291,78 @@ ewa.post('/payroll/settle', requirePermission('approve:loans'), async (c) => {
     });
   } catch (err: any) {
     return c.json({ success: false, message: err.message || 'Gagal memproses pelunasan payroll' }, 400);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Fee Tiers Management
+// ---------------------------------------------------------------------------
+
+// 8. Get Fee Tiers
+ewa.get('/fee-tiers', async (c) => {
+  try {
+    const tiers = await getEwaFeeTiers(db);
+    return c.json({ success: true, data: tiers });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal memuat tabel tarif biaya admin' }, 500);
+  }
+});
+
+// 9. Update/Save Fee Tiers (Admin)
+ewa.put('/fee-tiers', requirePermission('update:settings'), async (c) => {
+  const body = await c.req.json();
+  const parsed = saveEwaFeeTiersSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400);
+  }
+
+  const actor = getActor(c);
+  try {
+    const beforeTiers = await getEwaFeeTiers(db);
+    const updated = await saveEwaFeeTiers(db, parsed.data.tiers as any);
+
+    await audit(db, {
+      actor,
+      action: 'update_ewa_fee_tiers' as any,
+      entity: 'ewa_fee_tiers',
+      before: { count: beforeTiers.length, tiers: beforeTiers },
+      after: { count: updated.length, tiers: updated },
+      ip: getClientIp(c),
+    });
+
+    return c.json({
+      success: true,
+      message: 'Tabel tarif biaya admin EWA berhasil disimpan!',
+      data: updated,
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menyimpan tabel tarif' }, 400);
+  }
+});
+
+// 10. Calculate Fee Real-Time Preview
+ewa.post('/calculate-fee', async (c) => {
+  try {
+    const body = await c.req.json();
+    const amount = Number(body.amount || 0);
+    const isMember = Boolean(body.isMember);
+
+    const calc = await calculateEwaFee(db, amount, isMember);
+    return c.json({
+      success: true,
+      data: {
+        amount,
+        isMember,
+        feeAmount: calc.feeAmount,
+        feePercentage: calc.feePercentage,
+        disbursedAmount: amount,
+        totalPayrollDeduction: amount + calc.feeAmount,
+        tier: calc.tier,
+      },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menghitung biaya admin' }, 400);
   }
 });
 

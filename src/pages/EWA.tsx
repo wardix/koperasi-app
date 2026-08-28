@@ -19,13 +19,15 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowUpTrayIcon,
+  TagIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { Icon } from '@astryxdesign/core/Icon';
-import type { CompanyEmployee, EWARequest } from '../../shared/types';
+import type { CompanyEmployee, EWARequest, EwaFeeTier } from '../../shared/types';
 
 export default function EWA() {
   const { hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<'requests' | 'employees' | 'payroll'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'employees' | 'payroll' | 'fee-tiers'>('requests');
 
   // Requests State
   const [requests, setRequests] = useState<EWARequest[]>([]);
@@ -55,6 +57,19 @@ export default function EWA() {
   const [payrollRecap, setPayrollRecap] = useState<any>(null);
   const [payrollLoading, setPayrollLoading] = useState(false);
   const [settleLoading, setSettleLoading] = useState(false);
+
+  // Fee Tiers State
+  const [feeTiers, setFeeTiers] = useState<EwaFeeTier[]>([]);
+  const [feeTiersLoading, setFeeTiersLoading] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
+  const [editingTier, setEditingTier] = useState<Partial<EwaFeeTier> | null>(null);
+  const [tierMinInput, setTierMinInput] = useState('');
+  const [tierMaxInput, setTierMaxInput] = useState('');
+  const [tierNoMax, setTierNoMax] = useState(false);
+  const [tierMemberFeeInput, setTierMemberFeeInput] = useState('');
+  const [tierNonMemberFeeInput, setTierNonMemberFeeInput] = useState('');
+  const [saveTierLoading, setSaveTierLoading] = useState(false);
+  const [tierError, setTierError] = useState('');
 
   // Fetch Requests
   const fetchRequests = async () => {
@@ -106,16 +121,34 @@ export default function EWA() {
     }
   };
 
+  // Fetch Fee Tiers
+  const fetchFeeTiers = async () => {
+    setFeeTiersLoading(true);
+    try {
+      const res = await apiFetch('/api/v1/ewa/fee-tiers');
+      const data = await res.json();
+      if (data.success) {
+        setFeeTiers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Fetch fee tiers error:', err);
+    } finally {
+      setFeeTiersLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRequests();
     fetchEmployees();
     fetchPayrollRecap();
+    fetchFeeTiers();
   }, []);
 
   useEffect(() => {
     if (activeTab === 'requests') fetchRequests();
     if (activeTab === 'employees') fetchEmployees();
     if (activeTab === 'payroll') fetchPayrollRecap();
+    if (activeTab === 'fee-tiers') fetchFeeTiers();
   }, [activeTab, statusFilter, payrollMonth]);
 
   // Handle Disburse
@@ -632,6 +665,199 @@ export default function EWA() {
     []
   );
 
+  const openAddTier = () => {
+    setEditingTier(null);
+    const lastTier = feeTiers[feeTiers.length - 1];
+    const defaultMin = lastTier && lastTier.maxAmount != null ? lastTier.maxAmount + 1 : 0;
+    setTierMinInput(defaultMin > 0 ? defaultMin.toLocaleString('id-ID') : '0');
+    setTierMaxInput('');
+    setTierNoMax(false);
+    setTierMemberFeeInput('');
+    setTierNonMemberFeeInput('');
+    setTierError('');
+    setShowTierModal(true);
+  };
+
+  const openEditTier = (tier: EwaFeeTier) => {
+    setEditingTier(tier);
+    setTierMinInput(tier.minAmount.toLocaleString('id-ID'));
+    setTierMaxInput(tier.maxAmount != null ? tier.maxAmount.toLocaleString('id-ID') : '');
+    setTierNoMax(tier.maxAmount == null);
+    setTierMemberFeeInput(tier.memberFee.toLocaleString('id-ID'));
+    setTierNonMemberFeeInput(tier.nonMemberFee.toLocaleString('id-ID'));
+    setTierError('');
+    setShowTierModal(true);
+  };
+
+  const handleSaveTierSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTierError('');
+
+    const minAmount = Number(tierMinInput.replace(/\D/g, '') || 0);
+    const maxAmount = tierNoMax ? null : Number(tierMaxInput.replace(/\D/g, '') || 0);
+    const memberFee = Number(tierMemberFeeInput.replace(/\D/g, '') || 0);
+    const nonMemberFee = Number(tierNonMemberFeeInput.replace(/\D/g, '') || 0);
+
+    if (!tierNoMax && (maxAmount == null || maxAmount <= minAmount)) {
+      setTierError('Batas atas nominal harus lebih besar dari batas bawah nominal');
+      return;
+    }
+
+    setSaveTierLoading(true);
+    try {
+      let updatedList = [...feeTiers];
+      if (editingTier && editingTier.id) {
+        updatedList = updatedList.map((t) =>
+          t.id === editingTier.id
+            ? { ...t, minAmount, maxAmount, memberFee, nonMemberFee }
+            : t
+        );
+      } else {
+        updatedList.push({
+          id: crypto.randomUUID(),
+          minAmount,
+          maxAmount,
+          memberFee,
+          nonMemberFee,
+          tierOrder: updatedList.length + 1,
+        });
+      }
+
+      // Sort by minAmount
+      updatedList.sort((a, b) => a.minAmount - b.minAmount);
+      updatedList = updatedList.map((t, idx) => ({ ...t, tierOrder: idx + 1 }));
+
+      const res = await apiFetch('/api/v1/ewa/fee-tiers', {
+        method: 'PUT',
+        body: JSON.stringify({ tiers: updatedList }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Gagal menyimpan tabel tarif');
+      }
+
+      setFeeTiers(data.data || []);
+      setShowTierModal(false);
+      setActionMessage({ text: 'Tabel tarif biaya admin berhasil diperbarui!', type: 'success' });
+      setTimeout(() => setActionMessage(null), 5000);
+    } catch (err: any) {
+      setTierError(err?.message || 'Terjadi kesalahan saat menyimpan tarif');
+    } finally {
+      setSaveTierLoading(false);
+    }
+  };
+
+  const handleDeleteTier = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus rentang tarif ini?')) return;
+    try {
+      let remaining = feeTiers.filter((t) => t.id !== id);
+      if (remaining.length === 0) {
+        alert('Minimal harus ada 1 rentang tarif dalam tabel.');
+        return;
+      }
+      remaining.sort((a, b) => a.minAmount - b.minAmount);
+      remaining = remaining.map((t, idx) => ({ ...t, tierOrder: idx + 1 }));
+
+      const res = await apiFetch('/api/v1/ewa/fee-tiers', {
+        method: 'PUT',
+        body: JSON.stringify({ tiers: remaining }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeeTiers(data.data || []);
+        setActionMessage({ text: 'Rentang tarif berhasil dihapus!', type: 'success' });
+        setTimeout(() => setActionMessage(null), 5000);
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Gagal menghapus tarif');
+    }
+  };
+
+  // Fee Tier Columns
+  const feeTierColumns: TableColumn<EwaFeeTier>[] = useMemo(
+    () => [
+      {
+        key: 'order',
+        header: 'Tingkat / Tier',
+        width: pixel(130),
+        renderCell: (t: EwaFeeTier) => (
+          <Text type="body" weight="semibold">
+            Tier {t.tierOrder}
+          </Text>
+        ),
+      },
+      {
+        key: 'range',
+        header: 'Rentang Nominal Penarikan',
+        width: proportional(1.5),
+        renderCell: (t: EwaFeeTier) => (
+          <VStack gap={0}>
+            <Text type="body" weight="semibold">
+              {formatRp(t.minAmount)} s/d {t.maxAmount != null ? formatRp(t.maxAmount) : 'Tanpa Batas (Diatasnya)'}
+            </Text>
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              {t.maxAmount != null
+                ? `Untuk nominal penarikan ${formatRp(t.minAmount)} – ${formatRp(t.maxAmount)}`
+                : `Untuk semua nominal penarikan di atas ${formatRp(t.minAmount)}`}
+            </Text>
+          </VStack>
+        ),
+      },
+      {
+        key: 'memberFee',
+        header: 'Biaya Admin (Anggota Koperasi)',
+        width: proportional(1.2),
+        renderCell: (t: EwaFeeTier) => (
+          <VStack gap={0}>
+            <Text type="body" weight="bold" color="success">
+              {formatRp(t.memberFee)}
+            </Text>
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              Tarif flat per penarikan
+            </Text>
+          </VStack>
+        ),
+      },
+      {
+        key: 'nonMemberFee',
+        header: 'Biaya Admin (Non-Anggota)',
+        width: proportional(1.2),
+        renderCell: (t: EwaFeeTier) => (
+          <VStack gap={0}>
+            <Text type="body" weight="bold" color="primary">
+              {formatRp(t.nonMemberFee)}
+            </Text>
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              Tarif flat per penarikan
+            </Text>
+          </VStack>
+        ),
+      },
+      {
+        key: 'actions',
+        header: 'Aksi',
+        width: pixel(160),
+        renderCell: (t: EwaFeeTier) => (
+          <HStack gap={2}>
+            <Button
+              label="Edit"
+              variant="secondary"
+              size="sm"
+              onClick={() => openEditTier(t)}
+            />
+            <Button
+              label="Hapus"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteTier(t.id)}
+            />
+          </HStack>
+        ),
+      },
+    ],
+    [feeTiers]
+  );
+
   return (
     <Layout
       header={
@@ -672,6 +898,14 @@ export default function EWA() {
                     variant="primary"
                     icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
                     onClick={exportPayrollCsv}
+                  />
+                )}
+                {activeTab === 'fee-tiers' && (
+                  <Button
+                    label="Tambah Rentang Tarif"
+                    variant="primary"
+                    icon={<Icon icon={PlusIcon} size="sm" />}
+                    onClick={openAddTier}
                   />
                 )}
               </HStack>
@@ -716,6 +950,7 @@ export default function EWA() {
               { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: requests.length, icon: BanknotesIcon },
               { id: 'employees' as const, label: 'Master Karyawan & Gaji', count: employees.length, icon: UserGroupIcon },
               { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', count: payrollRecap?.totalEmployees || 0, icon: DocumentArrowDownIcon },
+              { id: 'fee-tiers' as const, label: 'Tarif Biaya Admin', count: feeTiers.length, icon: TagIcon },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -962,6 +1197,40 @@ export default function EWA() {
             </VStack>
           )}
 
+          {/* TAB 4: FEE TIERS */}
+          {activeTab === 'fee-tiers' && (
+            <Card>
+              <VStack gap={4}>
+                <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                  <VStack gap={1}>
+                    <Heading level={4}>Skema Tabel Tarif Biaya Admin EWA</Heading>
+                    <Text type="supporting" color="secondary">
+                      Biaya admin flat per transaksi penarikan berdasarkan kelompok rentang nominal. Karyawan yang terdaftar sebagai anggota koperasi mendapatkan tarif khusus lebih hemat.
+                    </Text>
+                  </VStack>
+                  <Button
+                    label="Tambah Rentang Tarif"
+                    variant="primary"
+                    icon={<Icon icon={PlusIcon} size="sm" />}
+                    onClick={openAddTier}
+                  />
+                </HStack>
+
+                {feeTiersLoading ? (
+                  <HStack justify="center" style={{ padding: 40 }}>
+                    <Spinner size="md" />
+                  </HStack>
+                ) : (
+                  <Table<EwaFeeTier>
+                    data={feeTiers}
+                    columns={feeTierColumns}
+                    emptyContent="Belum ada rentang tarif yang diatur. Klik 'Tambah Rentang Tarif' untuk membuat skema tarif baru."
+                  />
+                )}
+              </VStack>
+            </Card>
+          )}
+
           {/* Modal Reject */}
           {showRejectModal && (
             <div
@@ -1013,6 +1282,150 @@ export default function EWA() {
                         variant="critical"
                         type="submit"
                         isDisabled={actionLoading}
+                      />
+                    </HStack>
+                  </VStack>
+                </form>
+              </Card>
+            </div>
+          )}
+
+          {/* Modal Add/Edit Fee Tier */}
+          {showTierModal && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}
+            >
+              <Card style={{ width: 500, padding: 24, maxWidth: '90%' }}>
+                <form onSubmit={handleSaveTierSubmit}>
+                  <VStack gap={4}>
+                    <Heading level={4}>{editingTier ? 'Edit Rentang Tarif Biaya Admin' : 'Tambah Rentang Tarif Biaya Admin'}</Heading>
+                    <Text type="supporting" color="secondary">
+                      Atur batas nominal penarikan serta besaran biaya admin flat untuk anggota dan non-anggota.
+                    </Text>
+
+                    {tierError && (
+                      <Text type="supporting" color="critical">
+                        ⚠️ {tierError}
+                      </Text>
+                    )}
+
+                    <VStack gap={3}>
+                      <VStack gap={1}>
+                        <Text type="supporting" style={{ fontWeight: 500 }}>Batas Bawah Nominal (Rp):</Text>
+                        <input
+                          type="text"
+                          required
+                          value={tierMinInput}
+                          onChange={(e) => setTierMinInput(e.target.value)}
+                          placeholder="Contoh: 100.000"
+                          style={{
+                            width: '100%',
+                            padding: 10,
+                            borderRadius: 6,
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-background-primary)',
+                            color: 'var(--color-text-primary)',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </VStack>
+
+                      <VStack gap={1}>
+                        <HStack justify="space-between" vAlign="center">
+                          <Text type="supporting" style={{ fontWeight: 500 }}>Batas Atas Nominal (Rp):</Text>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={tierNoMax}
+                              onChange={(e) => {
+                                setTierNoMax(e.target.checked);
+                                if (e.target.checked) setTierMaxInput('');
+                              }}
+                            />
+                            <span>Tanpa Batas Atas (Tier Tertinggi)</span>
+                          </label>
+                        </HStack>
+                        {!tierNoMax && (
+                          <input
+                            type="text"
+                            required={!tierNoMax}
+                            value={tierMaxInput}
+                            onChange={(e) => setTierMaxInput(e.target.value)}
+                            placeholder="Contoh: 500.000"
+                            style={{
+                              width: '100%',
+                              padding: 10,
+                              borderRadius: 6,
+                              border: '1px solid var(--color-border-primary)',
+                              backgroundColor: 'var(--color-background-primary)',
+                              color: 'var(--color-text-primary)',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        )}
+                      </VStack>
+
+                      <VStack gap={1}>
+                        <Text type="supporting" style={{ fontWeight: 500 }}>Biaya Admin - Anggota Koperasi (Rp):</Text>
+                        <input
+                          type="text"
+                          required
+                          value={tierMemberFeeInput}
+                          onChange={(e) => setTierMemberFeeInput(e.target.value)}
+                          placeholder="Contoh: 10.000"
+                          style={{
+                            width: '100%',
+                            padding: 10,
+                            borderRadius: 6,
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-background-primary)',
+                            color: 'var(--color-text-primary)',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </VStack>
+
+                      <VStack gap={1}>
+                        <Text type="supporting" style={{ fontWeight: 500 }}>Biaya Admin - Bukan Anggota (Rp):</Text>
+                        <input
+                          type="text"
+                          required
+                          value={tierNonMemberFeeInput}
+                          onChange={(e) => setTierNonMemberFeeInput(e.target.value)}
+                          placeholder="Contoh: 15.000"
+                          style={{
+                            width: '100%',
+                            padding: 10,
+                            borderRadius: 6,
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-background-primary)',
+                            color: 'var(--color-text-primary)',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </VStack>
+                    </VStack>
+
+                    <HStack justify="end" gap={2}>
+                      <Button
+                        label="Batal"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => setShowTierModal(false)}
+                      />
+                      <Button
+                        label={saveTierLoading ? 'Menyimpan...' : 'Simpan Tarif'}
+                        variant="primary"
+                        type="submit"
+                        isDisabled={saveTierLoading}
                       />
                     </HStack>
                   </VStack>
