@@ -1022,6 +1022,8 @@ export default function MemberPortal() {
                     ? 'Riwayat Simpanan'
                     : activeTab === 'loans'
                     ? 'Daftar Pinjaman'
+                    : activeTab === 'ewa'
+                    ? 'Layanan Gaji Awal (EWA)'
                     : 'Ringkasan Laporan Keuangan Koperasi'}
                 </Heading>
                 {activeTab === 'loans' && (
@@ -1301,17 +1303,6 @@ export default function MemberPortal() {
                     <Grid gap={4}>
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Gaji Bersih Efektif</Text>
-                          <Heading level={3}>{formatRp(ewaQuota?.effectiveSalary ?? ewaQuota?.baseSalary ?? 0)}</Heading>
-                          {(ewaQuota?.coopLoanDeduction || 0) > 0 && (
-                            <Text type="supporting" color="critical" style={{ fontSize: 12 }}>
-                              Gaji {formatRp(ewaQuota?.baseSalary || 0)} − Angsuran Pinjaman {formatRp(ewaQuota?.coopLoanDeduction || 0)}
-                            </Text>
-                          )}
-                        </VStack>
-                      </Card>
-                      <Card style={{ padding: 16 }}>
-                        <VStack gap={1}>
                           <Text type="supporting">
                             Plafon Hari Ini (Hari {ewaQuota?.currentDayInCycle || 1}/{ewaQuota?.totalDaysInCycle || 31})
                           </Text>
@@ -1327,12 +1318,18 @@ export default function MemberPortal() {
                         <VStack gap={1}>
                           <Text type="supporting">Sudah Ditarik Siklus Ini</Text>
                           <Heading level={3}>{formatRp(ewaQuota?.totalUsedThisMonth || 0)}</Heading>
+                          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                            Total penarikan periode aktif
+                          </Text>
                         </VStack>
                       </Card>
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
                         <VStack gap={1}>
                           <Text type="supporting">Sisa Kuota Hari Ini</Text>
                           <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
+                          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                            Maksimal penarikan hari ini
+                          </Text>
                         </VStack>
                       </Card>
                     </Grid>
