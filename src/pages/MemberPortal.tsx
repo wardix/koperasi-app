@@ -968,7 +968,11 @@ export default function MemberPortal() {
                   ]
                 : []),
               { id: 'ewa' as const, label: 'Gaji Awal (EWA)', icon: BanknotesIcon },
-              { id: 'reports' as const, label: 'Laporan Keuangan', icon: ChartBarIcon },
+              ...(profile?.isCoopMember !== false
+                ? [
+                    { id: 'reports' as const, label: 'Laporan Keuangan', icon: ChartBarIcon },
+                  ]
+                : []),
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
