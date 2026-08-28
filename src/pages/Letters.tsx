@@ -444,16 +444,40 @@ export default function LettersPage() {
                   border: '1px solid var(--color-border-primary)',
                 }}
               >
-                <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border-primary)' }}>
-                  <HStack justify="space-between" vAlign="center">
-                    <Heading level={3}>Terbitkan Nomor Surat Resmi Baru</Heading>
-                    <button
-                      onClick={() => setShowCreateModal(false)}
-                      style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}
-                    >
-                      ✕
-                    </button>
-                  </HStack>
+                <div
+                  style={{
+                    padding: '20px 24px',
+                    borderBottom: '1px solid var(--color-border-primary)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <Heading level={3} style={{ margin: 0 }}>
+                    Terbitkan Nomor Surat Resmi Baru
+                  </Heading>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      color: 'var(--color-text-secondary)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1,
+                    }}
+                    title="Tutup Modal"
+                  >
+                    ✕
+                  </button>
                 </div>
 
                 <form onSubmit={handleCreateLetter} style={{ padding: '20px 24px' }}>
