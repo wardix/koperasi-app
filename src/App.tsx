@@ -386,8 +386,7 @@ export default function DashboardTemplate() {
             <HStack hAlign="between" vAlign="center">
               <Heading level={3}>Distribusi Portofolio</Heading>
             </HStack>
-            <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
-              <StackedBarCard title="Peran Anggota" data={dashboardData?.roleData || []} />
+            <Grid columns={{ minWidth: 320, repeat: 'fit' }} gap={4}>
               <StackedBarCard title="Tujuan Pinjaman" data={dashboardData?.purposeData || []} />
             </Grid>
           </VStack>
