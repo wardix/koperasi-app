@@ -402,10 +402,10 @@ export default function EWA() {
   const requestColumns: TableColumn<EWARequest>[] = useMemo(
     () => [
       {
-        id: 'date',
+        key: 'date',
         header: 'Tanggal',
         width: pixel(110),
-        cell: (r) => (
+        renderCell: (r: EWARequest) => (
           <Text type="supporting">
             {new Date(r.createdAt).toLocaleDateString('id-ID', {
               day: '2-digit',
@@ -416,10 +416,10 @@ export default function EWA() {
         ),
       },
       {
-        id: 'employee',
+        key: 'employee',
         header: 'Karyawan',
         width: proportional(1.5),
-        cell: (r) => (
+        renderCell: (r: EWARequest) => (
           <VStack gap={0}>
             <Text type="body" weight="medium">
               {r.employeeName}
@@ -428,18 +428,16 @@ export default function EWA() {
               <Text type="supporting" color="secondary">
                 NIP: {r.employeeNip || '-'}
               </Text>
-              <Badge variant={r.isMember ? 'success' : 'neutral'} size="sm">
-                {r.isMember ? 'Anggota' : 'Non-Anggota'}
-              </Badge>
+              <Badge variant={r.isMember ? 'success' : 'neutral'} size="sm" label={r.isMember ? 'Anggota' : 'Non-Anggota'} />
             </HStack>
           </VStack>
         ),
       },
       {
-        id: 'amount',
+        key: 'amount',
         header: 'Nominal Tarik',
         width: proportional(1.2),
-        cell: (r) => (
+        renderCell: (r: EWARequest) => (
           <VStack gap={0}>
             <Text type="body" weight="semibold" color="primary">
               {formatRp(r.disbursedAmount)}
@@ -451,20 +449,20 @@ export default function EWA() {
         ),
       },
       {
-        id: 'deduction',
+        key: 'deduction',
         header: 'Potong Payroll',
         width: proportional(1.2),
-        cell: (r) => (
+        renderCell: (r: EWARequest) => (
           <Text type="body" weight="bold">
             {formatRp(r.totalPayrollDeduction)}
           </Text>
         ),
       },
       {
-        id: 'bank',
+        key: 'bank',
         header: 'Rekening Tujuan',
         width: proportional(1.5),
-        cell: (r) => (
+        renderCell: (r: EWARequest) => (
           <VStack gap={0}>
             <Text type="body">
               {r.destinationBank} — {r.destinationAccount}
@@ -476,10 +474,10 @@ export default function EWA() {
         ),
       },
       {
-        id: 'status',
+        key: 'status',
         header: 'Status',
         width: pixel(130),
-        cell: (r) => {
+        renderCell: (r: EWARequest) => {
           let variant: any = 'neutral';
           let label = r.status;
           if (r.status === 'PENDING') {
@@ -495,14 +493,14 @@ export default function EWA() {
             variant = 'critical';
             label = 'Ditolak';
           }
-          return <Badge variant={variant}>{label}</Badge>;
+          return <Badge variant={variant} label={label} />;
         },
       },
       {
-        id: 'action',
+        key: 'action',
         header: 'Aksi',
         width: pixel(180),
-        cell: (r) =>
+        renderCell: (r: EWARequest) =>
           r.status === 'PENDING' && (
             <HStack gap={2}>
               <Button
@@ -533,10 +531,10 @@ export default function EWA() {
   const employeeColumns: TableColumn<CompanyEmployee>[] = useMemo(
     () => [
       {
-        id: 'nip',
+        key: 'nip',
         header: 'NIP / NIK',
         width: pixel(140),
-        cell: (e) => (
+        renderCell: (e: CompanyEmployee) => (
           <VStack gap={0}>
             <Text type="body" weight="medium">{e.nip}</Text>
             <Text type="supporting" color="secondary">{e.nik || '-'}</Text>
@@ -544,10 +542,10 @@ export default function EWA() {
         ),
       },
       {
-        id: 'name',
+        key: 'name',
         header: 'Nama & Email',
         width: proportional(1.5),
-        cell: (e) => (
+        renderCell: (e: CompanyEmployee) => (
           <VStack gap={0}>
             <Text type="body" weight="semibold">{e.name}</Text>
             <Text type="supporting" color="secondary">{e.email}</Text>
@@ -555,10 +553,10 @@ export default function EWA() {
         ),
       },
       {
-        id: 'dept',
+        key: 'dept',
         header: 'Departemen / Posisi',
         width: proportional(1.2),
-        cell: (e) => (
+        renderCell: (e: CompanyEmployee) => (
           <VStack gap={0}>
             <Text type="body">{e.department || '-'}</Text>
             <Text type="supporting" color="secondary">{e.position || '-'}</Text>
@@ -566,10 +564,10 @@ export default function EWA() {
         ),
       },
       {
-        id: 'salary',
+        key: 'salary',
         header: 'Gaji Pokok',
         width: proportional(1.2),
-        cell: (e) => (
+        renderCell: (e: CompanyEmployee) => (
           <VStack gap={0}>
             <Text type="body" weight="semibold">{formatRp(e.baseSalary)}</Text>
             <Text type="supporting" color="secondary">Plafon 50%: {formatRp(e.baseSalary * 0.5)}</Text>
@@ -577,31 +575,27 @@ export default function EWA() {
         ),
       },
       {
-        id: 'status',
+        key: 'status',
         header: 'Status Koperasi',
         width: pixel(140),
-        cell: (e) => (
-          <Badge variant={e.isMember ? 'success' : 'neutral'}>
-            {e.isMember ? 'Anggota Koperasi' : 'Bukan Anggota'}
-          </Badge>
+        renderCell: (e: CompanyEmployee) => (
+          <Badge variant={e.isMember ? 'success' : 'neutral'} label={e.isMember ? 'Anggota Koperasi' : 'Bukan Anggota'} />
         ),
       },
       {
-        id: 'contract',
+        key: 'contract',
         header: 'Masa Kontrak',
         width: pixel(140),
-        cell: (e) => {
+        renderCell: (e: CompanyEmployee) => {
           if (!e.contractEndDate) {
-            return <Badge variant="neutral">Karyawan Tetap</Badge>;
+            return <Badge variant="neutral" label="Karyawan Tetap" />;
           }
           const today = new Date().toISOString().slice(0, 10);
           const endStr = String(e.contractEndDate).slice(0, 10);
           const isExpired = today > endStr;
           return (
             <VStack gap={0}>
-              <Badge variant={isExpired ? 'critical' : 'warning'} size="sm">
-                {isExpired ? 'Kontrak Berakhir' : 'Kontrak Aktif'}
-              </Badge>
+              <Badge variant={isExpired ? 'critical' : 'warning'} size="sm" label={isExpired ? 'Kontrak Berakhir' : 'Kontrak Aktif'} />
               <Text type="supporting" color={isExpired ? 'critical' : 'secondary'} style={{ fontSize: 11 }}>
                 s/d {endStr}
               </Text>
@@ -610,10 +604,10 @@ export default function EWA() {
         },
       },
       {
-        id: 'bank',
+        key: 'bank',
         header: 'Rekening Payroll',
         width: proportional(1.5),
-        cell: (e) => (
+        renderCell: (e: CompanyEmployee) => (
           <Text type="supporting">
             {e.bankName ? `${e.bankName} - ${e.bankAccountNumber}` : 'Belum diatur'}
           </Text>
