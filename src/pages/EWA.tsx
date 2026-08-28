@@ -107,6 +107,12 @@ export default function EWA() {
   };
 
   useEffect(() => {
+    fetchRequests();
+    fetchEmployees();
+    fetchPayrollRecap();
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'requests') fetchRequests();
     if (activeTab === 'employees') fetchEmployees();
     if (activeTab === 'payroll') fetchPayrollRecap();
@@ -374,6 +380,7 @@ export default function EWA() {
           setShowImportModal(false);
           setImportCsvText('');
           setImportSuccess('');
+          setActiveTab('employees');
           fetchEmployees();
         }, 1500);
       } else {
@@ -697,9 +704,9 @@ export default function EWA() {
             }}
           >
             {[
-              { id: 'requests' as const, label: 'Pengajuan & Pencairan', icon: BanknotesIcon },
-              { id: 'employees' as const, label: 'Master Karyawan & Gaji', icon: UserGroupIcon },
-              { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', icon: DocumentArrowDownIcon },
+              { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: requests.length, icon: BanknotesIcon },
+              { id: 'employees' as const, label: 'Master Karyawan & Gaji', count: employees.length, icon: UserGroupIcon },
+              { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', count: payrollRecap?.totalEmployees || 0, icon: DocumentArrowDownIcon },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -724,6 +731,11 @@ export default function EWA() {
                 >
                   <tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />
                   <span>{tab.label}</span>
+                  {typeof tab.count === 'number' && tab.count > 0 && (
+                    <Badge variant={isActive ? 'success' : 'neutral'} size="sm">
+                      {tab.count}
+                    </Badge>
+                  )}
                 </button>
               );
             })}
