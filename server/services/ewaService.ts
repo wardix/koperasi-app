@@ -162,7 +162,12 @@ export async function getMemberActiveMonthlyLoanInstallment(
   return fallbackTotal;
 }
 
-export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMonth?: string): Promise<EwaQuotaInfo> {
+export async function getEmployeeEwaQuota(
+  db: Db,
+  employeeId: string,
+  periodMonth?: string,
+  asOfDate?: Date | string
+): Promise<EwaQuotaInfo> {
   const emp = await getEmployeeById(db, employeeId);
   if (!emp) {
     throw new ServiceError("Data karyawan tidak ditemukan", 404);
@@ -172,6 +177,26 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
   const coopLoanDeduction = await getMemberActiveMonthlyLoanInstallment(db, emp.memberId, period);
   const effectiveSalary = Math.max(0, emp.baseSalary - coopLoanDeduction);
   const maxMonthlyLimit = Math.floor((effectiveSalary * EWA_MAX_PERCENTAGE) / 100);
+
+  // Progressive daily accrual calculation
+  const targetDate = asOfDate ? new Date(asOfDate) : new Date();
+  const [yearStr, monthStr] = period.split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const totalDaysInMonth = new Date(year, month, 0).getDate();
+
+  let currentDay = targetDate.getDate();
+  const targetPeriod = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`;
+  if (targetPeriod < period) {
+    currentDay = 1;
+  } else if (targetPeriod > period) {
+    currentDay = totalDaysInMonth;
+  }
+
+  currentDay = Math.min(totalDaysInMonth, Math.max(1, currentDay));
+  const progressiveRatio = currentDay / totalDaysInMonth;
+  const progressivePercentage = Math.round(progressiveRatio * 10000) / 100;
+  const dailyAccumulatedLimit = Math.floor(maxMonthlyLimit * progressiveRatio);
 
   // Sum used advances in this period (PENDING, APPROVED, DISBURSED)
   const usedRes = await db
@@ -183,7 +208,7 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
     .get<{ used: string | number }>(employeeId, period);
 
   const totalUsedThisMonth = Number(usedRes?.used || 0);
-  const remainingQuota = Math.max(0, maxMonthlyLimit - totalUsedThisMonth);
+  const remainingQuota = Math.max(0, dailyAccumulatedLimit - totalUsedThisMonth);
   const feePercentage = emp.isMember ? EWA_MEMBER_FEE_PCT : EWA_NON_MEMBER_FEE_PCT;
 
   const isExpired = isContractExpired(emp.contractEndDate);
@@ -207,6 +232,10 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
     effectiveSalary,
     maxAllowedPercentage: EWA_MAX_PERCENTAGE,
     maxMonthlyLimit,
+    currentDay,
+    totalDaysInMonth,
+    progressivePercentage,
+    dailyAccumulatedLimit,
     totalUsedThisMonth,
     remainingQuota: isEligible ? remainingQuota : 0,
     feePercentage,

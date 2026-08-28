@@ -43,6 +43,7 @@ export interface CompanyEmployee {
   contractEndDate?: string | null;
   coopLoanDeduction?: number;
   effectiveSalary?: number;
+  dailyAccumulatedLimit?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -81,9 +82,13 @@ export interface EwaQuotaInfo {
   coopLoanDeduction?: number; // Tagihan angsuran pinjaman koperasi bulan ini
   effectiveSalary?: number;   // Gaji bersih setelah dikurangi angsuran pinjaman koperasi
   maxAllowedPercentage: number; // 50
-  maxMonthlyLimit: number; // 50% of effectiveSalary
+  maxMonthlyLimit: number; // Plafon sebulan penuh (50% dari effectiveSalary)
+  currentDay?: number; // Tanggal ke-d hari ini (1..31)
+  totalDaysInMonth?: number; // Total hari dalam bulan ini (28..31)
+  progressivePercentage?: number; // Persentase progresif harian (e.g. 32.26%)
+  dailyAccumulatedLimit?: number; // Plafon maksimal akumulatif progresif s/d hari ini
   totalUsedThisMonth: number;
-  remainingQuota: number;
+  remainingQuota: number; // Sisa kuota yang dapat diajukan hari ini (dailyAccumulatedLimit - totalUsedThisMonth)
   feePercentage: number; // e.g. 2.0% (member) vs 3.5% (non-member)
   isEligible?: boolean;
   ineligibilityReason?: string | null;

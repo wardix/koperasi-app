@@ -570,6 +570,7 @@ export default function EWA() {
         renderCell: (e: CompanyEmployee) => {
           const effective = e.effectiveSalary ?? e.baseSalary;
           const loanDed = e.coopLoanDeduction ?? 0;
+          const dailyLimit = e.dailyAccumulatedLimit ?? Math.floor(effective * 0.5);
           return (
             <VStack gap={0}>
               <Text type="body" weight="semibold">{formatRp(e.baseSalary)}</Text>
@@ -578,8 +579,11 @@ export default function EWA() {
                   Angsuran Pinjaman: -{formatRp(loanDed)}
                 </Text>
               )}
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                Plafon 50%: {formatRp(Math.floor(effective * 0.5))}
+              <Text type="supporting" color="primary" style={{ fontSize: 11, fontWeight: 600 }}>
+                Plafon Hari Ini: {formatRp(dailyLimit)}
+              </Text>
+              <Text type="supporting" color="secondary" style={{ fontSize: 10 }}>
+                (Maks Sebulan: {formatRp(Math.floor(effective * 0.5))})
               </Text>
             </VStack>
           );

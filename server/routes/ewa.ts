@@ -167,17 +167,23 @@ ewa.get('/employees', requirePermission('read:members'), async (c) => {
 
   const now = new Date();
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const currentDay = now.getDate();
+  const progressiveRatio = currentDay / totalDaysInMonth;
 
   const mapped = await Promise.all(
     rows.map(async (r: any) => {
       const baseSalary = Number(r.baseSalary || 0);
       const coopLoanDeduction = await getMemberActiveMonthlyLoanInstallment(db, r.memberId, currentPeriod);
       const effectiveSalary = Math.max(0, baseSalary - coopLoanDeduction);
+      const maxMonthlyLimit = Math.floor(effectiveSalary * 0.5);
+      const dailyAccumulatedLimit = Math.floor(maxMonthlyLimit * progressiveRatio);
       return {
         ...r,
         baseSalary,
         coopLoanDeduction,
         effectiveSalary,
+        dailyAccumulatedLimit,
         isMember: Boolean(r.isMember),
       };
     })

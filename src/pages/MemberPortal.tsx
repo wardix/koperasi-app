@@ -1303,8 +1303,13 @@ export default function MemberPortal() {
                       </Card>
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Plafon Maksimal (50%)</Text>
-                          <Heading level={3}>{formatRp(ewaQuota?.maxMonthlyLimit || 0)}</Heading>
+                          <Text type="supporting">
+                            Plafon s/d Hari Ini (Tgl {ewaQuota?.currentDay || new Date().getDate()})
+                          </Text>
+                          <Heading level={3}>{formatRp(ewaQuota?.dailyAccumulatedLimit ?? ewaQuota?.maxMonthlyLimit ?? 0)}</Heading>
+                          <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
+                            Plafon Maks Sebulan: {formatRp(ewaQuota?.maxMonthlyLimit || 0)}
+                          </Text>
                         </VStack>
                       </Card>
                       <Card style={{ padding: 16 }}>
@@ -1315,7 +1320,7 @@ export default function MemberPortal() {
                       </Card>
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Sisa Kuota Tersedia</Text>
+                          <Text type="supporting">Sisa Kuota Hari Ini</Text>
                           <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
                         </VStack>
                       </Card>
@@ -1327,7 +1332,7 @@ export default function MemberPortal() {
                         <VStack gap={1}>
                           <Heading level={4}>Formulir Tarik Gaji Lebih Awal (Kasbon)</Heading>
                           <Text type="supporting" color="secondary">
-                            Dana yang ditarik akan langsung ditransfer ke rekening bank Anda dan dipotong otomatis pada payroll gajian berikutnya.
+                            Dana yang ditarik akan langsung ditransfer ke rekening bank Anda dan dipotong otomatis pada payroll gajian berikutnya. Limit bertambah secara progresif setiap hari seiring berjalannya hari kerja.
                           </Text>
                         </VStack>
 
@@ -1358,7 +1363,7 @@ export default function MemberPortal() {
                               required
                             />
                             <Text type="supporting" size="sm" color="secondary">
-                              Maksimal tarik: {formatRp(ewaQuota?.remainingQuota || 0)}
+                              Maksimal tarik hari ini (Tgl {ewaQuota?.currentDay || new Date().getDate()}): {formatRp(ewaQuota?.remainingQuota || 0)}
                             </Text>
                           </VStack>
 
