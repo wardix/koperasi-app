@@ -41,6 +41,8 @@ export interface CompanyEmployee {
   bankAccountName?: string | null;
   status: 'ACTIVE' | 'INACTIVE';
   contractEndDate?: string | null;
+  coopLoanDeduction?: number;
+  effectiveSalary?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -76,8 +78,10 @@ export interface EwaQuotaInfo {
   isMember: boolean;
   periodMonth: string;
   baseSalary: number;
+  coopLoanDeduction?: number; // Tagihan angsuran pinjaman koperasi bulan ini
+  effectiveSalary?: number;   // Gaji bersih setelah dikurangi angsuran pinjaman koperasi
   maxAllowedPercentage: number; // 50
-  maxMonthlyLimit: number; // 50% of baseSalary
+  maxMonthlyLimit: number; // 50% of effectiveSalary
   totalUsedThisMonth: number;
   remainingQuota: number;
   feePercentage: number; // e.g. 2.0% (member) vs 3.5% (non-member)

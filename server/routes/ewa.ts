@@ -10,6 +10,7 @@ import {
   getPayrollRecap,
   settlePayroll,
   batchImportEmployees,
+  getMemberActiveMonthlyLoanInstallment,
 } from '../services/ewaService';
 import {
   ewaEmployeeSchema,
@@ -164,13 +165,27 @@ ewa.get('/employees', requirePermission('read:members'), async (c) => {
     )
     .all(...params, limit, offset);
 
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const mapped = await Promise.all(
+    rows.map(async (r: any) => {
+      const baseSalary = Number(r.baseSalary || 0);
+      const coopLoanDeduction = await getMemberActiveMonthlyLoanInstallment(db, r.memberId, currentPeriod);
+      const effectiveSalary = Math.max(0, baseSalary - coopLoanDeduction);
+      return {
+        ...r,
+        baseSalary,
+        coopLoanDeduction,
+        effectiveSalary,
+        isMember: Boolean(r.isMember),
+      };
+    })
+  );
+
   return c.json({
     success: true,
-    data: rows.map((r: any) => ({
-      ...r,
-      baseSalary: Number(r.baseSalary || 0),
-      isMember: Boolean(r.isMember),
-    })),
+    data: mapped,
     total,
     page,
     limit,

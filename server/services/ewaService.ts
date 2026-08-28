@@ -108,6 +108,60 @@ export async function getEmployeeById(db: Db, employeeId: string): Promise<Compa
   };
 }
 
+export async function getMemberActiveMonthlyLoanInstallment(
+  db: Db,
+  memberId?: string | null,
+  periodMonth?: string
+): Promise<number> {
+  if (!memberId) return 0;
+  const period = periodMonth || getCurrentPeriodMonth();
+
+  // 1. Check from loan_schedules for active loans ('Disetujui')
+  // Match schedules due in this period or pending up to end of this period
+  const schedRes = await db
+    .query(
+      `SELECT COALESCE(SUM(ls.principalAmount + ls.interestAmount - ls.paidAmount), 0) as total
+       FROM loan_schedules ls
+       JOIN loans l ON ls.loanId = l.id
+       WHERE l.memberId = ? 
+         AND l.status = 'Disetujui'
+         AND ls.status IN ('Pending', 'Late')
+         AND (
+           TO_CHAR(ls.dueDate, 'YYYY-MM') = ?
+           OR ls.dueDate <= (TO_DATE(?, 'YYYY-MM') + INTERVAL '1 month' - INTERVAL '1 day')
+         )`
+    )
+    .get<{ total: string | number }>(memberId, period, period);
+
+  const schedTotal = Number(schedRes?.total || 0);
+  if (schedTotal > 0) return schedTotal;
+
+  // 2. Fallback: if no schedule rows exist for approved loan, calculate monthly payment from loan terms
+  const loans = await db
+    .query(
+      `SELECT id, amount, tenor, interestRate
+       FROM loans
+       WHERE memberId = ? AND status = 'Disetujui'`
+    )
+    .all<{ id: string; amount: number; tenor: number; interestRate?: number }>(memberId);
+
+  let fallbackTotal = 0;
+  for (const l of loans) {
+    const countRes = await db
+      .query(`SELECT COUNT(*) as count FROM loan_schedules WHERE loanId = ?`)
+      .get<{ count: string | number }>(l.id);
+    if (Number(countRes?.count || 0) === 0) {
+      const p = Number(l.amount || 0);
+      const t = Number(l.tenor || 1);
+      const r = Number(l.interestRate || 0) / 100;
+      const monthly = Math.round(p / t + p * r);
+      fallbackTotal += monthly;
+    }
+  }
+
+  return fallbackTotal;
+}
+
 export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMonth?: string): Promise<EwaQuotaInfo> {
   const emp = await getEmployeeById(db, employeeId);
   if (!emp) {
@@ -115,7 +169,9 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
   }
 
   const period = periodMonth || getCurrentPeriodMonth();
-  const maxMonthlyLimit = Math.floor((emp.baseSalary * EWA_MAX_PERCENTAGE) / 100);
+  const coopLoanDeduction = await getMemberActiveMonthlyLoanInstallment(db, emp.memberId, period);
+  const effectiveSalary = Math.max(0, emp.baseSalary - coopLoanDeduction);
+  const maxMonthlyLimit = Math.floor((effectiveSalary * EWA_MAX_PERCENTAGE) / 100);
 
   // Sum used advances in this period (PENDING, APPROVED, DISBURSED)
   const usedRes = await db
@@ -131,9 +187,12 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
   const feePercentage = emp.isMember ? EWA_MEMBER_FEE_PCT : EWA_NON_MEMBER_FEE_PCT;
 
   const isExpired = isContractExpired(emp.contractEndDate);
-  const isEligible = !isExpired && emp.status === 'ACTIVE';
+  const isZeroEffective = effectiveSalary <= 0;
+  const isEligible = !isExpired && !isZeroEffective && emp.status === 'ACTIVE';
   const ineligibilityReason = isExpired
     ? `Masa kontrak kerja telah berakhir pada ${String(emp.contractEndDate).slice(0, 10)}. Pengajuan EWA tidak dapat diproses.`
+    : isZeroEffective
+    ? `Gaji bersih setelah dipotong angsuran pinjaman koperasi (Rp ${coopLoanDeduction.toLocaleString('id-ID')}) adalah Rp 0, sehingga kuota EWA tidak tersedia.`
     : emp.status !== 'ACTIVE'
     ? 'Status karyawan tidak aktif.'
     : null;
@@ -144,6 +203,8 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
     isMember: emp.isMember,
     periodMonth: period,
     baseSalary: emp.baseSalary,
+    coopLoanDeduction,
+    effectiveSalary,
     maxAllowedPercentage: EWA_MAX_PERCENTAGE,
     maxMonthlyLimit,
     totalUsedThisMonth,
@@ -217,7 +278,7 @@ export async function createEwaRequest(
     id,
     employeeId,
     periodMonth,
-    quota.baseSalary,
+    quota.effectiveSalary ?? quota.baseSalary,
     quota.maxMonthlyLimit,
     requestedAmount,
     feePercentage,

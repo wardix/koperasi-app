@@ -1292,8 +1292,13 @@ export default function MemberPortal() {
                     <Grid gap={4}>
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Gaji Pokok Terdaftar</Text>
-                          <Heading level={3}>{formatRp(ewaQuota?.baseSalary || 0)}</Heading>
+                          <Text type="supporting">Gaji Bersih Efektif</Text>
+                          <Heading level={3}>{formatRp(ewaQuota?.effectiveSalary ?? ewaQuota?.baseSalary ?? 0)}</Heading>
+                          {(ewaQuota?.coopLoanDeduction || 0) > 0 && (
+                            <Text type="supporting" color="critical" style={{ fontSize: 12 }}>
+                              Gaji {formatRp(ewaQuota?.baseSalary || 0)} − Angsuran Pinjaman {formatRp(ewaQuota?.coopLoanDeduction || 0)}
+                            </Text>
+                          )}
                         </VStack>
                       </Card>
                       <Card style={{ padding: 16 }}>

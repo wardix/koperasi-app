@@ -565,14 +565,25 @@ export default function EWA() {
       },
       {
         key: 'salary',
-        header: 'Gaji Pokok',
-        width: proportional(1.2),
-        renderCell: (e: CompanyEmployee) => (
-          <VStack gap={0}>
-            <Text type="body" weight="semibold">{formatRp(e.baseSalary)}</Text>
-            <Text type="supporting" color="secondary">Plafon 50%: {formatRp(e.baseSalary * 0.5)}</Text>
-          </VStack>
-        ),
+        header: 'Gaji & Plafon',
+        width: proportional(1.5),
+        renderCell: (e: CompanyEmployee) => {
+          const effective = e.effectiveSalary ?? e.baseSalary;
+          const loanDed = e.coopLoanDeduction ?? 0;
+          return (
+            <VStack gap={0}>
+              <Text type="body" weight="semibold">{formatRp(e.baseSalary)}</Text>
+              {loanDed > 0 && (
+                <Text type="supporting" color="critical" style={{ fontSize: 11 }}>
+                  Angsuran Pinjaman: -{formatRp(loanDed)}
+                </Text>
+              )}
+              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                Plafon 50%: {formatRp(Math.floor(effective * 0.5))}
+              </Text>
+            </VStack>
+          );
+        },
       },
       {
         key: 'status',
