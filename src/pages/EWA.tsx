@@ -23,6 +23,7 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { Icon } from '@astryxdesign/core/Icon';
+import { Pagination } from '../components/Pagination';
 import type { CompanyEmployee, EWARequest, EwaFeeTier } from '../../shared/types';
 
 export default function EWA() {
@@ -33,6 +34,9 @@ export default function EWA() {
   const [requests, setRequests] = useState<EWARequest[]>([]);
   const [reqLoading, setReqLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const [reqPage, setReqPage] = useState(1);
+  const [reqLimit, setReqLimit] = useState(20);
+  const [reqTotal, setReqTotal] = useState(0);
   const [selectedReq, setSelectedReq] = useState<EWARequest | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -43,6 +47,9 @@ export default function EWA() {
   const [employees, setEmployees] = useState<CompanyEmployee[]>([]);
   const [empLoading, setEmpLoading] = useState(false);
   const [empSearch, setEmpSearch] = useState('');
+  const [empPage, setEmpPage] = useState(1);
+  const [empLimit, setEmpLimit] = useState(20);
+  const [empTotal, setEmpTotal] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importCsvText, setImportCsvText] = useState('');
   const [importLoading, setImportLoading] = useState(false);
@@ -75,11 +82,15 @@ export default function EWA() {
   const fetchRequests = async () => {
     setReqLoading(true);
     try {
-      const q = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
-      const res = await apiFetch(`/api/v1/ewa/requests${q}`);
+      const q = new URLSearchParams();
+      if (statusFilter) q.append('status', statusFilter);
+      q.append('page', String(reqPage));
+      q.append('limit', String(reqLimit));
+      const res = await apiFetch(`/api/v1/ewa/requests?${q.toString()}`);
       const data = await res.json();
       if (data.success) {
         setRequests(data.data || []);
+        setReqTotal(data.total || 0);
       }
     } catch (err) {
       console.error('Fetch requests error:', err);
@@ -92,11 +103,15 @@ export default function EWA() {
   const fetchEmployees = async () => {
     setEmpLoading(true);
     try {
-      const q = empSearch ? `?search=${encodeURIComponent(empSearch)}` : '';
-      const res = await apiFetch(`/api/v1/ewa/employees${q}`);
+      const q = new URLSearchParams();
+      if (empSearch.trim()) q.append('search', empSearch.trim());
+      q.append('page', String(empPage));
+      q.append('limit', String(empLimit));
+      const res = await apiFetch(`/api/v1/ewa/employees?${q.toString()}`);
       const data = await res.json();
       if (data.success) {
         setEmployees(data.data || []);
+        setEmpTotal(data.total || 0);
       }
     } catch (err) {
       console.error('Fetch employees error:', err);
@@ -139,17 +154,19 @@ export default function EWA() {
 
   useEffect(() => {
     fetchRequests();
-    fetchEmployees();
-    fetchPayrollRecap();
-    fetchFeeTiers();
-  }, []);
+  }, [statusFilter, reqPage, reqLimit]);
 
   useEffect(() => {
-    if (activeTab === 'requests') fetchRequests();
-    if (activeTab === 'employees') fetchEmployees();
+    fetchEmployees();
+  }, [empSearch, empPage, empLimit]);
+
+  useEffect(() => {
     if (activeTab === 'payroll') fetchPayrollRecap();
+  }, [activeTab, payrollMonth]);
+
+  useEffect(() => {
     if (activeTab === 'fee-tiers') fetchFeeTiers();
-  }, [activeTab, statusFilter, payrollMonth]);
+  }, [activeTab]);
 
   // Handle Disburse
   const handleDisburse = async (req: EWARequest) => {
@@ -947,8 +964,8 @@ export default function EWA() {
             }}
           >
             {[
-              { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: requests.length, icon: BanknotesIcon },
-              { id: 'employees' as const, label: 'Master Karyawan & Gaji', count: employees.length, icon: UserGroupIcon },
+              { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: reqTotal || requests.length, icon: BanknotesIcon },
+              { id: 'employees' as const, label: 'Master Karyawan & Gaji', count: empTotal || employees.length, icon: UserGroupIcon },
               { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', count: payrollRecap?.totalEmployees || 0, icon: DocumentArrowDownIcon },
               { id: 'fee-tiers' as const, label: 'Tarif Biaya Admin', count: feeTiers.length, icon: TagIcon },
             ].map((tab) => {
@@ -995,7 +1012,10 @@ export default function EWA() {
                     <Text type="supporting">Status:</Text>
                     <select
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
+                      onChange={(e) => {
+                        setStatusFilter(e.target.value);
+                        setReqPage(1);
+                      }}
                       style={{
                         padding: '6px 12px',
                         borderRadius: 6,
@@ -1016,7 +1036,15 @@ export default function EWA() {
                 {reqLoading ? (
                   <Spinner size="md" />
                 ) : requests.length > 0 ? (
-                  <Table data={requests} columns={requestColumns} idKey="id" density="balanced" />
+                  <VStack gap={3}>
+                    <Table data={requests} columns={requestColumns} idKey="id" density="balanced" />
+                    <Pagination
+                      page={reqPage}
+                      limit={reqLimit}
+                      total={reqTotal}
+                      onPageChange={setReqPage}
+                    />
+                  </VStack>
                 ) : (
                   <Text type="supporting" color="secondary">
                     Belum ada data pengajuan EWA
@@ -1031,13 +1059,20 @@ export default function EWA() {
             <Card>
               <VStack gap={4}>
                 <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
-                  <Heading level={4}>Master Data Karyawan Perusahaan Induk</Heading>
+                  <VStack gap={0}>
+                    <Heading level={4}>Master Data Karyawan Perusahaan Induk</Heading>
+                    <Text type="supporting" color="secondary">
+                      Total: {empTotal} Karyawan terdaftar
+                    </Text>
+                  </VStack>
                   <input
                     type="text"
                     placeholder="Cari nama / NIP / email..."
                     value={empSearch}
-                    onChange={(e) => setEmpSearch(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchEmployees()}
+                    onChange={(e) => {
+                      setEmpSearch(e.target.value);
+                      setEmpPage(1);
+                    }}
                     style={{
                       padding: '6px 12px',
                       borderRadius: 6,
@@ -1052,7 +1087,15 @@ export default function EWA() {
                 {empLoading ? (
                   <Spinner size="md" />
                 ) : employees.length > 0 ? (
-                  <Table data={employees} columns={employeeColumns} idKey="id" density="balanced" />
+                  <VStack gap={3}>
+                    <Table data={employees} columns={employeeColumns} idKey="id" density="balanced" />
+                    <Pagination
+                      page={empPage}
+                      limit={empLimit}
+                      total={empTotal}
+                      onPageChange={setEmpPage}
+                    />
+                  </VStack>
                 ) : (
                   <Text type="supporting" color="secondary">
                     Belum ada data karyawan. Gunakan tombol "Import Data Karyawan (CSV)" untuk menambahkan.
