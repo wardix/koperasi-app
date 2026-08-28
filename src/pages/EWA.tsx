@@ -1365,9 +1365,13 @@ export default function EWA() {
                         <Text type="supporting" style={{ fontWeight: 500 }}>Batas Bawah Nominal (Rp):</Text>
                         <input
                           type="text"
+                          inputMode="numeric"
                           required
                           value={tierMinInput}
-                          onChange={(e) => setTierMinInput(e.target.value)}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setTierMinInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
+                          }}
                           placeholder="Contoh: 100.000"
                           style={{
                             width: '100%',
@@ -1399,9 +1403,13 @@ export default function EWA() {
                         {!tierNoMax && (
                           <input
                             type="text"
+                            inputMode="numeric"
                             required={!tierNoMax}
                             value={tierMaxInput}
-                            onChange={(e) => setTierMaxInput(e.target.value)}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              setTierMaxInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
+                            }}
                             placeholder="Contoh: 500.000"
                             style={{
                               width: '100%',
@@ -1420,9 +1428,13 @@ export default function EWA() {
                         <Text type="supporting" style={{ fontWeight: 500 }}>Biaya Admin - Anggota Koperasi (Rp):</Text>
                         <input
                           type="text"
+                          inputMode="numeric"
                           required
                           value={tierMemberFeeInput}
-                          onChange={(e) => setTierMemberFeeInput(e.target.value)}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setTierMemberFeeInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
+                          }}
                           placeholder="Contoh: 10.000"
                           style={{
                             width: '100%',
@@ -1440,9 +1452,13 @@ export default function EWA() {
                         <Text type="supporting" style={{ fontWeight: 500 }}>Biaya Admin - Bukan Anggota (Rp):</Text>
                         <input
                           type="text"
+                          inputMode="numeric"
                           required
                           value={tierNonMemberFeeInput}
-                          onChange={(e) => setTierNonMemberFeeInput(e.target.value)}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setTierNonMemberFeeInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
+                          }}
                           placeholder="Contoh: 15.000"
                           style={{
                             width: '100%',
