@@ -166,9 +166,9 @@ export default function MemberPortal() {
         },
         body: JSON.stringify({
           amount: numericAmount,
-          destinationBank: ewaBank,
-          destinationAccount: ewaAccount,
-          destinationName: ewaName,
+          destinationBank: ewaQuota?.employee?.bankName,
+          destinationAccount: ewaQuota?.employee?.bankAccountNumber,
+          destinationName: ewaQuota?.employee?.bankAccountName || ewaQuota?.employee?.name,
         }),
       }).then((r) => r.json());
 
@@ -1355,64 +1355,49 @@ export default function MemberPortal() {
                           </Text>
                         )}
 
-                        <Grid gap={4}>
-                          <VStack gap={2}>
-                            <Text type="supporting">Nominal Penarikan (Rp)</Text>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="Contoh: 1.000.000"
-                              value={ewaAmount}
-                              onChange={(e) => {
-                                const digits = e.target.value.replace(/\D/g, '');
-                                setEwaAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
-                              }}
-                              style={inputStyle}
-                              required
-                            />
-                            <Text type="supporting" size="sm" color="secondary">
-                              Maksimal tarik hari ini (Tgl {ewaQuota?.currentDay || new Date().getDate()}): {formatRp(ewaQuota?.remainingQuota || 0)}
-                            </Text>
-                          </VStack>
+                        {/* Input Nominal Penarikan */}
+                        <VStack gap={2}>
+                          <Text type="supporting" weight="semibold">Nominal Penarikan (Rp):</Text>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Contoh: 500.000"
+                            value={ewaAmount}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              setEwaAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
+                            }}
+                            style={{ ...inputStyle, fontSize: 16, fontWeight: 600 }}
+                            required
+                          />
+                          <Text type="supporting" size="sm" color="secondary">
+                            Maksimal penarikan hari ini: <b>{formatRp(ewaQuota?.remainingQuota || 0)}</b> ({ewaQuota?.cycleStartDate && ewaQuota?.cycleEndDate ? `Siklus ${ewaQuota.cycleStartDate} s/d ${ewaQuota.cycleEndDate}` : ''})
+                          </Text>
+                        </VStack>
 
+                        {/* Info Rekening Payroll Tujuan Pencairan */}
+                        <Card style={{ padding: 14, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
                           <VStack gap={2}>
-                            <Text type="supporting">Bank Tujuan Pencairan</Text>
-                            <input
-                              type="text"
-                              placeholder="Contoh: Bank Mandiri / Bank BCA"
-                              value={ewaBank}
-                              onChange={(e) => setEwaBank(e.target.value)}
-                              style={inputStyle}
-                              required
-                            />
+                            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                              <Text type="supporting" weight="semibold">Rekening Payroll Tujuan Pencairan:</Text>
+                              <Badge variant="neutral" size="sm" label="Rekening Resmi Payroll" />
+                            </HStack>
+                            <HStack gap={4} wrap="wrap">
+                              <VStack gap={0}>
+                                <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>Bank</Text>
+                                <Text type="body" weight="medium">{ewaQuota?.employee?.bankName || 'Bank Mandiri'}</Text>
+                              </VStack>
+                              <VStack gap={0}>
+                                <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>Nomor Rekening</Text>
+                                <Text type="body" weight="semibold">{ewaQuota?.employee?.bankAccountNumber || '-'}</Text>
+                              </VStack>
+                              <VStack gap={0}>
+                                <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>Nama Pemilik Rekening</Text>
+                                <Text type="body" weight="medium">{ewaQuota?.employee?.bankAccountName || ewaQuota?.employee?.name || profile?.name || '-'}</Text>
+                              </VStack>
+                            </HStack>
                           </VStack>
-                        </Grid>
-
-                        <Grid gap={4}>
-                          <VStack gap={2}>
-                            <Text type="supporting">Nomor Rekening</Text>
-                            <input
-                              type="text"
-                              placeholder="Nomor rekening bank Anda"
-                              value={ewaAccount}
-                              onChange={(e) => setEwaAccount(e.target.value)}
-                              style={inputStyle}
-                              required
-                            />
-                          </VStack>
-
-                          <VStack gap={2}>
-                            <Text type="supporting">Nama Pemilik Rekening</Text>
-                            <input
-                              type="text"
-                              placeholder="Nama lengkap pada rekening"
-                              value={ewaName}
-                              onChange={(e) => setEwaName(e.target.value)}
-                              style={inputStyle}
-                              required
-                            />
-                          </VStack>
-                        </Grid>
+                        </Card>
 
                         {/* Simulasi Live Fee & Potongan */}
                         {parseFloat(ewaAmount.replace(/\D/g, '')) > 0 && (() => {
