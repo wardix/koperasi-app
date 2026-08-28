@@ -19,6 +19,7 @@ import {
   getEmployeeEwaQuota,
   createEwaRequest,
   getEwaRequestsList,
+  getEwaFeeTiers,
 } from '../services/ewaService';
 import { ewaRequestCreateSchema } from '../schemas';
 
@@ -117,11 +118,13 @@ memberSelfService.get('/ewa/quota', async (c) => {
 
   try {
     const quota = await getEmployeeEwaQuota(db, employee.id);
+    const feeTiers = await getEwaFeeTiers(db);
     return c.json({
       success: true,
       data: {
         ...quota,
         employee,
+        feeTiers,
       },
     });
   } catch (err: any) {
@@ -129,7 +132,17 @@ memberSelfService.get('/ewa/quota', async (c) => {
   }
 });
 
-// 2. Submit EWA Request
+// 2. Get Fee Tiers
+memberSelfService.get('/ewa/fee-tiers', async (c) => {
+  try {
+    const tiers = await getEwaFeeTiers(db);
+    return c.json({ success: true, data: tiers });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal memuat tabel tarif' }, 500);
+  }
+});
+
+// 3. Submit EWA Request
 memberSelfService.get('/ewa/history', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
   const email = payload.email;

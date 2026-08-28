@@ -13,6 +13,9 @@ export const PUBLIC_AUTH_PATHS = [
   `/api/v1/cron/due-dates`,
   // Public branding for login shell (no secrets)
   `/api/v1/settings/branding`,
+  // Public EWA fee tiers & calculation preview
+  `/api/v1/ewa/fee-tiers`,
+  `/api/v1/ewa/calculate-fee`,
 ] as const;
 
 /** Legacy paths without /auth segment — forwarded with Deprecation header. */

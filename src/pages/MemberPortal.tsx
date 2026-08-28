@@ -130,6 +130,9 @@ export default function MemberPortal() {
       ]);
       if (quotaRes.success) {
         setEwaQuota(quotaRes.data);
+        if (quotaRes.data?.feeTiers && Array.isArray(quotaRes.data.feeTiers)) {
+          setFeeTiers(quotaRes.data.feeTiers);
+        }
         if (quotaRes.data?.employee) {
           if (!ewaBank && quotaRes.data.employee.bankName) setEwaBank(quotaRes.data.employee.bankName);
           if (!ewaAccount && quotaRes.data.employee.bankAccountNumber) setEwaAccount(quotaRes.data.employee.bankAccountNumber);
@@ -139,7 +142,7 @@ export default function MemberPortal() {
       if (histRes.success) {
         setEwaHistory(histRes.data || []);
       }
-      if (tiersRes.success) {
+      if (tiersRes.success && (!quotaRes?.data?.feeTiers || quotaRes.data.feeTiers.length === 0)) {
         setFeeTiers(tiersRes.data || []);
       }
     } catch {
@@ -1266,7 +1269,7 @@ export default function MemberPortal() {
                               💡 Hemat Biaya Layanan & Dapatkan SHU!
                             </Text>
                             <Text type="supporting" color="secondary">
-                              Tarif EWA untuk Bukan Anggota adalah {ewaQuota?.feePercentage || 3.5}%. Bergabunglah menjadi Anggota Koperasi untuk menikmati tarif hemat 2.0% serta pembagian Sisa Hasil Usaha (SHU) setiap tahun.
+                              Tarif biaya admin EWA untuk Anggota Koperasi lebih hemat (mulai dari Rp 10.000 flat) dibandingkan bukan anggota. Bergabunglah menjadi Anggota Koperasi untuk menikmati tarif hemat serta pembagian Sisa Hasil Usaha (SHU) setiap tahun.
                             </Text>
                           </VStack>
                           <Button
