@@ -317,6 +317,9 @@ export default function EWA() {
           }
         }
 
+        const rawContractEnd = obj['tanggal berakhir kontrak'] || obj['tanggal_berakhir_kontrak'] || obj['contract_end_date'] || obj['tgl_kontrak_berakhir'] || obj['berakhir_kontrak'] || '';
+        const contractEndDate = rawContractEnd ? rawContractEnd.trim().slice(0, 10) : null;
+
         items.push({
           nip: obj['emp. id'] || obj['nip'] || obj['no_karyawan'] || obj['employee_id'] || '',
           nik: obj['no. ktp'] || obj['nik'] || obj['ktp'] || null,
@@ -329,6 +332,7 @@ export default function EWA() {
           bankName: obj['bank payroll'] || obj['bank'] || obj['nama_bank'] || null,
           bankAccountNumber: obj['no. rekening'] || obj['rekening'] || obj['no_rekening'] || null,
           bankAccountName: obj['nama di rekening'] || obj['nama_rekening'] || obj['atas_nama'] || obj['nama lengkap karyawan'] || null,
+          contractEndDate,
         });
       }
 
@@ -546,6 +550,29 @@ export default function EWA() {
             {e.isMember ? 'Anggota Koperasi' : 'Bukan Anggota'}
           </Badge>
         ),
+      },
+      {
+        id: 'contract',
+        header: 'Masa Kontrak',
+        width: pixel(140),
+        cell: (e) => {
+          if (!e.contractEndDate) {
+            return <Badge variant="neutral">Karyawan Tetap</Badge>;
+          }
+          const today = new Date().toISOString().slice(0, 10);
+          const endStr = String(e.contractEndDate).slice(0, 10);
+          const isExpired = today > endStr;
+          return (
+            <VStack gap={0}>
+              <Badge variant={isExpired ? 'critical' : 'warning'} size="sm">
+                {isExpired ? 'Kontrak Berakhir' : 'Kontrak Aktif'}
+              </Badge>
+              <Text type="supporting" color={isExpired ? 'critical' : 'secondary'} style={{ fontSize: 11 }}>
+                s/d {endStr}
+              </Text>
+            </VStack>
+          );
+        },
       },
       {
         id: 'bank',

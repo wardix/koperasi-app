@@ -40,6 +40,13 @@ export async function syncEmployeeMemberStatus(db: Db, employeeId: string): Prom
   }
 }
 
+export function isContractExpired(contractEndDate?: string | null): boolean {
+  if (!contractEndDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const end = String(contractEndDate).slice(0, 10);
+  return today > end;
+}
+
 export async function getEmployeeByEmail(db: Db, email: string): Promise<CompanyEmployee | null> {
   const normEmail = email.trim().toLowerCase();
   const row = await db
@@ -48,7 +55,7 @@ export async function getEmployeeByEmail(db: Db, email: string): Promise<Company
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
         bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
-        status, created_at as "createdAt", updated_at as "updatedAt"
+        status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
        FROM company_employees 
        WHERE LOWER(email) = ? AND status = 'ACTIVE' LIMIT 1`
     )
@@ -66,7 +73,7 @@ export async function getEmployeeByEmail(db: Db, email: string): Promise<Company
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
         bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
-        status, created_at as "createdAt", updated_at as "updatedAt"
+        status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
        FROM company_employees 
        WHERE id = ? LIMIT 1`
     )
@@ -87,7 +94,7 @@ export async function getEmployeeById(db: Db, employeeId: string): Promise<Compa
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
         bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
-        status, created_at as "createdAt", updated_at as "updatedAt"
+        status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
        FROM company_employees 
        WHERE id = ? LIMIT 1`
     )
@@ -123,6 +130,14 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
   const remainingQuota = Math.max(0, maxMonthlyLimit - totalUsedThisMonth);
   const feePercentage = emp.isMember ? EWA_MEMBER_FEE_PCT : EWA_NON_MEMBER_FEE_PCT;
 
+  const isExpired = isContractExpired(emp.contractEndDate);
+  const isEligible = !isExpired && emp.status === 'ACTIVE';
+  const ineligibilityReason = isExpired
+    ? `Masa kontrak kerja telah berakhir pada ${String(emp.contractEndDate).slice(0, 10)}. Pengajuan EWA tidak dapat diproses.`
+    : emp.status !== 'ACTIVE'
+    ? 'Status karyawan tidak aktif.'
+    : null;
+
   return {
     employeeId: emp.id,
     employeeName: emp.name,
@@ -132,8 +147,11 @@ export async function getEmployeeEwaQuota(db: Db, employeeId: string, periodMont
     maxAllowedPercentage: EWA_MAX_PERCENTAGE,
     maxMonthlyLimit,
     totalUsedThisMonth,
-    remainingQuota,
+    remainingQuota: isEligible ? remainingQuota : 0,
     feePercentage,
+    isEligible,
+    ineligibilityReason,
+    contractEndDate: emp.contractEndDate ? String(emp.contractEndDate).slice(0, 10) : null,
   };
 }
 
@@ -147,8 +165,24 @@ export async function createEwaRequest(
     destinationName?: string;
   }
 ): Promise<EWARequest> {
+  const emp = await getEmployeeById(db, employeeId);
+  if (!emp) {
+    throw new ServiceError("Data karyawan tidak ditemukan", 404);
+  }
+
+  if (isContractExpired(emp.contractEndDate)) {
+    throw new ServiceError(
+      `Pengajuan EWA gagal: masa kontrak kerja telah berakhir pada ${String(emp.contractEndDate).slice(0, 10)}.`,
+      400
+    );
+  }
+
   const quota = await getEmployeeEwaQuota(db, employeeId);
   const requestedAmount = Math.round(Number(input.amount));
+
+  if (!quota.isEligible) {
+    throw new ServiceError(quota.ineligibilityReason || "Karyawan tidak memenuhi syarat pengajuan EWA", 400);
+  }
 
   if (requestedAmount <= 0) {
     throw new ServiceError("Nominal penarikan harus lebih dari 0", 400);
@@ -161,7 +195,6 @@ export async function createEwaRequest(
     );
   }
 
-  const emp = await getEmployeeById(db, employeeId);
   const destBank = input.destinationBank || emp?.bankName || "Bank Mandiri";
   const destAcc = input.destinationAccount || emp?.bankAccountNumber || "-";
   const destName = input.destinationName || emp?.bankAccountName || emp?.name || "-";
@@ -660,6 +693,7 @@ export async function batchImportEmployees(
     bankName?: string | null;
     bankAccountNumber?: string | null;
     bankAccountName?: string | null;
+    contractEndDate?: string | null;
   }>
 ): Promise<{ processedCount: number; errors: Array<{ index: number; nip: string; message: string }> }> {
   let processedCount = 0;
@@ -672,6 +706,7 @@ export async function batchImportEmployees(
       const nip = item.nip.trim();
       const name = item.name.trim();
       const cappedSalary = getCappedBaseSalary(item.baseSalary);
+      const contractEndDate = item.contractEndDate ? item.contractEndDate.trim().slice(0, 10) : null;
 
       // Check if employee already exists by NIP or email
       const existing = await db
@@ -683,7 +718,7 @@ export async function batchImportEmployees(
           `UPDATE company_employees SET
             nik = ?, name = ?, email = ?, phone = ?, department = ?, position = ?,
             base_salary = ?, bank_name = ?, bank_account_number = ?, bank_account_name = ?,
-            updated_at = NOW()
+            contract_end_date = ?, updated_at = NOW()
            WHERE id = ?`
         ).run(
           item.nik || null,
@@ -696,6 +731,7 @@ export async function batchImportEmployees(
           item.bankName || null,
           item.bankAccountNumber || null,
           item.bankAccountName || name,
+          contractEndDate,
           existing.id
         );
         await syncEmployeeMemberStatus(db, existing.id);
@@ -704,8 +740,9 @@ export async function batchImportEmployees(
         await db.query(
           `INSERT INTO company_employees (
             id, nip, nik, name, email, phone, department, position,
-            base_salary, bank_name, bank_account_number, bank_account_name, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())`
+            base_salary, bank_name, bank_account_number, bank_account_name,
+            contract_end_date, status, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())`
         ).run(
           id,
           nip,
@@ -718,7 +755,8 @@ export async function batchImportEmployees(
           cappedSalary,
           item.bankName || null,
           item.bankAccountNumber || null,
-          item.bankAccountName || name
+          item.bankAccountName || name,
+          contractEndDate
         );
         await syncEmployeeMemberStatus(db, id);
       }

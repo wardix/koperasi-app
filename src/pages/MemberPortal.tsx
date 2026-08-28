@@ -1272,6 +1272,22 @@ export default function MemberPortal() {
                       </Card>
                     )}
 
+                    {/* Alert jika Kontrak Berakhir / Tidak Eligible */}
+                    {ewaQuota?.isEligible === false && (
+                      <Card style={{ padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444' }}>
+                        <HStack gap={3} vAlign="center">
+                          <VStack gap={1}>
+                            <Text type="body" weight="bold" color="critical">
+                              ⚠️ Pengajuan EWA Tidak Tersedia
+                            </Text>
+                            <Text type="supporting" color="critical">
+                              {ewaQuota?.ineligibilityReason || 'Masa kontrak kerja Anda telah berakhir atau status kepegawaian tidak aktif.'}
+                            </Text>
+                          </VStack>
+                        </HStack>
+                      </Card>
+                    )}
+
                     {/* Kuota Grid */}
                     <Grid gap={4}>
                       <Card style={{ padding: 16 }}>
@@ -1408,7 +1424,12 @@ export default function MemberPortal() {
                             label={ewaSubmitLoading ? 'Mengirim Pengajuan...' : 'Kirim Pengajuan Tarik Gaji'}
                             variant="primary"
                             type="submit"
-                            isDisabled={ewaSubmitLoading || !parseFloat(ewaAmount.replace(/\D/g, '')) || parseFloat(ewaAmount.replace(/\D/g, '')) > (ewaQuota?.remainingQuota || 0)}
+                            isDisabled={
+                              ewaSubmitLoading ||
+                              ewaQuota?.isEligible === false ||
+                              !parseFloat(ewaAmount.replace(/\D/g, '')) ||
+                              parseFloat(ewaAmount.replace(/\D/g, '')) > (ewaQuota?.remainingQuota || 0)
+                            }
                           />
                         </HStack>
                       </form>

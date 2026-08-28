@@ -156,7 +156,7 @@ ewa.get('/employees', requirePermission('read:members'), async (c) => {
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
         bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
-        status, created_at as "createdAt", updated_at as "updatedAt"
+        status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
        FROM company_employees
        ${whereClause}
        ORDER BY name ASC

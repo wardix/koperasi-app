@@ -40,6 +40,7 @@ export interface CompanyEmployee {
   bankAccountNumber?: string | null;
   bankAccountName?: string | null;
   status: 'ACTIVE' | 'INACTIVE';
+  contractEndDate?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -80,6 +81,9 @@ export interface EwaQuotaInfo {
   totalUsedThisMonth: number;
   remainingQuota: number;
   feePercentage: number; // e.g. 2.0% (member) vs 3.5% (non-member)
+  isEligible?: boolean;
+  ineligibilityReason?: string | null;
+  contractEndDate?: string | null;
 }
 
 export interface MemberRow {
