@@ -62,7 +62,11 @@ memberSelfService.get('/profile', async (c) => {
     phone: member?.phone || employee?.phone,
     role: member?.role || 'Karyawan',
     status: member?.status || employee?.status || 'Aktif',
-    joinDate: member?.joinDate || employee?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+    joinDate: member?.joinDate
+      ? String(member.joinDate).slice(0, 10)
+      : employee?.createdAt
+      ? new Date(employee.createdAt).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
     nik: member?.nik || employee?.nik,
     simpananPokok: Number(member?.simpananPokok || 0),
     simpananWajib: Number(member?.simpananWajib || 0),
