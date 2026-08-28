@@ -280,7 +280,7 @@ export async function getMemberActiveMonthlyLoanInstallment(
   const period = periodMonth || getCurrentPeriodMonth();
 
   // 1. Check from loan_schedules for active loans ('Disetujui')
-  // Match schedules due in this period or pending up to end of this period
+  // Match only the schedule due in this specific period month (1 month installment)
   const schedRes = await db
     .query(
       `SELECT COALESCE(SUM(ls.principalAmount + ls.interestAmount - ls.paidAmount), 0) as total
@@ -289,12 +289,9 @@ export async function getMemberActiveMonthlyLoanInstallment(
        WHERE l.memberId = ? 
          AND l.status = 'Disetujui'
          AND ls.status IN ('Pending', 'Late')
-         AND (
-           TO_CHAR(ls.dueDate, 'YYYY-MM') = ?
-           OR ls.dueDate <= (TO_DATE(?, 'YYYY-MM') + INTERVAL '1 month' - INTERVAL '1 day')
-         )`
+         AND TO_CHAR(ls.dueDate, 'YYYY-MM') = ?`
     )
-    .get<{ total: string | number }>(memberId, period, period);
+    .get<{ total: string | number }>(memberId, period);
 
   const schedTotal = Number(schedRes?.total || 0);
   if (schedTotal > 0) return schedTotal;
