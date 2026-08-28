@@ -10,6 +10,7 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { formatRp } from '../utils/format';
 import { useAuth } from '../hooks/useAuth';
+import { apiFetch } from '../config';
 import {
   BanknotesIcon,
   UserGroupIcon,
@@ -59,16 +60,14 @@ export default function EWA() {
   const fetchRequests = async () => {
     setReqLoading(true);
     try {
-      const url = new URL('/api/v1/ewa/requests', window.location.origin);
-      if (statusFilter) url.searchParams.set('status', statusFilter);
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      }).then((r) => r.json());
-      if (res.success) {
-        setRequests(res.data || []);
+      const q = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
+      const res = await apiFetch(`/api/v1/ewa/requests${q}`);
+      const data = await res.json();
+      if (data.success) {
+        setRequests(data.data || []);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Fetch requests error:', err);
     } finally {
       setReqLoading(false);
     }
@@ -78,16 +77,14 @@ export default function EWA() {
   const fetchEmployees = async () => {
     setEmpLoading(true);
     try {
-      const url = new URL('/api/v1/ewa/employees', window.location.origin);
-      if (empSearch) url.searchParams.set('search', empSearch);
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      }).then((r) => r.json());
-      if (res.success) {
-        setEmployees(res.data || []);
+      const q = empSearch ? `?search=${encodeURIComponent(empSearch)}` : '';
+      const res = await apiFetch(`/api/v1/ewa/employees${q}`);
+      const data = await res.json();
+      if (data.success) {
+        setEmployees(data.data || []);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Fetch employees error:', err);
     } finally {
       setEmpLoading(false);
     }
@@ -97,16 +94,13 @@ export default function EWA() {
   const fetchPayrollRecap = async () => {
     setPayrollLoading(true);
     try {
-      const url = new URL('/api/v1/ewa/payroll/recap', window.location.origin);
-      url.searchParams.set('periodMonth', payrollMonth);
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      }).then((r) => r.json());
-      if (res.success) {
-        setPayrollRecap(res.data);
+      const res = await apiFetch(`/api/v1/ewa/payroll/recap?periodMonth=${encodeURIComponent(payrollMonth)}`);
+      const data = await res.json();
+      if (data.success) {
+        setPayrollRecap(data.data);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Fetch payroll recap error:', err);
     } finally {
       setPayrollLoading(false);
     }
@@ -126,23 +120,21 @@ export default function EWA() {
     setActionLoading(true);
     setActionMessage(null);
     try {
-      const res = await fetch(`/api/v1/ewa/requests/${req.id}/disburse`, {
+      const res = await apiFetch(`/api/v1/ewa/requests/${req.id}/disburse`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
-      }).then((r) => r.json());
+      });
+      const data = await res.json();
 
-      if (res.success) {
-        setActionMessage({ text: res.message || 'Dana berhasil dicairkan!', type: 'success' });
+      if (data.success) {
+        setActionMessage({ text: data.message || 'Dana berhasil dicairkan!', type: 'success' });
         fetchRequests();
       } else {
-        setActionMessage({ text: res.message || 'Gagal mencairkan EWA', type: 'error' });
+        setActionMessage({ text: data.message || 'Gagal mencairkan EWA', type: 'error' });
       }
-    } catch {
-      setActionMessage({ text: 'Terjadi kesalahan jaringan', type: 'error' });
+    } catch (err: any) {
+      setActionMessage({ text: err?.message || 'Terjadi kesalahan jaringan', type: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -155,26 +147,24 @@ export default function EWA() {
     setActionLoading(true);
     setActionMessage(null);
     try {
-      const res = await fetch(`/api/v1/ewa/requests/${selectedReq.id}/reject`, {
+      const res = await apiFetch(`/api/v1/ewa/requests/${selectedReq.id}/reject`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: rejectReason }),
-      }).then((r) => r.json());
+      });
+      const data = await res.json();
 
-      if (res.success) {
+      if (data.success) {
         setActionMessage({ text: 'Permohonan EWA telah ditolak', type: 'success' });
         setShowRejectModal(false);
         setRejectReason('');
         setSelectedReq(null);
         fetchRequests();
       } else {
-        setActionMessage({ text: res.message || 'Gagal menolak EWA', type: 'error' });
+        setActionMessage({ text: data.message || 'Gagal menolak EWA', type: 'error' });
       }
-    } catch {
-      setActionMessage({ text: 'Terjadi kesalahan jaringan', type: 'error' });
+    } catch (err: any) {
+      setActionMessage({ text: err?.message || 'Terjadi kesalahan jaringan', type: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -189,23 +179,21 @@ export default function EWA() {
     setSettleLoading(true);
     setActionMessage(null);
     try {
-      const res = await fetch('/api/v1/ewa/payroll/settle', {
+      const res = await apiFetch('/api/v1/ewa/payroll/settle', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ periodMonth: payrollMonth }),
-      }).then((r) => r.json());
+      });
+      const data = await res.json();
 
-      if (res.success) {
-        setActionMessage({ text: res.message || 'Pelunasan payroll berhasil dibukukan!', type: 'success' });
+      if (data.success) {
+        setActionMessage({ text: data.message || 'Pelunasan payroll berhasil dibukukan!', type: 'success' });
         fetchPayrollRecap();
       } else {
-        setActionMessage({ text: res.message || 'Gagal memproses pelunasan payroll', type: 'error' });
+        setActionMessage({ text: data.message || 'Gagal memproses pelunasan payroll', type: 'error' });
       }
-    } catch {
-      setActionMessage({ text: 'Terjadi kesalahan jaringan', type: 'error' });
+    } catch (err: any) {
+      setActionMessage({ text: err?.message || 'Terjadi kesalahan jaringan', type: 'error' });
     } finally {
       setSettleLoading(false);
     }
@@ -281,26 +269,37 @@ export default function EWA() {
     setImportSuccess('');
 
     try {
-      const lines = importCsvText.trim().split(/\r?\n/);
+      const cleanText = importCsvText.replace(/^\uFEFF/, '').trim();
+      const lines = cleanText.split(/\r?\n/);
       if (lines.length < 2) {
         setImportError('Data CSV kosong atau tidak memiliki baris data');
         setImportLoading(false);
         return;
       }
 
-      const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+      const headers = parseCSVLine(lines[0]).map((h) =>
+        h.trim().toLowerCase().replace(/^"|"$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '')
+      );
       const items: any[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         const vals = parseCSVLine(line);
+        const obj: Record<string, string> = {};
         headers.forEach((h, idx) => {
           obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g, '');
         });
 
-        const rawSalaryStr = obj['jumlah gaji'] || obj['gaji_pokok'] || obj['gaji'] || obj['basesalary'] || obj['salary'] || '0';
-        const rawLoanStr = obj['jumlah potongan pinjaman (jika ada)'] || obj['jumlah potongan pinjaman'] || obj['potongan_pinjaman'] || obj['potongan_gaji'] || obj['potongan'] || '0';
+        const rawSalaryStr =
+          obj['jumlah gaji'] || obj['gaji_pokok'] || obj['gaji'] || obj['basesalary'] || obj['salary'] || '0';
+        const rawLoanStr =
+          obj['jumlah potongan pinjaman (jika ada)'] ||
+          obj['jumlah potongan pinjaman'] ||
+          obj['potongan_pinjaman'] ||
+          obj['potongan_gaji'] ||
+          obj['potongan'] ||
+          '0';
 
         const rawSalary = parseFloat(rawSalaryStr.replace(/[^\d.]/g, '')) || 0;
         const rawLoanDeduction = parseFloat(rawLoanStr.replace(/[^\d.]/g, '')) || 0;
@@ -317,36 +316,60 @@ export default function EWA() {
           }
         }
 
-        const rawContractEnd = obj['tanggal berakhir kontrak'] || obj['tanggal_berakhir_kontrak'] || obj['contract_end_date'] || obj['tgl_kontrak_berakhir'] || obj['berakhir_kontrak'] || '';
+        const rawContractEnd =
+          obj['tanggal berakhir kontrak'] ||
+          obj['tanggal_berakhir_kontrak'] ||
+          obj['contract_end_date'] ||
+          obj['tgl_kontrak_berakhir'] ||
+          obj['berakhir_kontrak'] ||
+          '';
         const contractEndDate = rawContractEnd ? rawContractEnd.trim().slice(0, 10) : null;
 
+        const nip = obj['emp. id'] || obj['nip'] || obj['no_karyawan'] || obj['employee_id'] || '';
+        const name = obj['nama lengkap karyawan'] || obj['nama'] || obj['name'] || '';
+        const email = obj['email'] || '';
+
+        if (!nip || !name || !email) {
+          continue; // Skip invalid row
+        }
+
         items.push({
-          nip: obj['emp. id'] || obj['nip'] || obj['no_karyawan'] || obj['employee_id'] || '',
+          nip,
           nik: obj['no. ktp'] || obj['nik'] || obj['ktp'] || null,
-          name: obj['nama lengkap karyawan'] || obj['nama'] || obj['name'] || '',
-          email: obj['email'] || '',
+          name,
+          email,
           phone: obj['no. hp'] || obj['telepon'] || obj['phone'] || obj['no_hp'] || null,
           department: obj['departemen'] || obj['department'] || obj['divisi'] || null,
           position: obj['posisi/jabatan'] || obj['jabatan'] || obj['position'] || null,
           baseSalary: netSalary,
           bankName: obj['bank payroll'] || obj['bank'] || obj['nama_bank'] || null,
           bankAccountNumber: obj['no. rekening'] || obj['rekening'] || obj['no_rekening'] || null,
-          bankAccountName: obj['nama di rekening'] || obj['nama_rekening'] || obj['atas_nama'] || obj['nama lengkap karyawan'] || null,
+          bankAccountName:
+            obj['nama di rekening'] ||
+            obj['nama_rekening'] ||
+            obj['atas_nama'] ||
+            name,
           contractEndDate,
         });
       }
 
-      const res = await fetch('/api/v1/ewa/employees/batch-import', {
+      if (items.length === 0) {
+        setImportError('Tidak ada data karyawan yang valid untuk diimpor. Pastikan kolom NIP, Nama, dan Email terisi.');
+        setImportLoading(false);
+        return;
+      }
+
+      const res = await apiFetch('/api/v1/ewa/employees/batch-import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({ items }),
-      }).then((r) => r.json());
+      });
+      const data = await res.json();
 
-      if (res.success) {
-        setImportSuccess(`Berhasil memproses ${res.data.processedCount} karyawan!`);
+      if (data.success) {
+        setImportSuccess(`Berhasil memproses ${data.data?.processedCount ?? items.length} karyawan!`);
         setTimeout(() => {
           setShowImportModal(false);
           setImportCsvText('');
@@ -354,10 +377,15 @@ export default function EWA() {
           fetchEmployees();
         }, 1500);
       } else {
-        setImportError(res.message || 'Gagal mengimpor data karyawan');
+        const errorMsg =
+          data.message ||
+          data.error ||
+          (data.errors ? 'Validasi data gagal: periksa format email dan data baris' : 'Gagal mengimpor data karyawan');
+        setImportError(errorMsg);
       }
-    } catch {
-      setImportError('Format CSV tidak valid atau terjadi kegagalan jaringan');
+    } catch (err: any) {
+      console.error('Import CSV error:', err);
+      setImportError(err?.message || 'Format CSV tidak valid atau terjadi kegagalan jaringan');
     } finally {
       setImportLoading(false);
     }

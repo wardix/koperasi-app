@@ -487,10 +487,11 @@ export const batchEwaEmployeeImportItemSchema = z.object({
   phone: z.string().optional().nullable(),
   department: z.string().optional().nullable(),
   position: z.string().optional().nullable(),
-  baseSalary: z.number().positive("Gaji pokok harus lebih dari 0"),
+  baseSalary: z.number().min(0, "Gaji pokok tidak boleh negatif"),
   bankName: z.string().optional().nullable(),
   bankAccountNumber: z.string().optional().nullable(),
   bankAccountName: z.string().optional().nullable(),
+  contractEndDate: z.string().optional().nullable(),
 });
 
 export const batchEwaEmployeeImportSchema = z.object({
