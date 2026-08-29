@@ -526,7 +526,7 @@ export default function EWA() {
       {
         key: 'status',
         header: 'Status',
-        width: pixel(130),
+        width: pixel(160),
         renderCell: (r: EWARequest) => {
           let variant: any = 'neutral';
           let label = r.status;
@@ -543,7 +543,17 @@ export default function EWA() {
             variant = 'critical';
             label = 'Ditolak';
           }
-          return <Badge variant={variant} label={label} />;
+          const reason = r.rejectionReason || (r as any).rejection_reason;
+          return (
+            <VStack gap={1} hAlign="start">
+              <Badge variant={variant} label={label} size="sm" />
+              {r.status === 'REJECTED' && reason && (
+                <Text type="supporting" color="critical" style={{ fontSize: 11, lineHeight: 1.2 }}>
+                  Alasan: {reason}
+                </Text>
+              )}
+            </VStack>
+          );
         },
       },
       {
