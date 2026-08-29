@@ -928,8 +928,8 @@ export default function MemberPortal() {
               <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
                 <VStack gap={1}>
                   <HStack gap={2} vAlign="center">
-                    <Badge variant="info">Karyawan Perusahaan Induk</Badge>
-                    <Badge variant="neutral">Non-Anggota Koperasi</Badge>
+                    <Badge variant="info" label="Karyawan Perusahaan Induk" />
+                    <Badge variant="neutral" label="Non-Anggota Koperasi" />
                   </HStack>
                   <Heading level={3} style={{ margin: 0 }}>
                     Fasilitas Akses Gaji Awal (EWA)
@@ -1493,27 +1493,25 @@ export default function MemberPortal() {
                                     {formatRp(h.totalPayrollDeduction)}
                                   </td>
                                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                    <Badge
-                                      variant={
-                                        h.status === 'DISBURSED'
-                                          ? 'info'
-                                          : h.status === 'PAID_SETTLED'
-                                          ? 'success'
-                                          : h.status === 'REJECTED'
-                                          ? 'critical'
-                                          : 'warning'
-                                      }
-                                    >
-                                      {h.status === 'PENDING'
-                                        ? 'Menunggu Cair'
-                                        : h.status === 'DISBURSED'
-                                        ? 'Sudah Cair'
-                                        : h.status === 'PAID_SETTLED'
-                                        ? 'Lunas Payroll'
-                                        : h.status === 'REJECTED'
-                                        ? 'Ditolak'
-                                        : h.status}
-                                    </Badge>
+                                    {(() => {
+                                      const statusMap: Record<string, { label: string; variant: 'info' | 'success' | 'critical' | 'warning' }> = {
+                                        PENDING: { label: 'Menunggu Cair', variant: 'warning' },
+                                        DISBURSED: { label: 'Sudah Cair', variant: 'info' },
+                                        PAID_SETTLED: { label: 'Lunas Payroll', variant: 'success' },
+                                        REJECTED: { label: 'Ditolak', variant: 'critical' },
+                                      };
+                                      const st = statusMap[h.status] || { label: h.status, variant: 'neutral' as const };
+                                      return (
+                                        <VStack gap={1} hAlign="center">
+                                          <Badge variant={st.variant} label={st.label} size="sm" />
+                                          {h.status === 'REJECTED' && h.rejectionReason && (
+                                            <Text type="supporting" color="critical" style={{ fontSize: 11 }}>
+                                              Alasan: {h.rejectionReason}
+                                            </Text>
+                                          )}
+                                        </VStack>
+                                      );
+                                    })()}
                                   </td>
                                 </tr>
                               ))}

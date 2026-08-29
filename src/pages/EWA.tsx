@@ -987,9 +987,7 @@ export default function EWA() {
                   <tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />
                   <span>{tab.label}</span>
                   {typeof tab.count === 'number' && tab.count > 0 && (
-                    <Badge variant={isActive ? 'success' : 'neutral'} size="sm">
-                      {tab.count}
-                    </Badge>
+                    <Badge variant={isActive ? 'success' : 'neutral'} size="sm" label={String(tab.count)} />
                   )}
                 </button>
               );
@@ -1194,9 +1192,7 @@ export default function EWA() {
                                 <td style={{ padding: '10px 12px', fontWeight: 600 }}>{it.name}</td>
                                 <td style={{ padding: '10px 12px' }}>{it.department || '-'}</td>
                                 <td style={{ padding: '10px 12px' }}>
-                                  <Badge variant={it.isMember ? 'success' : 'neutral'} size="sm">
-                                    {it.isMember ? 'Anggota' : 'Non-Anggota'}
-                                  </Badge>
+                                  <Badge variant={it.isMember ? 'success' : 'neutral'} size="sm" label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalAdvances)}</td>
                                 <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalFee)}</td>
@@ -1211,9 +1207,7 @@ export default function EWA() {
 
                       <HStack justify="end" gap={3}>
                         {payrollRecap.isFullySettled ? (
-                          <Badge variant="success" size="lg">
-                            ✅ Periode Ini Sudah Lunas Payroll
-                          </Badge>
+                          <Badge variant="success" size="lg" label="✅ Periode Ini Sudah Lunas Payroll" />
                         ) : (
                           <Button
                             label={settleLoading ? 'Memproses...' : 'Bukukan Pelunasan Payroll Dari Perusahaan'}
