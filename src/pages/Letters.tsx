@@ -11,6 +11,7 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from '@astryxdesign/core/Dialog';
 import { useApiQuery } from '../hooks/useApiQuery';
+import { apiFetch } from '../config';
 import { formatRp, formatDate } from '../utils/format';
 
 interface OfficialLetter {
@@ -110,7 +111,7 @@ export default function LettersPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/v1/upload/loan-attachment', {
+      const res = await apiFetch('/api/v1/upload/loan-attachment', {
         method: 'POST',
         body: formData,
       }).then((r) => r.json());
@@ -136,7 +137,7 @@ export default function LettersPage() {
 
     try {
       const numericAmount = formAmount ? parseFloat(formAmount.replace(/\D/g, '')) : null;
-      const res = await fetch('/api/v1/letters', {
+      const res = await apiFetch('/api/v1/letters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -180,7 +181,7 @@ export default function LettersPage() {
   const handleDeleteLetter = async (letter: OfficialLetter) => {
     if (!window.confirm(`Yakin ingin menghapus arsip surat nomor '${letter.letterNumber}'?`)) return;
     try {
-      const res = await fetch(`/api/v1/letters/${letter.id}`, { method: 'DELETE' }).then((r) => r.json());
+      const res = await apiFetch(`/api/v1/letters/${letter.id}`, { method: 'DELETE' }).then((r) => r.json());
       if (res.success) {
         refetch();
       } else {
