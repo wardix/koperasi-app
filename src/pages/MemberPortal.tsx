@@ -1085,12 +1085,11 @@ export default function MemberPortal() {
                           style={inputStyle}
                           required
                         >
-                          <option value="3">3 Bulan</option>
-                          <option value="6">6 Bulan</option>
-                          <option value="12">12 Bulan (1 Tahun)</option>
-                          <option value="18">18 Bulan</option>
-                          <option value="24">24 Bulan (2 Tahun)</option>
-                          <option value="36">36 Bulan (3 Tahun)</option>
+                          {Array.from({ length: 24 }, (_, i) => i + 1).map((m) => (
+                            <option key={m} value={String(m)}>
+                              {m} Bulan{m === 12 ? ' (1 Tahun)' : m === 24 ? ' (2 Tahun)' : ''}
+                            </option>
+                          ))}
                         </select>
                       </VStack>
                     </Grid>
