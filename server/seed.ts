@@ -70,8 +70,8 @@ export async function seedDefaults(db: AppDb): Promise<void> {
     }
   }
 
-  // Seed demo data only in test environments (not dev or production)
-  const seedDemo = process.env.NODE_ENV === "test" || process.env.SEED_DEMO === "true";
+  // Seed demo data ONLY if explicitly requested via SEED_DEMO=true (never implicitly in test)
+  const seedDemo = process.env.SEED_DEMO === "true";
   if (seedDemo) {
     await seedDemoData(db);
   }
