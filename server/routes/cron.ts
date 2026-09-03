@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import db from '../db';
 import { NotificationService } from '../services/notificationService';
 import type { MemberRow } from '../db/entities';
+import { getPaymentTolerance } from '../services/loanService';
 
 const cronRoutes = new Hono();
 
@@ -34,14 +35,18 @@ cronRoutes.post('/due-dates', async (c) => {
     threeDaysFromNow.setDate(today.getDate() + 3);
     const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
 
-    // Fetch all unpaid schedules
+    const tolerance = getPaymentTolerance();
+
+    // Fetch all unpaid schedules exceeding payment tolerance
     // Note: status in loan_schedules is either 'Pending', 'Paid', or 'Late'
     const schedules = await db.query(
       `SELECT ls.id, ls.loanId, ls.installmentNo, ls.dueDate, ls.principalAmount, ls.interestAmount, l.memberId 
        FROM loan_schedules ls
        JOIN loans l ON ls.loanId = l.id
-       WHERE ls.status != 'Paid' AND l.deletedAt IS NULL`
-    ).all() as any[];
+       WHERE ls.status != 'Paid' 
+         AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+         AND l.deletedAt IS NULL`
+    ).all(tolerance) as any[];
 
     let processedCount = 0;
     let sentCount = 0;

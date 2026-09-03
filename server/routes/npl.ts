@@ -3,7 +3,7 @@ import db from '../db'
 import type { LoanRow, GroupCount } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { calculateLoanInterest } from '../services/loanService'
+import { calculateLoanInterest, getPaymentTolerance } from '../services/loanService'
 
 const npl = new Hono()
 
@@ -13,6 +13,7 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
 
   const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
   const bungaRate = parseFloat(bungaSetting?.value || '0');
+  const tolerance = getPaymentTolerance();
 
   // Optional filter by collectibility bucket
   const filterBucket = c.req.query('bucket'); // 'Lancar' | 'DPK' | 'Kurang Lancar' | 'Diragukan' | 'Macet'
@@ -21,14 +22,27 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
   const rows = await db.query(`
     SELECT l.*,
            COALESCE(SUM(p.amount), 0) as "paidAmount",
-           (SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE) as oldestOverdueDate
+           (SELECT MIN(ls.dueDate) 
+            FROM loan_schedules ls 
+            WHERE ls.loanId = l.id 
+              AND ls.status != 'Paid' 
+              AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+              AND ls.dueDate < CURRENT_DATE
+           ) as oldestOverdueDate
     FROM loans l
     LEFT JOIN loan_payments p ON l.id = p.loanId
     WHERE l.status IN ('Disetujui', 'Macet')
     GROUP BY l.id
-    ORDER BY COALESCE((SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE)::text, l.createdAt) DESC NULLS LAST
+    ORDER BY COALESCE((
+      SELECT MIN(ls.dueDate) 
+      FROM loan_schedules ls 
+      WHERE ls.loanId = l.id 
+        AND ls.status != 'Paid' 
+        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+        AND ls.dueDate < CURRENT_DATE
+    )::text, l.createdAt) DESC NULLS LAST
     LIMIT ? OFFSET ?
-  `).all<LoanRow & { oldestOverdueDate: string | null }>(limit, offset)
+  `).all<LoanRow & { oldestOverdueDate: string | null }>(tolerance, tolerance, limit, offset)
 
   const mappedLoans = rows.map(loan => {
     // Calculate DPD based on oldest overdue schedule
@@ -89,9 +103,11 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
       SELECT SUM(l.amount) as s
       FROM loans l
       JOIN loan_schedules ls ON l.id = ls.loanId
-      WHERE ls.status != 'Paid' AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
+      WHERE ls.status != 'Paid' 
+        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+        AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
       GROUP BY l.id
-    `).all<{ s: number | null }>()
+    `).all<{ s: number | null }>(tolerance)
   ])
 
   // Calculate total NPL by DPD (loans with any installment overdue > 90 days)
@@ -103,9 +119,10 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
       SELECT 1 FROM loan_schedules ls
       WHERE ls.loanId = l.id
       AND ls.status != 'Paid'
+      AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
       AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
     )
-  `).all<Pick<LoanRow, 'id' | 'amount'>>();
+  `).all<Pick<LoanRow, 'id' | 'amount'>>(tolerance);
 
   const totalNPLByDPD = nplLoansByDPD.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
 
@@ -128,12 +145,17 @@ npl.get('/', requirePermission('read:npl'), async (c) => {
       COUNT(*) as count
     FROM (
       SELECT l.id,
-             (SELECT MIN(ls.dueDate) FROM loan_schedules ls WHERE ls.loanId = l.id AND ls.status != 'Paid') as oldestDueDate
+             (SELECT MIN(ls.dueDate) 
+              FROM loan_schedules ls 
+              WHERE ls.loanId = l.id 
+                AND ls.status != 'Paid'
+                AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+             ) as oldestDueDate
       FROM loans l
       WHERE l.status IN ('Disetujui', 'Macet')
     ) sub
     GROUP BY 1
-  `).all<GroupCount>();
+  `).all<GroupCount>(tolerance);
 
   return c.json({
     success: true,

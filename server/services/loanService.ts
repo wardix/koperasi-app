@@ -30,6 +30,18 @@ export function calculateLoanInterest(amount: number, tenor: string | number, bu
   };
 }
 
+/**
+ * Resolves the loan payment rounding tolerance from environment variable LOAN_PAYMENT_TOLERANCE.
+ * Defaults to 100 rupiah if not set or invalid.
+ */
+export function getPaymentTolerance(): number {
+  const val =
+    process.env.LOAN_PAYMENT_TOLERANCE ||
+    (typeof Bun !== "undefined" ? Bun.env.LOAN_PAYMENT_TOLERANCE : undefined);
+  const parsed = parseFloat(val || "100");
+  return isNaN(parsed) ? 100 : Math.max(0, parsed);
+}
+
 export type AmortizationRow = {
   installmentNo: number;
   principalAmount: number;
@@ -541,7 +553,7 @@ type PaymentRow = {
  * Reset schedule allocations and re-apply all payments in chronological order.
  * Keeps loan_payments rows as source of truth after edit/delete.
  */
-async function rebuildLoanPaymentAllocations(database: Db, loanId: string): Promise<void> {
+export async function rebuildLoanPaymentAllocations(database: Db, loanId: string): Promise<void> {
   const loan = await database.query("SELECT * FROM loans WHERE id = ?").get<LoanRow>(loanId);
   if (!loan) {
     throw new ServiceError("Loan not found", 404);
@@ -624,13 +636,13 @@ async function rebuildLoanPaymentAllocations(database: Db, loanId: string): Prom
         );
       } else if (loan.status === "Lunas" || loan.status === "Macet") {
         // already reset to Disetujui above when rebuilding
-      } else if (payments.length > 0 && totalPaid < totalAmount) {
+      } else if (payments.length > 0 && (totalAmount - totalPaid) > getPaymentTolerance()) {
         await database.run(`UPDATE loans SET status = 'Disetujui' WHERE id = ? AND status = 'Lunas'`, [loanId]);
       }
     }
-  } else if (totalPaid >= totalAmount && payments.length > 0) {
+  } else if ((totalAmount - totalPaid) <= getPaymentTolerance() && payments.length > 0) {
     await database.run(`UPDATE loans SET status = 'Lunas' WHERE id = ?`, [loanId]);
-  } else if (loan.status === "Lunas" && totalPaid < totalAmount) {
+  } else if (loan.status === "Lunas" && (totalAmount - totalPaid) > getPaymentTolerance()) {
     await database.run(`UPDATE loans SET status = 'Disetujui' WHERE id = ?`, [loanId]);
   }
 }
@@ -657,6 +669,7 @@ async function allocatePaymentToSchedules(
     .query("SELECT value FROM settings WHERE key = 'denda'")
     .get<{ value: string }>();
   const dendaPercent = parseFloat(dendaSetting?.value || "0");
+  const tolerance = getPaymentTolerance();
 
   for (const schedule of schedules) {
     if (allocatedAmount <= 0) break;
@@ -675,7 +688,7 @@ async function allocatePaymentToSchedules(
     if (paymentForThisInstallment <= 0) continue;
 
     const newPaidAmount = Number(schedule.paidAmount || 0) + paymentForThisInstallment;
-    const isFullyPaid = newPaidAmount >= totalDue;
+    const isFullyPaid = (totalDue - newPaidAmount) <= tolerance;
 
     await database.run(
       `UPDATE loan_schedules SET paidAmount = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,

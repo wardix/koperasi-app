@@ -70,11 +70,11 @@ export default function MembersTemplate() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  // Debounce search query
+  // Debounce search query (500ms agar tidak terinterupsi saat mengetik)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -345,14 +345,15 @@ export default function MembersTemplate() {
       }
       content={
         <LayoutContent padding={3}>
-          <DataStateView isLoading={isLoading} error={error} onRetry={fetchMembers} errorTitle="Gagal Memuat Data Anggota">
-            <VStack gap={4}>
-              <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
+          <VStack gap={4}>
+            <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
               <StackItem size="fill">
                 <TextInput
                   placeholder="Cari nama, NIK, atau no. telepon..."
                   value={searchQuery}
                   onChange={setSearchQuery}
+                  onEnter={() => setDebouncedSearch(searchQuery)}
+                  hasClear
                 />
               </StackItem>
               <StackItem style={{ width: '160px' }}>
@@ -370,29 +371,33 @@ export default function MembersTemplate() {
                 />
               </StackItem>
             </HStack>
-            <MembersList
-              members={members}
-              permissions={{
-                canUpdate: hasPermission('update:members'),
-                canRead: hasPermission('read:members'),
-                canUpdateSavings: hasPermission('update:savings'),
-                canDelete: hasPermission('delete:members'),
-              }}
-              onEdit={handleEditMember}
-              onPreviewPortal={handlePreviewPortal}
-              onPortalAccess={handlePortalAccess}
-              onUpdateSavings={handleUpdateSavings}
-              onShowHistory={handleShowHistory}
-              onDelete={handleDelete}
-            />
-            <Pagination
-              page={membersResponse?.page || 1}
-              limit={membersResponse?.limit || limit}
-              total={membersResponse?.total || 0}
-              onPageChange={setPage}
-            />
+
+            <DataStateView isLoading={isLoading} error={error} onRetry={fetchMembers} errorTitle="Gagal Memuat Data Anggota">
+              <VStack gap={4}>
+                <MembersList
+                  members={members}
+                  permissions={{
+                    canUpdate: hasPermission('update:members'),
+                    canRead: hasPermission('read:members'),
+                    canUpdateSavings: hasPermission('update:savings'),
+                    canDelete: hasPermission('delete:members'),
+                  }}
+                  onEdit={handleEditMember}
+                  onPreviewPortal={handlePreviewPortal}
+                  onPortalAccess={handlePortalAccess}
+                  onUpdateSavings={handleUpdateSavings}
+                  onShowHistory={handleShowHistory}
+                  onDelete={handleDelete}
+                />
+                <Pagination
+                  page={membersResponse?.page || 1}
+                  limit={membersResponse?.limit || limit}
+                  total={membersResponse?.total || 0}
+                  onPageChange={setPage}
+                />
+              </VStack>
+            </DataStateView>
           </VStack>
-          </DataStateView>
         </LayoutContent>
       }
     />

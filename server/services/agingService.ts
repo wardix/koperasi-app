@@ -1,5 +1,6 @@
 import db from '../db';
 import type { LoanRow } from '../db/entities';
+import { getPaymentTolerance } from './loanService';
 
 /**
  * Check and update loan aging based on DPD (Days Past Due).
@@ -18,15 +19,17 @@ export async function checkAndApplyAging(): Promise<{
 }> {
   const today = new Date();
   const ninetyDaysAgo = new Date(today.getTime() - (90 * 24 * 60 * 60 * 1000));
+  const tolerance = getPaymentTolerance();
 
-  // Find all loans with pending installments that are overdue
+  // Find all loans with pending installments that are overdue beyond tolerance
   const overdueLoans = await db.query(`
     SELECT DISTINCT l.id, l.status
     FROM loans l
     JOIN loan_schedules ls ON l.id = ls.loanId AND ls.status = 'Pending'
     WHERE ls.dueDate < CURRENT_DATE
-    AND l.status IN ('Disetujui', 'Macet')
-  `).all<Pick<LoanRow, 'id' | 'status'>>();
+      AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+      AND l.status IN ('Disetujui', 'Macet')
+  `).all<Pick<LoanRow, 'id' | 'status'>>(tolerance);
 
   let updatedToMacet = 0;
   let updatedToLate = 0;
@@ -36,8 +39,11 @@ export async function checkAndApplyAging(): Promise<{
     const oldestOverdue = await db.query(`
       SELECT MIN(ls.dueDate) as oldestDueDate
       FROM loan_schedules ls
-      WHERE ls.loanId = ? AND ls.status = 'Pending' AND ls.dueDate < CURRENT_DATE
-    `).get<{ oldestDueDate: string }>(loan.id);
+      WHERE ls.loanId = ? 
+        AND ls.status = 'Pending' 
+        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+        AND ls.dueDate < CURRENT_DATE
+    `).get<{ oldestDueDate: string }>(loan.id, tolerance);
 
     if (!oldestOverdue?.oldestDueDate) continue;
 
@@ -54,9 +60,12 @@ export async function checkAndApplyAging(): Promise<{
     const updatedRows = await db.query(`
       UPDATE loan_schedules
       SET status = 'Late', updatedAt = CURRENT_TIMESTAMP
-      WHERE loanId = ? AND status = 'Pending' AND dueDate < CURRENT_DATE
+      WHERE loanId = ? 
+        AND status = 'Pending' 
+        AND (COALESCE(principalAmount, 0) + COALESCE(interestAmount, 0) + COALESCE(lateFee, 0) - COALESCE(paidAmount, 0)) > ?
+        AND dueDate < CURRENT_DATE
       RETURNING id
-    `).all(loan.id);
+    `).all(loan.id, tolerance);
 
     if (updatedRows.length > 0) {
       updatedToLate += updatedRows.length;

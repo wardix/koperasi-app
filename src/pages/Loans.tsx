@@ -75,11 +75,11 @@ export default function LoansTemplate() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  // Debounce search query
+  // Debounce search query (500ms agar tidak terinterupsi saat mengetik)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -448,7 +448,6 @@ export default function LoansTemplate() {
       }
       content={
         <LayoutContent padding={3}>
-          <DataStateView isLoading={isLoading} error={error} onRetry={fetchLoans} errorTitle="Gagal Memuat Data Pinjaman">
           <VStack gap={4}>
             <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
               <StackItem size="fill">
@@ -456,6 +455,8 @@ export default function LoansTemplate() {
                   placeholder="Cari nama peminjam atau keperluan pinjaman..."
                   value={searchQuery}
                   onChange={setSearchQuery}
+                  onEnter={() => setDebouncedSearch(searchQuery)}
+                  hasClear
                 />
               </StackItem>
               <StackItem style={{ width: '220px' }}>
@@ -466,22 +467,26 @@ export default function LoansTemplate() {
                 />
               </StackItem>
             </HStack>
-            <Table<LoanRow>
-              data={loans}
-              columns={columns}
-              idKey="id"
-              density="balanced"
-              dividers="rows"
-              hasHover
-            />
-            <Pagination
-              page={loansResponse?.page || 1}
-              limit={loansResponse?.limit || limit}
-              total={loansResponse?.total || 0}
-              onPageChange={setPage}
-            />
+
+            <DataStateView isLoading={isLoading} error={error} onRetry={fetchLoans} errorTitle="Gagal Memuat Data Pinjaman">
+              <VStack gap={4}>
+                <Table<LoanRow>
+                  data={loans}
+                  columns={columns}
+                  idKey="id"
+                  density="balanced"
+                  dividers="rows"
+                  hasHover
+                />
+                <Pagination
+                  page={loansResponse?.page || 1}
+                  limit={loansResponse?.limit || limit}
+                  total={loansResponse?.total || 0}
+                  onPageChange={setPage}
+                />
+              </VStack>
+            </DataStateView>
           </VStack>
-          </DataStateView>
         </LayoutContent>
       }
     />

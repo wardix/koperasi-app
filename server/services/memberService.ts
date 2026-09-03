@@ -1,6 +1,7 @@
 import type { Db } from "../db";
 import type { MemberRow } from "../db/entities";
 import { isForeignKeyError, ServiceError } from "./errors";
+import { recordAutoJournal } from "./accountingService";
 
 export type CreateMemberInput = {
   name: string;
@@ -57,18 +58,35 @@ async function recordInitialSavingsTransactions(
   const createdAt = new Date().toISOString();
 
   if (simpananPokok > 0) {
+    const txIdPokok = crypto.randomUUID();
     await database.query(`
       INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(crypto.randomUUID(), memberId, "setor_pokok", simpananPokok, 0, simpananPokok, createdAt, createdBy);
+    `).run(txIdPokok, memberId, "setor_pokok", simpananPokok, 0, simpananPokok, createdAt, createdBy);
+
+    try {
+      await recordAutoJournal({
+        transaction_date: createdAt,
+        description: `Setoran Simpanan pokok — ${input.name}`,
+        reference_type: 'savings_setor',
+        reference_id: txIdPokok,
+        lines: [
+          { account_code: '11102', debit: simpananPokok, credit: 0 },
+          { account_code: '31101', debit: 0, credit: simpananPokok },
+        ]
+      });
+    } catch (err) {
+      console.error("Gagal auto-journal simpanan pokok awal:", err);
+    }
   }
 
   if (simpananWajib > 0) {
+    const txIdWajib = crypto.randomUUID();
     await database.query(`
       INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      crypto.randomUUID(),
+      txIdWajib,
       memberId,
       "setor_wajib",
       simpananWajib,
@@ -77,15 +95,31 @@ async function recordInitialSavingsTransactions(
       createdAt,
       createdBy
     );
+
+    try {
+      await recordAutoJournal({
+        transaction_date: createdAt,
+        description: `Setoran Simpanan wajib — ${input.name}`,
+        reference_type: 'savings_setor',
+        reference_id: txIdWajib,
+        lines: [
+          { account_code: '11102', debit: simpananWajib, credit: 0 },
+          { account_code: '31102', debit: 0, credit: simpananWajib },
+        ]
+      });
+    } catch (err) {
+      console.error("Gagal auto-journal simpanan wajib awal:", err);
+    }
   }
 
   if (simpananSukarela > 0) {
+    const txIdSukarela = crypto.randomUUID();
     const balanceBefore = simpananPokok + simpananWajib;
     await database.query(`
       INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      crypto.randomUUID(),
+      txIdSukarela,
       memberId,
       "setor_sukarela",
       simpananSukarela,
@@ -94,6 +128,21 @@ async function recordInitialSavingsTransactions(
       createdAt,
       createdBy
     );
+
+    try {
+      await recordAutoJournal({
+        transaction_date: createdAt,
+        description: `Setoran Simpanan sukarela — ${input.name}`,
+        reference_type: 'savings_setor',
+        reference_id: txIdSukarela,
+        lines: [
+          { account_code: '11102', debit: simpananSukarela, credit: 0 },
+          { account_code: '21101', debit: 0, credit: simpananSukarela },
+        ]
+      });
+    } catch (err) {
+      console.error("Gagal auto-journal simpanan sukarela awal:", err);
+    }
   }
 }
 
