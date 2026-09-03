@@ -57,9 +57,52 @@ async function authenticateIdentity(identity: SsoIdentity, deviceName?: string) 
       SELECT e.*, row_to_json(em.*) AS employer
       FROM employees e
       JOIN employers em ON em.id = e.employer_id
-      WHERE e.email = ${identity.email}
+      WHERE LOWER(e.email) = LOWER(${identity.email})
       LIMIT 1
     `;
+  }
+
+  // Fallback: auto-provision from company_employees if found
+  if (employees.length === 0) {
+    const companyEmps = await sql`
+      SELECT * FROM company_employees 
+      WHERE LOWER(email) = LOWER(${identity.email})
+      LIMIT 1
+    `;
+
+    if (companyEmps.length > 0) {
+      const ce = companyEmps[0];
+      const [inserted] = await sql`
+        INSERT INTO employees (
+          employer_id, name, email, sso_subject_id, nik, withdrawal_limit,
+          join_date, bank_name, bank_account_number, bank_account_holder, status, created_at, updated_at
+        ) VALUES (
+          1,
+          ${ce.name},
+          ${identity.email},
+          ${identity.subjectId},
+          ${ce.nik},
+          ${Math.round(Number(ce.base_salary || 0))},
+          ${ce.created_at ? new Date(ce.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)},
+          ${ce.bank_name},
+          ${ce.bank_account_number},
+          ${ce.bank_account_name},
+          ${(ce.status || "active").toLowerCase()},
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (employer_id, email) DO UPDATE SET
+          sso_subject_id = EXCLUDED.sso_subject_id,
+          updated_at = NOW()
+        RETURNING *
+      `;
+
+      const employers = await sql`SELECT * FROM employers WHERE id = 1 LIMIT 1`;
+      employees = [{
+        ...inserted,
+        employer: employers[0],
+      }];
+    }
   }
 
   if (employees.length === 0) {
