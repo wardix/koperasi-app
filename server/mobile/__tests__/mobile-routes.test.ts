@@ -157,4 +157,13 @@ describe("Mobile API Routes mounting under /api", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("POST /api/auth/google/ (trailing slash) does not return 404", async () => {
+    const res = await app.request("/api/auth/google/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
 });

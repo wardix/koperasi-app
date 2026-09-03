@@ -12,12 +12,18 @@ export interface SsoIdentity {
 
 export class NusanetSsoClient {
   private baseUrl: string;
+  private tokenPath: string;
+  private userPath: string;
+  private emailOtpPath: string;
   private clientId: string;
   private clientSecret: string;
   private timeout: number;
 
   constructor() {
-    this.baseUrl = (process.env.NUSANET_SSO_BASE_URL || "https://sso.nusanet.id").replace(/\/+$/, "");
+    this.baseUrl = (process.env.NUSANET_SSO_BASE_URL || "https://nusanet.app.dev.nusa.work").replace(/\/+$/, "");
+    this.tokenPath = process.env.NUSANET_SSO_TOKEN_PATH || "/auth/api/oauth/token";
+    this.userPath = process.env.NUSANET_SSO_USER_PATH || "/api/user";
+    this.emailOtpPath = process.env.NUSANET_SSO_EMAIL_OTP_PATH || "/auth/api/oauth/email";
     this.clientId = process.env.NUSANET_SSO_CLIENT_ID || "";
     this.clientSecret = process.env.NUSANET_SSO_CLIENT_SECRET || "";
     this.timeout = parseInt(process.env.NUSANET_SSO_TIMEOUT || "10000", 10);
@@ -43,7 +49,8 @@ export class NusanetSsoClient {
   }
 
   async requestEmailOtp(email: string): Promise<void> {
-    const url = `${this.baseUrl}/email/${encodeURIComponent(email)}`;
+    const cleanOtpPath = this.emailOtpPath.startsWith("/") ? this.emailOtpPath : `/${this.emailOtpPath}`;
+    const url = `${this.baseUrl}${cleanOtpPath}/${encodeURIComponent(email)}`;
     try {
       const res = await fetch(url, {
         method: "GET",
@@ -56,7 +63,7 @@ export class NusanetSsoClient {
         throw new SsoException(
           body.message || body.error || "Failed to request OTP.",
           "otp_request_failed",
-          res.status
+          res.status === 404 ? 422 : res.status
         );
       }
     } catch (err: any) {
@@ -66,7 +73,8 @@ export class NusanetSsoClient {
   }
 
   async verifyEmailOtp(email: string, otp: string): Promise<SsoIdentity> {
-    const url = `${this.baseUrl}/email/${encodeURIComponent(email)}`;
+    const cleanOtpPath = this.emailOtpPath.startsWith("/") ? this.emailOtpPath : `/${this.emailOtpPath}`;
+    const url = `${this.baseUrl}${cleanOtpPath}/${encodeURIComponent(email)}`;
     let tmpToken: string;
 
     try {
@@ -105,7 +113,8 @@ export class NusanetSsoClient {
       throw new SsoException("SSO client is not configured.", "sso_not_configured", 500);
     }
 
-    const url = `${this.baseUrl}/oauth/token`;
+    const cleanTokenPath = this.tokenPath.startsWith("/") ? this.tokenPath : `/${this.tokenPath}`;
+    const url = `${this.baseUrl}${cleanTokenPath}`;
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -124,10 +133,11 @@ export class NusanetSsoClient {
       const body = (await res.json().catch(() => ({}))) as Record<string, any>;
 
       if (!res.ok) {
+        const statusCode = res.status === 404 ? 401 : res.status;
         throw new SsoException(
           body.message || body.error_description || "Token request failed.",
           "sso_invalid_token",
-          res.status
+          statusCode
         );
       }
 
@@ -152,7 +162,8 @@ export class NusanetSsoClient {
   }
 
   private async fetchProfile(accessToken: string): Promise<Record<string, any>> {
-    const url = `${this.baseUrl}/api/user`;
+    const cleanUserPath = this.userPath.startsWith("/") ? this.userPath : `/${this.userPath}`;
+    const url = `${this.baseUrl}${cleanUserPath}`;
     try {
       const res = await fetch(url, {
         method: "GET",
@@ -165,7 +176,7 @@ export class NusanetSsoClient {
 
       const body = (await res.json().catch(() => ({}))) as Record<string, any>;
       if (!res.ok) {
-        throw new SsoException("Failed to fetch user profile.", "sso_invalid_token", res.status);
+        throw new SsoException("Failed to fetch user profile.", "sso_invalid_token", 401);
       }
 
       const profile = body.data && typeof body.data === "object" ? body.data : body;

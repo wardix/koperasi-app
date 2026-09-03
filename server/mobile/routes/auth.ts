@@ -11,15 +11,27 @@ import { formatEmployee } from "../support/resources.js";
 const authRouter = new Hono();
 const sso = new NusanetSsoClient();
 
-async function issueToken(employeeId: number, deviceName: string = "kopnutera-mobile") {
+async function issueToken(employeeId: number, deviceName: string): Promise<string> {
   const plainToken = randomBytes(32).toString("hex");
   const tokenHash = createHash("sha256").update(plainToken).digest("hex");
 
   const [row] = await sql`
     INSERT INTO personal_access_tokens (
-      tokenable_type, tokenable_id, name, token, abilities, created_at, updated_at
+      tokenable_type,
+      tokenable_id,
+      name,
+      token,
+      abilities,
+      created_at,
+      updated_at
     ) VALUES (
-      'App\\Models\\Employee', ${employeeId}, ${deviceName}, ${tokenHash}, '["*"]'::jsonb, NOW(), NOW()
+      'App\\Models\\Employee',
+      ${employeeId},
+      ${deviceName},
+      ${tokenHash},
+      '["*"]'::jsonb,
+      NOW(),
+      NOW()
     )
     RETURNING id
   `;
@@ -27,24 +39,25 @@ async function issueToken(employeeId: number, deviceName: string = "kopnutera-mo
   return `${row.id}|${plainToken}`;
 }
 
-async function authenticateIdentity(identity: SsoIdentity, deviceName?: string | null) {
-  // Find employee by SSO subject id first, then fallback to email
-  let employees = await sql`
-    SELECT e.*, row_to_json(emp.*) as employer
-    FROM employees e
-    JOIN employers emp ON emp.id = e.employer_id
-    WHERE e.sso_subject_id = ${identity.subjectId}
-    LIMIT 1
-  `;
+async function authenticateIdentity(identity: SsoIdentity, deviceName?: string) {
+  // Query employees joined with employers
+  let employees: any[] = [];
+  if (identity.subjectId) {
+    employees = await sql`
+      SELECT e.*, row_to_json(em.*) AS employer
+      FROM employees e
+      JOIN employers em ON em.id = e.employer_id
+      WHERE e.sso_subject_id = ${identity.subjectId}
+      LIMIT 1
+    `;
+  }
 
   if (employees.length === 0) {
     employees = await sql`
-      SELECT e.*, row_to_json(emp.*) as employer
+      SELECT e.*, row_to_json(em.*) AS employer
       FROM employees e
-      JOIN employers emp ON emp.id = e.employer_id
-      WHERE e.sso_subject_id IS NULL
-        AND e.email = ${identity.email}
-        AND e.status IN ('active', 'frozen')
+      JOIN employers em ON em.id = e.employer_id
+      WHERE e.email = ${identity.email}
       LIMIT 1
     `;
   }
@@ -99,26 +112,38 @@ async function authenticateIdentity(identity: SsoIdentity, deviceName?: string |
 }
 
 const googleSchema = z.object({
-  access_token: z.string().min(1),
+  access_token: z.string().optional(),
+  token: z.string().optional(),
+  id_token: z.string().optional(),
   device_name: z.string().optional(),
+}).refine((data) => Boolean(data.access_token || data.token || data.id_token), {
+  message: "access_token is required.",
+  path: ["access_token"],
 });
 
-authRouter.post("/google", zValidator("json", googleSchema), async (c) => {
-  const { access_token, device_name } = c.req.valid("json");
-  const identity = await sso.verify(access_token);
-  const result = await authenticateIdentity(identity, device_name);
+const handleGoogle = async (c: any) => {
+  const data = c.req.valid("json");
+  const token = (data.access_token || data.token || data.id_token) as string;
+  const identity = await sso.verify(token);
+  const result = await authenticateIdentity(identity, data.device_name);
   return c.json(result, 201);
-});
+};
+
+authRouter.post("/google", zValidator("json", googleSchema), handleGoogle);
+authRouter.post("/google/", zValidator("json", googleSchema), handleGoogle);
 
 const otpRequestSchema = z.object({
   email: z.string().email(),
 });
 
-authRouter.post("/otp/request", zValidator("json", otpRequestSchema), async (c) => {
+const handleOtpRequest = async (c: any) => {
   const { email } = c.req.valid("json");
   await sso.requestEmailOtp(email);
   return c.body(null, 204);
-});
+};
+
+authRouter.post("/otp/request", zValidator("json", otpRequestSchema), handleOtpRequest);
+authRouter.post("/otp/request/", zValidator("json", otpRequestSchema), handleOtpRequest);
 
 const otpVerifySchema = z.object({
   email: z.string().email(),
@@ -126,26 +151,32 @@ const otpVerifySchema = z.object({
   device_name: z.string().optional(),
 });
 
-authRouter.post("/otp/verify", zValidator("json", otpVerifySchema), async (c) => {
+const handleOtpVerify = async (c: any) => {
   const { email, otp, device_name } = c.req.valid("json");
   const identity = await sso.verifyEmailOtp(email, otp);
   const result = await authenticateIdentity(identity, device_name);
   return c.json(result, 201);
-});
+};
+
+authRouter.post("/otp/verify", zValidator("json", otpVerifySchema), handleOtpVerify);
+authRouter.post("/otp/verify/", zValidator("json", otpVerifySchema), handleOtpVerify);
 
 const refreshSchema = z.object({
   refresh_token: z.string().min(1),
   device_name: z.string().optional(),
 });
 
-authRouter.post("/refresh", zValidator("json", refreshSchema), async (c) => {
+const handleRefresh = async (c: any) => {
   const { refresh_token, device_name } = c.req.valid("json");
   const identity = await sso.refresh(refresh_token);
   const result = await authenticateIdentity(identity, device_name);
   return c.json(result, 200);
-});
+};
 
-authRouter.post("/logout", authMiddleware, async (c) => {
+authRouter.post("/refresh", zValidator("json", refreshSchema), handleRefresh);
+authRouter.post("/refresh/", zValidator("json", refreshSchema), handleRefresh);
+
+const handleLogout = async (c: any) => {
   const token = c.get("token");
   if (token?.id) {
     await sql`
@@ -153,6 +184,9 @@ authRouter.post("/logout", authMiddleware, async (c) => {
     `;
   }
   return c.json({ message: "Signed out." });
-});
+};
+
+authRouter.post("/logout", authMiddleware, handleLogout);
+authRouter.post("/logout/", authMiddleware, handleLogout);
 
 export default authRouter;
