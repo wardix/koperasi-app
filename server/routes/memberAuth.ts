@@ -192,8 +192,8 @@ memberAuth.post('/google', async (c) => {
     const employee = await db
       .query(
         `SELECT id, nip, name, email, is_member, member_id, status 
-         FROM company_employees 
-         WHERE lower(email) = ? AND status = 'ACTIVE' 
+         FROM employees 
+         WHERE lower(email) = ? AND lower(status) = 'active' 
          LIMIT 1`
       )
       .get<any>(email);

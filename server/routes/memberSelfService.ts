@@ -39,7 +39,7 @@ memberSelfService.get('/profile', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && memberId) {
-    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(memberId);
+    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(memberId);
     if (empByMember?.id) {
       employee = await getEmployeeById(db, empByMember.id);
     }
@@ -107,7 +107,7 @@ memberSelfService.get('/ewa/quota', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && payload.sub) {
-    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
+    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
     if (empByMember?.id) {
       employee = await getEmployeeById(db, empByMember.id);
     }
@@ -159,7 +159,7 @@ memberSelfService.get('/ewa/history', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && payload.sub) {
-    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
+    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
     if (empByMember?.id) {
       employee = await getEmployeeById(db, empByMember.id);
     }
@@ -186,7 +186,7 @@ memberSelfService.post('/ewa/request', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && payload.sub) {
-    const empByMember = await db.query("SELECT id FROM company_employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
+    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
     if (empByMember?.id) {
       employee = await getEmployeeById(db, empByMember.id);
     }

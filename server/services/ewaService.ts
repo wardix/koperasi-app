@@ -178,7 +178,7 @@ export function getPayrollCycleDates(periodMonth: string, cutoffDay: number = ge
 
 export async function syncEmployeeMemberStatus(db: Db, employeeId: string): Promise<void> {
   const emp = await db
-    .query("SELECT id, email, nik FROM company_employees WHERE id = ?")
+    .query("SELECT id, email, nik FROM employees WHERE id = ?")
     .get<{ id: string; email: string; nik?: string | null }>(employeeId);
   if (!emp) return;
 
@@ -194,11 +194,11 @@ export async function syncEmployeeMemberStatus(db: Db, employeeId: string): Prom
 
   if (member) {
     await db
-      .query("UPDATE company_employees SET member_id = ?, is_member = true, updated_at = NOW() WHERE id = ?")
+      .query("UPDATE employees SET member_id = ?, is_member = true, updated_at = NOW() WHERE id = ?")
       .run(member.id, emp.id);
   } else {
     await db
-      .query("UPDATE company_employees SET member_id = NULL, is_member = false, updated_at = NOW() WHERE id = ?")
+      .query("UPDATE employees SET member_id = NULL, is_member = false, updated_at = NOW() WHERE id = ?")
       .run(emp.id);
   }
 }
@@ -217,10 +217,10 @@ export async function getEmployeeByEmail(db: Db, email: string): Promise<Company
       `SELECT 
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
-        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
+        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_holder as "bankAccountName",
         status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
-       FROM company_employees 
-       WHERE LOWER(email) = ? AND status = 'ACTIVE' LIMIT 1`
+       FROM employees 
+       WHERE LOWER(email) = ? AND LOWER(status) = 'active' LIMIT 1`
     )
     .get<any>(normEmail);
 
@@ -235,9 +235,9 @@ export async function getEmployeeByEmail(db: Db, email: string): Promise<Company
       `SELECT 
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
-        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
+        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_holder as "bankAccountName",
         status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
-       FROM company_employees 
+       FROM employees 
        WHERE id = ? LIMIT 1`
     )
     .get<any>(row.id);
@@ -256,9 +256,9 @@ export async function getEmployeeById(db: Db, employeeId: string): Promise<Compa
       `SELECT 
         id, nip, nik, name, email, phone, department, position,
         base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
-        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_name as "bankAccountName",
+        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_holder as "bankAccountName",
         status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
-       FROM company_employees 
+       FROM employees 
        WHERE id = ? LIMIT 1`
     )
     .get<any>(employeeId);
@@ -353,14 +353,16 @@ export async function getEmployeeEwaQuota(
   const progressivePercentage = Math.round(progressiveRatio * 10000) / 100;
   const dailyAccumulatedLimit = Math.floor(maxMonthlyLimit * progressiveRatio);
 
-  // Sum used advances in this period (PENDING, APPROVED, DISBURSED)
+  // Sum used advances in this period (pending_transfer, transferred, PENDING, APPROVED, DISBURSED)
   const usedRes = await db
     .query(
-      `SELECT COALESCE(SUM(amount_requested), 0) as used
-       FROM ewa_requests
-       WHERE employee_id = ? AND period_month = ? AND status IN ('PENDING', 'APPROVED', 'DISBURSED')`
+      `SELECT COALESCE(SUM(amount), 0) as used
+       FROM withdrawal_requests
+       WHERE employee_id = ? 
+         AND (period_month = ? OR (pay_period_start <= ?::date AND pay_period_end >= ?::date))
+         AND status IN ('pending_transfer', 'transferred', 'PENDING', 'APPROVED', 'DISBURSED')`
     )
-    .get<{ used: string | number }>(employeeId, period);
+    .get<{ used: string | number }>(employeeId, period, period + "-15", period + "-15");
 
   const totalUsedThisMonth = Number(usedRes?.used || 0);
   const remainingQuota = Math.max(0, dailyAccumulatedLimit - totalUsedThisMonth);
@@ -368,12 +370,13 @@ export async function getEmployeeEwaQuota(
 
   const isExpired = isContractExpired(emp.contractEndDate);
   const isZeroEffective = effectiveSalary <= 0;
-  const isEligible = !isExpired && !isZeroEffective && emp.status === 'ACTIVE';
+  const isStatusActive = String(emp.status || "").toLowerCase() === "active";
+  const isEligible = !isExpired && !isZeroEffective && isStatusActive;
   const ineligibilityReason = isExpired
     ? `Masa kontrak kerja telah berakhir pada ${String(emp.contractEndDate).slice(0, 10)}. Pengajuan EWA tidak dapat diproses.`
     : isZeroEffective
     ? `Gaji bersih setelah dipotong angsuran pinjaman koperasi (Rp ${coopLoanDeduction.toLocaleString('id-ID')}) adalah Rp 0, sehingga kuota EWA tidak tersedia.`
-    : emp.status !== 'ACTIVE'
+    : !isStatusActive
     ? 'Status karyawan tidak aktif.'
     : null;
 
@@ -454,57 +457,36 @@ export async function createEwaRequest(
   const disbursedAmount = requestedAmount;
   const totalPayrollDeduction = requestedAmount + feeAmount;
 
-  const id = crypto.randomUUID();
   const periodMonth = quota.periodMonth;
+  const startDate = quota.cycleStartDate;
+  const endDate = quota.cycleEndDate;
 
-  await db.query(
-    `INSERT INTO ewa_requests (
-      id, employee_id, period_month, salary_basis, max_limit,
-      amount_requested, fee_percentage, fee_amount, disbursed_amount, total_payroll_deduction,
-      destination_bank, destination_account, destination_name, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW(), NOW())`
-  ).run(
-    id,
+  const res = await db.query(
+    `INSERT INTO withdrawal_requests (
+      employee_id, employer_id, amount, fee, status,
+      pay_period_start, pay_period_end, period_month,
+      salary_basis, max_limit, fee_percentage, total_payroll_deduction,
+      destination_bank_name, destination_account_number, destination_account_holder,
+      requested_at, created_at, updated_at
+    ) VALUES (?, 1, ?, ?, 'pending_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW()) RETURNING id`
+  ).all(
     employeeId,
+    requestedAmount,
+    feeAmount,
+    startDate,
+    endDate,
     periodMonth,
     quota.effectiveSalary ?? quota.baseSalary,
     quota.maxMonthlyLimit,
-    requestedAmount,
     feePercentage,
-    feeAmount,
-    disbursedAmount,
     totalPayrollDeduction,
     destBank,
     destAcc,
     destName
   );
 
-  const row = await db
-    .query(
-      `SELECT 
-        r.id, r.employee_id as "employeeId", e.name as "employeeName", e.nip as "employeeNip",
-        e.is_member as "isMember", r.period_month as "periodMonth", r.salary_basis as "salaryBasis",
-        r.max_limit as "maxLimit", r.amount_requested as "amountRequested", r.fee_percentage as "feePercentage",
-        r.fee_amount as "feeAmount", r.disbursed_amount as "disbursedAmount", r.total_payroll_deduction as "totalPayrollDeduction",
-        r.destination_bank as "destinationBank", r.destination_account as "destinationAccount", r.destination_name as "destinationName",
-        r.status, r.rejection_reason as "rejectionReason", r.disbursed_at as "disbursedAt", r.disbursed_by as "disbursedBy",
-        r.settled_at as "settledAt", r.created_at as "createdAt"
-       FROM ewa_requests r
-       JOIN company_employees e ON r.employee_id = e.id
-       WHERE r.id = ?`
-    )
-    .get<any>(id);
-
-  return {
-    ...row,
-    salaryBasis: Number(row.salaryBasis || 0),
-    maxLimit: Number(row.maxLimit || 0),
-    amountRequested: Number(row.amountRequested || 0),
-    feePercentage: Number(row.feePercentage || 0),
-    feeAmount: Number(row.feeAmount || 0),
-    disbursedAmount: Number(row.disbursedAmount || 0),
-    totalPayrollDeduction: Number(row.totalPayrollDeduction || 0),
-  };
+  const insertedId = (res as any[])[0]?.id;
+  return (await getEwaRequestById(db, String(insertedId)))!;
 }
 
 export async function disburseEwa(
@@ -516,8 +498,8 @@ export async function disburseEwa(
   const req = await db
     .query(
       `SELECT r.*, e.name as employee_name, e.nip as employee_nip 
-       FROM ewa_requests r 
-       JOIN company_employees e ON r.employee_id = e.id 
+       FROM withdrawal_requests r 
+       JOIN employees e ON r.employee_id = e.id 
        WHERE r.id = ?`
     )
     .get<any>(requestId);
@@ -526,7 +508,8 @@ export async function disburseEwa(
     throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
   }
 
-  if (req.status !== "PENDING" && req.status !== "APPROVED") {
+  const s = String(req.status || "").toLowerCase();
+  if (s !== "pending_transfer" && s !== "pending" && s !== "approved") {
     throw new ServiceError(`Tidak dapat mencairkan EWA dengan status ${req.status}`, 400);
   }
 
@@ -561,12 +544,13 @@ export async function disburseEwa(
     }
   }
 
+  const disbursed = Number(req.amount || req.disbursed_amount || 0);
+  const fee = Number(req.fee || req.fee_amount || 0);
+  const totalDeduction = Number(req.total_payroll_deduction || (disbursed + fee));
+
   if (sourceAccountId && payrollReceivableAcc?.id) {
     journalEntryId = crypto.randomUUID();
     const today = new Date().toISOString().split("T")[0];
-    const totalDeduction = Number(req.total_payroll_deduction);
-    const disbursed = Number(req.disbursed_amount);
-    const fee = Number(req.fee_amount);
 
     await db.query(
       `INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by, created_at)
@@ -600,7 +584,7 @@ export async function disburseEwa(
       journalEntryId,
       sourceAccountId,
       disbursed,
-      `Transfer Pencairan EWA ke ${req.destination_bank} ${req.destination_account}`
+      `Transfer Pencairan EWA ke ${req.destination_bank_name || req.destination_bank} ${req.destination_account_number || req.destination_account}`
     );
 
     // Cr. Pendapatan Administrasi EWA (if fee > 0 and account exists)
@@ -613,15 +597,15 @@ export async function disburseEwa(
         journalEntryId,
         ewaRevenueAcc.id,
         fee,
-        `Fee Layanan EWA ${req.fee_percentage}% ${req.employee_name}`
+        `Fee Layanan EWA ${req.employee_name}`
       );
     }
   }
 
-  // 2. Update EWA request status
+  // 2. Update withdrawal request status
   await db.query(
-    `UPDATE ewa_requests 
-     SET status = 'DISBURSED', disbursed_at = NOW(), disbursed_by = ?, journal_entry_id = ?, updated_at = NOW() 
+    `UPDATE withdrawal_requests 
+     SET status = 'transferred', transferred_at = NOW(), disbursed_by = ?, journal_entry_id = ?, updated_at = NOW() 
      WHERE id = ?`
   ).run(validAdminId, journalEntryId, requestId);
 
@@ -629,14 +613,15 @@ export async function disburseEwa(
 }
 
 export async function rejectEwa(db: Db, requestId: string, adminId?: string, reason?: string): Promise<EWARequest> {
-  const req = await db.query("SELECT id, status FROM ewa_requests WHERE id = ?").get<{ id: string; status: string }>(requestId);
+  const req = await db.query("SELECT id, status FROM withdrawal_requests WHERE id = ?").get<{ id: string; status: string }>(requestId);
   if (!req) throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
-  if (req.status !== "PENDING" && req.status !== "APPROVED") {
+  const s = String(req.status || "").toLowerCase();
+  if (s !== "pending_transfer" && s !== "pending" && s !== "approved") {
     throw new ServiceError(`Tidak dapat menolak EWA dengan status ${req.status}`, 400);
   }
 
   await db.query(
-    `UPDATE ewa_requests SET status = 'REJECTED', rejection_reason = ?, updated_at = NOW() WHERE id = ?`
+    `UPDATE withdrawal_requests SET status = 'rejected', rejected_at = NOW(), rejection_reason = ?, updated_at = NOW() WHERE id = ?`
   ).run(reason || 'Ditolak oleh admin', requestId);
 
   return (await getEwaRequestById(db, requestId))!;
@@ -647,14 +632,31 @@ export async function getEwaRequestById(db: Db, id: string): Promise<EWARequest 
     .query(
       `SELECT 
         r.id, r.employee_id as "employeeId", e.name as "employeeName", e.nip as "employeeNip",
-        e.is_member as "isMember", r.period_month as "periodMonth", r.salary_basis as "salaryBasis",
-        r.max_limit as "maxLimit", r.amount_requested as "amountRequested", r.fee_percentage as "feePercentage",
-        r.fee_amount as "feeAmount", r.disbursed_amount as "disbursedAmount", r.total_payroll_deduction as "totalPayrollDeduction",
-        r.destination_bank as "destinationBank", r.destination_account as "destinationAccount", r.destination_name as "destinationName",
-        r.status, r.rejection_reason as "rejectionReason", r.disbursed_at as "disbursedAt", r.disbursed_by as "disbursedBy",
-        r.settled_at as "settledAt", r.created_at as "createdAt"
-       FROM ewa_requests r
-       JOIN company_employees e ON r.employee_id = e.id
+        e.is_member as "isMember", r.period_month as "periodMonth",
+        COALESCE(r.salary_basis, e.base_salary) as "salaryBasis",
+        COALESCE(r.max_limit, e.withdrawal_limit) as "maxLimit",
+        r.amount as "amountRequested",
+        COALESCE(r.fee_percentage, 0) as "feePercentage",
+        r.fee as "feeAmount",
+        r.amount as "disbursedAmount",
+        COALESCE(r.total_payroll_deduction, r.amount + r.fee) as "totalPayrollDeduction",
+        COALESCE(r.destination_bank_name, '') as "destinationBank",
+        COALESCE(r.destination_account_number, '') as "destinationAccount",
+        COALESCE(r.destination_account_holder, '') as "destinationName",
+        CASE 
+          WHEN r.status = 'transferred' THEN 'DISBURSED'
+          WHEN r.status = 'rejected' THEN 'REJECTED'
+          WHEN r.status = 'settled' THEN 'PAID_SETTLED'
+          WHEN r.status = 'pending_transfer' THEN 'PENDING'
+          ELSE UPPER(r.status)
+        END as status,
+        r.rejection_reason as "rejectionReason",
+        r.transferred_at as "disbursedAt",
+        r.disbursed_by as "disbursedBy",
+        r.settled_at as "settledAt",
+        r.created_at as "createdAt"
+       FROM withdrawal_requests r
+       JOIN employees e ON r.employee_id = e.id
        WHERE r.id = ?`
     )
     .get<any>(id);
@@ -694,18 +696,25 @@ export async function getEwaRequestsList(
     params.push(options.employeeId);
   }
   if (options.periodMonth) {
-    conditions.push("r.period_month = ?");
-    params.push(options.periodMonth);
+    conditions.push("(r.period_month = ? OR (r.pay_period_start <= ?::date AND r.pay_period_end >= ?::date))");
+    params.push(options.periodMonth, options.periodMonth + "-15", options.periodMonth + "-15");
   }
   if (options.status) {
-    conditions.push("r.status = ?");
-    params.push(options.status);
+    const s = options.status.toLowerCase();
+    if (s === "pending") conditions.push("r.status IN ('pending_transfer', 'PENDING')");
+    else if (s === "disbursed") conditions.push("r.status IN ('transferred', 'DISBURSED')");
+    else if (s === "rejected") conditions.push("r.status IN ('rejected', 'REJECTED')");
+    else if (s === "paid_settled") conditions.push("r.status IN ('settled', 'PAID_SETTLED')");
+    else {
+      conditions.push("LOWER(r.status) = ?");
+      params.push(s);
+    }
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const totalRes = await db
-    .query(`SELECT COUNT(*) as count FROM ewa_requests r ${whereClause}`)
+    .query(`SELECT COUNT(*) as count FROM withdrawal_requests r ${whereClause}`)
     .get<any>(...params);
   const total = Number(totalRes?.count || 0);
 
@@ -713,14 +722,31 @@ export async function getEwaRequestsList(
     .query(
       `SELECT 
         r.id, r.employee_id as "employeeId", e.name as "employeeName", e.nip as "employeeNip",
-        e.is_member as "isMember", r.period_month as "periodMonth", r.salary_basis as "salaryBasis",
-        r.max_limit as "maxLimit", r.amount_requested as "amountRequested", r.fee_percentage as "feePercentage",
-        r.fee_amount as "feeAmount", r.disbursed_amount as "disbursedAmount", r.total_payroll_deduction as "totalPayrollDeduction",
-        r.destination_bank as "destinationBank", r.destination_account as "destinationAccount", r.destination_name as "destinationName",
-        r.status, r.rejection_reason as "rejectionReason", r.disbursed_at as "disbursedAt", r.disbursed_by as "disbursedBy",
-        r.settled_at as "settledAt", r.created_at as "createdAt"
-       FROM ewa_requests r
-       JOIN company_employees e ON r.employee_id = e.id
+        e.is_member as "isMember", r.period_month as "periodMonth", 
+        COALESCE(r.salary_basis, e.base_salary) as "salaryBasis",
+        COALESCE(r.max_limit, e.withdrawal_limit) as "maxLimit", 
+        r.amount as "amountRequested", 
+        COALESCE(r.fee_percentage, 0) as "feePercentage",
+        r.fee as "feeAmount", 
+        r.amount as "disbursedAmount", 
+        COALESCE(r.total_payroll_deduction, r.amount + r.fee) as "totalPayrollDeduction",
+        COALESCE(r.destination_bank_name, '') as "destinationBank", 
+        COALESCE(r.destination_account_number, '') as "destinationAccount", 
+        COALESCE(r.destination_account_holder, '') as "destinationName",
+        CASE 
+          WHEN r.status = 'transferred' THEN 'DISBURSED'
+          WHEN r.status = 'rejected' THEN 'REJECTED'
+          WHEN r.status = 'settled' THEN 'PAID_SETTLED'
+          WHEN r.status = 'pending_transfer' THEN 'PENDING'
+          ELSE UPPER(r.status)
+        END as status, 
+        r.rejection_reason as "rejectionReason", 
+        r.transferred_at as "disbursedAt", 
+        r.disbursed_by as "disbursedBy",
+        r.settled_at as "settledAt", 
+        r.created_at as "createdAt"
+       FROM withdrawal_requests r
+       JOIN employees e ON r.employee_id = e.id
        ${whereClause}
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`
@@ -770,17 +796,18 @@ export async function getPayrollRecap(
     .query(
       `SELECT 
         e.id as "employeeId", e.nip, e.name, e.department, e.is_member as "isMember",
-        SUM(r.amount_requested) as "totalAdvances",
-        SUM(r.fee_amount) as "totalFee",
-        SUM(r.total_payroll_deduction) as "totalDeduction",
-        MIN(r.status) as "status"
-       FROM ewa_requests r
-       JOIN company_employees e ON r.employee_id = e.id
-       WHERE r.period_month = ? AND r.status IN ('DISBURSED', 'PAID_SETTLED')
+        SUM(r.amount) as "totalAdvances",
+        SUM(r.fee) as "totalFee",
+        SUM(COALESCE(r.total_payroll_deduction, r.amount + r.fee)) as "totalDeduction",
+        MIN(CASE WHEN r.status = 'transferred' THEN 'DISBURSED' WHEN r.status = 'settled' THEN 'PAID_SETTLED' ELSE UPPER(r.status) END) as "status"
+       FROM withdrawal_requests r
+       JOIN employees e ON r.employee_id = e.id
+       WHERE (r.period_month = ? OR (r.pay_period_start <= ?::date AND r.pay_period_end >= ?::date)) 
+         AND r.status IN ('transferred', 'DISBURSED', 'settled', 'PAID_SETTLED')
        GROUP BY e.id, e.nip, e.name, e.department, e.is_member
        ORDER BY e.name ASC`
     )
-    .all(periodMonth);
+    .all(periodMonth, periodMonth + "-15", periodMonth + "-15");
 
   const items = rows.map((r: any) => ({
     employeeId: r.employeeId,
@@ -801,9 +828,11 @@ export async function getPayrollRecap(
 
   const unsettledCount = await db
     .query(
-      `SELECT COUNT(*) as count FROM ewa_requests WHERE period_month = ? AND status = 'DISBURSED'`
+      `SELECT COUNT(*) as count FROM withdrawal_requests 
+       WHERE (period_month = ? OR (pay_period_start <= ?::date AND pay_period_end >= ?::date)) 
+         AND status IN ('transferred', 'DISBURSED')`
     )
-    .get<any>(periodMonth);
+    .get<any>(periodMonth, periodMonth + "-15", periodMonth + "-15");
 
   const isFullySettled = Number(unsettledCount?.count || 0) === 0 && totalEmployees > 0;
 
@@ -894,12 +923,13 @@ export async function settlePayroll(
     );
   }
 
-  // Update all DISBURSED requests in period to PAID_SETTLED
-  const updateRes = await db.query(
-    `UPDATE ewa_requests 
-     SET status = 'PAID_SETTLED', settled_at = NOW(), updated_at = NOW() 
-     WHERE period_month = ? AND status = 'DISBURSED'`
-  ).run(periodMonth);
+  // Update all transferred/DISBURSED requests in period to settled
+  await db.query(
+    `UPDATE withdrawal_requests 
+     SET status = 'settled', settled_at = NOW(), updated_at = NOW() 
+     WHERE (period_month = ? OR (pay_period_start <= ?::date AND pay_period_end >= ?::date)) 
+       AND status IN ('transferred', 'DISBURSED')`
+  ).run(periodMonth, periodMonth + "-15", periodMonth + "-15");
 
   return {
     settledCount: recap.totalEmployees,
@@ -960,14 +990,14 @@ export async function batchImportEmployees(
 
       // Check if employee already exists by NIP or email
       const existing = await db
-        .query("SELECT id FROM company_employees WHERE nip = ? OR LOWER(email) = ? LIMIT 1")
-        .get<{ id: string }>(nip, email);
+        .query("SELECT id FROM employees WHERE nip = ? OR LOWER(email) = ? LIMIT 1")
+        .get<{ id: string | number }>(nip, email);
 
       if (existing) {
         await db.query(
-          `UPDATE company_employees SET
+          `UPDATE employees SET
             nik = ?, name = ?, email = ?, phone = ?, department = ?, position = ?,
-            base_salary = ?, bank_name = ?, bank_account_number = ?, bank_account_name = ?,
+            base_salary = ?, withdrawal_limit = ?, bank_name = ?, bank_account_number = ?, bank_account_holder = ?,
             contract_end_date = ?, updated_at = NOW()
            WHERE id = ?`
         ).run(
@@ -978,23 +1008,22 @@ export async function batchImportEmployees(
           item.department || null,
           item.position || null,
           cappedSalary,
+          cappedSalary,
           item.bankName || null,
           item.bankAccountNumber || null,
           item.bankAccountName || name,
           contractEndDate,
           existing.id
         );
-        await syncEmployeeMemberStatus(db, existing.id);
+        await syncEmployeeMemberStatus(db, String(existing.id));
       } else {
-        const id = crypto.randomUUID();
-        await db.query(
-          `INSERT INTO company_employees (
-            id, nip, nik, name, email, phone, department, position,
-            base_salary, bank_name, bank_account_number, bank_account_name,
+        const res = await db.query(
+          `INSERT INTO employees (
+            employer_id, nip, nik, name, email, phone, department, position,
+            base_salary, withdrawal_limit, bank_name, bank_account_number, bank_account_holder,
             contract_end_date, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())`
-        ).run(
-          id,
+          ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW()) RETURNING id`
+        ).all(
           nip,
           item.nik || null,
           name,
@@ -1003,12 +1032,16 @@ export async function batchImportEmployees(
           item.department || null,
           item.position || null,
           cappedSalary,
+          cappedSalary,
           item.bankName || null,
           item.bankAccountNumber || null,
           item.bankAccountName || name,
           contractEndDate
         );
-        await syncEmployeeMemberStatus(db, id);
+        const newId = (res as any[])[0]?.id;
+        if (newId) {
+          await syncEmployeeMemberStatus(db, String(newId));
+        }
       }
       processedCount++;
     } catch (err: any) {

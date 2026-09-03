@@ -35,7 +35,24 @@ export async function resolveWalletBalance(employee: any, asOf: Date = new Date(
   `;
   const alreadyWithdrawn = Number(row.total);
 
-  const feeTiers = employer.fee_tiers && employer.fee_tiers.length > 0 ? employer.fee_tiers : defaultFeeSchedule;
+  const dbFeeTiers = await sql`
+    SELECT min_amount, max_amount, member_fee, non_member_fee 
+    FROM ewa_fee_tiers 
+    ORDER BY tier_order ASC
+  `;
+
+  let feeTiers: any[] = [];
+  if (dbFeeTiers.length > 0) {
+    const isMember = Boolean(employee.is_member);
+    feeTiers = dbFeeTiers.map((t: any) => ({
+      max_amount: t.max_amount !== null ? Number(t.max_amount) : null,
+      fee: Number(isMember ? t.member_fee : t.non_member_fee),
+    }));
+  } else if (employer.fee_tiers && employer.fee_tiers.length > 0) {
+    feeTiers = employer.fee_tiers;
+  } else {
+    feeTiers = defaultFeeSchedule;
+  }
   const feeSchedule = FeeSchedule.fromArray(feeTiers);
 
   const maxCeiling = employer.max_withdrawal_amount !== null && employer.max_withdrawal_amount !== undefined
