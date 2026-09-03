@@ -1,0 +1,476 @@
+{
+  "$comment": [
+    "Shared calculation test vectors for the Kopnutera wallet engine.",
+    "",
+    "The same logic exists twice: once in PHP (app/Domain/Rules/WalletCalculator.php)",
+    "and once in Dart (the Flutter app's domain layer). Nothing structurally prevents",
+    "the two from disagreeing after a fix lands on one side only.",
+    "",
+    "This file is the shared contract. Both test suites read it and assert against it,",
+    "so a divergence fails CI on whichever side introduced it instead of surfacing as a",
+    "wrong number on someone's payslip.",
+    "",
+    "COPY THIS FILE INTO THE FLUTTER REPO (or wire it up as a git submodule). When you",
+    "add a case here, add it there in the same commit.",
+    "",
+    "All money is whole IDR. The limit unlock floors. There is no rounding on the",
+    "fee side at all: a band charges a whole number of rupiah.",
+    "",
+    "There is no salary and no access-cap percentage. Each employee has a",
+    "withdrawal_limit — the whole amount they may draw across one cycle — which",
+    "unlocks evenly across the cycle's days.",
+    "",
+    "The fee is NOT a percentage. It is a ladder of flat bands (`fee_schedule`",
+    "below), and a band charges what it charges — there is no rounding left in it.",
+    "",
+    "`max_withdrawal_amount` is the employer's ceiling. It clips the limit BEFORE",
+    "the daily unlock is worked out, so it changes the daily rate too. A vector",
+    "that omits it is asserting the uncapped behaviour."
+  ],
+
+  "pay_periods": [
+    {
+      "name": "the walkthrough from the plan — the 27th with a 25th cutoff is day 2",
+      "today": "2026-07-27",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2026-07-26",
+        "end": "2026-08-25",
+        "total_days": 31,
+        "days_elapsed": 2
+      },
+      "$note": "27 > 25, so the new cycle opened on the 26th of this month. Exactly 2 days of salary accrued, whatever the cycle length works out to."
+    },
+    {
+      "name": "day after cutoff is day 1",
+      "today": "2026-07-26",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2026-07-26",
+        "end": "2026-08-25",
+        "total_days": 31,
+        "days_elapsed": 1
+      }
+    },
+    {
+      "name": "cutoff day itself belongs to the CLOSING period",
+      "today": "2026-07-25",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2026-06-26",
+        "end": "2026-07-25",
+        "total_days": 30,
+        "days_elapsed": 30
+      }
+    },
+    {
+      "name": "mid-cycle, February span (non-leap)",
+      "today": "2026-03-10",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2026-02-26",
+        "end": "2026-03-25",
+        "total_days": 28,
+        "days_elapsed": 13
+      }
+    },
+    {
+      "name": "leap year February span",
+      "today": "2028-03-01",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2028-02-26",
+        "end": "2028-03-25",
+        "total_days": 29,
+        "days_elapsed": 5
+      }
+    },
+    {
+      "name": "year boundary — December into January",
+      "today": "2026-01-05",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2025-12-26",
+        "end": "2026-01-25",
+        "total_days": 31,
+        "days_elapsed": 11
+      }
+    },
+    {
+      "name": "year boundary — cycle opened in December, closing in January",
+      "today": "2026-12-30",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2026-12-26",
+        "end": "2027-01-25",
+        "total_days": 31,
+        "days_elapsed": 5
+      }
+    },
+    {
+      "name": "31-day span",
+      "today": "2026-08-10",
+      "cutoff_day": 25,
+      "expected": {
+        "start": "2026-07-26",
+        "end": "2026-08-25",
+        "total_days": 31,
+        "days_elapsed": 16
+      }
+    },
+    {
+      "name": "cutoff 1 — cycle runs 2nd to 1st",
+      "today": "2026-07-15",
+      "cutoff_day": 1,
+      "expected": {
+        "start": "2026-07-02",
+        "end": "2026-08-01",
+        "total_days": 31,
+        "days_elapsed": 14
+      }
+    },
+    {
+      "name": "cutoff 28 in a non-leap February — no 29th to start on, so the cycle opens on 1 March",
+      "today": "2026-03-10",
+      "cutoff_day": 28,
+      "expected": {
+        "start": "2026-03-01",
+        "end": "2026-03-28",
+        "total_days": 28,
+        "days_elapsed": 10
+      },
+      "$note": "This is the edge case the original plan did not cover. Neither a gap nor an overlap: the previous cycle ended 28 February."
+    },
+    {
+      "name": "new hire mid-cycle — elapsed days count from the join date",
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "join_date": "2026-07-01",
+      "expected": {
+        "start": "2026-06-26",
+        "end": "2026-07-25",
+        "total_days": 30,
+        "days_elapsed": 10
+      },
+      "$note": "total_days stays the FULL cycle so the daily rate matches what payroll pays per day. Only accrual is clipped."
+    },
+    {
+      "name": "join date before the cycle — no effect",
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "join_date": "2020-01-15",
+      "expected": {
+        "start": "2026-06-26",
+        "end": "2026-07-25",
+        "total_days": 30,
+        "days_elapsed": 15
+      }
+    },
+    {
+      "name": "joins today — one day elapsed, not zero",
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "join_date": "2026-07-10",
+      "expected": {
+        "start": "2026-06-26",
+        "end": "2026-07-25",
+        "total_days": 30,
+        "days_elapsed": 1
+      }
+    },
+    {
+      "name": "joins later this cycle — nothing earned yet",
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "join_date": "2026-07-20",
+      "expected": {
+        "start": "2026-06-26",
+        "end": "2026-07-25",
+        "total_days": 30,
+        "days_elapsed": 0
+      }
+    }
+  ],
+
+  "max_withdrawable": [
+    {
+      "name": "nothing withdrawn yet, half the cycle elapsed",
+      "withdrawal_limit": 9000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 300000,
+        "days_elapsed": 15,
+        "unlocked": 4500000,
+        "max_withdrawable": 4500000
+      }
+    },
+    {
+      "name": "prior withdrawal reduces what is left",
+      "withdrawal_limit": 9000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 1000000,
+      "expected": {
+        "daily_rate": 300000,
+        "unlocked": 4500000,
+        "max_withdrawable": 3500000
+      }
+    },
+    {
+      "name": "a smaller limit simply unlocks more slowly",
+      "withdrawal_limit": 4500000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 150000,
+        "unlocked": 2250000,
+        "max_withdrawable": 2250000
+      },
+      "$note": "Replaces the old 50%-access-cap vector. There is no cap percentage any more — halving the limit is how you halve the access, and it lands on the same number."
+    },
+    {
+      "name": "already past what has unlocked — clamps to zero, never negative",
+      "withdrawal_limit": 9000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 5000000,
+      "expected": {
+        "max_withdrawable": 0
+      }
+    },
+    {
+      "name": "limit that does not divide evenly — daily rate floors",
+      "withdrawal_limit": 7000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 233333,
+        "days_elapsed": 15,
+        "unlocked": 3499995,
+        "max_withdrawable": 3499995
+      },
+      "$note": "7000000/30 = 233333.33 -> floors to 233333. Flooring is deliberate: releasing the extra 0.33/day is money the employer cannot deduct back."
+    },
+    {
+      "name": "flooring again at a smaller magnitude",
+      "withdrawal_limit": 1000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 33333,
+        "days_elapsed": 15,
+        "unlocked": 499995,
+        "max_withdrawable": 499995
+      },
+      "$note": "1000000/30 = 33333.33 -> 33333. The lost fraction scales with the cycle, not the limit, so a small limit loses proportionally more. Accepted: erring downward is the safe direction."
+    },
+    {
+      "name": "first day of a cycle — exactly one day unlocked",
+      "withdrawal_limit": 9000000,
+      "today": "2026-06-26",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "days_elapsed": 1,
+        "max_withdrawable": 300000
+      }
+    },
+    {
+      "name": "new hire mid-cycle unlocks from the join date only",
+      "withdrawal_limit": 9000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "join_date": "2026-07-06",
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 300000,
+        "days_elapsed": 5,
+        "unlocked": 1500000,
+        "max_withdrawable": 1500000
+      },
+      "$note": "The daily rate still comes from the FULL cycle length, not the days remaining — only the elapsed count is clipped to the join date."
+    },
+    {
+      "name": "the employer ceiling clips the limit before anything else",
+      "withdrawal_limit": 9000000,
+      "max_withdrawal_amount": 5000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 166666,
+        "days_elapsed": 15,
+        "unlocked": 2499990,
+        "max_withdrawable": 2499990
+      },
+      "$note": "5000000/30 = 166666.67 -> 166666, NOT 9000000/30. The ceiling is applied to the limit, not to the answer: capping only max_withdrawable would show this employee a daily rate of 300000 they could never actually draw."
+    },
+    {
+      "name": "a limit under the ceiling behaves as if there were none",
+      "withdrawal_limit": 3000000,
+      "max_withdrawal_amount": 5000000,
+      "today": "2026-07-10",
+      "cutoff_day": 25,
+      "already_withdrawn": 0,
+      "expected": {
+        "daily_rate": 100000,
+        "unlocked": 1500000,
+        "max_withdrawable": 1500000
+      }
+    },
+    {
+      "name": "the ceiling is per cycle, not per request",
+      "withdrawal_limit": 9000000,
+      "max_withdrawal_amount": 5000000,
+      "today": "2026-07-25",
+      "cutoff_day": 25,
+      "already_withdrawn": 5000000,
+      "expected": {
+        "max_withdrawable": 0
+      },
+      "$note": "Last day of the cycle, the whole ceiling drawn. Nothing left — an employee on a 9000000 limit does not get a second 5000000 after the first."
+    }
+  ],
+
+  "$fee_schedule_comment": [
+    "The published fee table, and the platform default. Only each band's UPPER",
+    "bound is written down: a band starts one rupiah above the previous band's",
+    "upper bound, which is what makes a gap or an overlap impossible to express.",
+    "",
+    "A fee case may carry its own `fee_tiers` to override this."
+  ],
+
+  "fee_schedule": [
+    { "max_amount": 100000, "fee": 5000 },
+    { "max_amount": 250000, "fee": 12500 },
+    { "max_amount": 500000, "fee": 20000 },
+    { "max_amount": 750000, "fee": 30000 },
+    { "max_amount": 1000000, "fee": 35000 },
+    { "max_amount": 2000000, "fee": 70000 },
+    { "max_amount": 3000000, "fee": 105000 },
+    { "max_amount": 4000000, "fee": 140000 },
+    { "max_amount": 5000000, "fee": 175000 }
+  ],
+
+  "fees": [
+    {
+      "name": "bottom of the first band",
+      "amount": 50000,
+      "expected": { "fee": 5000, "total_repayment": 55000 },
+      "$note": "Rp 50.000 is the smallest amount anyone may request, so this is the cheapest real advance there is."
+    },
+    {
+      "name": "exactly on the first band's upper bound",
+      "amount": 100000,
+      "expected": { "fee": 5000, "total_repayment": 105000 },
+      "$note": "Bands are inclusive at BOTH ends. The boundary belongs to the band below it, which is what the published table says: 'Rp 0 – Rp 100.000'."
+    },
+    {
+      "name": "one rupiah over a boundary crosses into the next band",
+      "amount": 100001,
+      "expected": { "fee": 12500, "total_repayment": 112501 },
+      "$note": "The whole point of the shape: Rp 1 more principal costs Rp 7.500 more fee. Off-by-one here is the most expensive bug available, on both sides."
+    },
+    {
+      "name": "middle of a band charges the band, not a rate",
+      "amount": 400000,
+      "expected": { "fee": 20000, "total_repayment": 420000 },
+      "$note": "5% would be Rp 20.000 here by coincidence. Rp 260.000 in the same band is also Rp 20.000 — that is the difference."
+    },
+    {
+      "name": "same band, bottom end",
+      "amount": 250001,
+      "expected": { "fee": 20000, "total_repayment": 270001 }
+    },
+    {
+      "name": "same band, top end",
+      "amount": 500000,
+      "expected": { "fee": 20000, "total_repayment": 520000 }
+    },
+    {
+      "name": "a middle band",
+      "amount": 750000,
+      "expected": { "fee": 30000, "total_repayment": 780000 }
+    },
+    {
+      "name": "the million band",
+      "amount": 1000000,
+      "expected": { "fee": 35000, "total_repayment": 1035000 },
+      "$note": "Was Rp 50.000 under the old flat 5%. The tiered table is cheaper here and dearer in the small bands."
+    },
+    {
+      "name": "the top band, at its ceiling",
+      "amount": 5000000,
+      "expected": { "fee": 175000, "total_repayment": 5175000 },
+      "$note": "Also the default max_withdrawal_amount. The table has to reach at least the ceiling or an amount in between has no price at all."
+    },
+    {
+      "name": "zero amount is free whatever the first band says",
+      "amount": 0,
+      "expected": { "fee": 0, "total_repayment": 0 },
+      "$note": "The first band starts at 0 and charges Rp 5.000, but nothing withdrawn is nothing charged. The zero check comes first."
+    },
+    {
+      "name": "above the top band has no price — this must THROW, not fall back",
+      "amount": 5000001,
+      "expected": { "uncovered": true },
+      "$note": "Falling back to the top band would undercharge silently and forever. Both implementations must refuse. Unreachable in practice: the ceiling caps the request first."
+    },
+    {
+      "name": "an open-ended top band prices anything above it",
+      "amount": 50000000,
+      "fee_tiers": [
+        { "max_amount": 1000000, "fee": 35000 },
+        { "max_amount": null, "fee": 250000 }
+      ],
+      "expected": { "fee": 250000, "total_repayment": 50250000 },
+      "$note": "Leaving the last upper bound empty is how an employer opts out of the ceiling check. Only the LAST band may be open-ended."
+    },
+    {
+      "name": "a zero-fee employer",
+      "amount": 1000000,
+      "fee_tiers": [{ "max_amount": null, "fee": 0 }],
+      "expected": { "fee": 0, "total_repayment": 1000000 },
+      "$note": "One open-ended band charging nothing. An empty table is NOT how you say this — that is rejected, because a table with no bands cannot price anything."
+    }
+  ],
+
+  "$effective_limit_comment": [
+    "The employer ceiling clipping the roster limit. Applied before the daily",
+    "unlock, so it changes the daily rate — a Rp 8.000.000 limit under a",
+    "Rp 5.000.000 ceiling behaves exactly like a Rp 5.000.000 limit, not like a",
+    "Rp 8.000.000 limit with a per-request cap bolted on."
+  ],
+
+  "effective_limits": [
+    {
+      "name": "a limit under the ceiling is untouched",
+      "withdrawal_limit": 3000000,
+      "max_withdrawal_amount": 5000000,
+      "expected": { "effective_limit": 3000000 }
+    },
+    {
+      "name": "a limit over the ceiling is clipped to it",
+      "withdrawal_limit": 8000000,
+      "max_withdrawal_amount": 5000000,
+      "expected": { "effective_limit": 5000000 }
+    },
+    {
+      "name": "exactly on the ceiling",
+      "withdrawal_limit": 5000000,
+      "max_withdrawal_amount": 5000000,
+      "expected": { "effective_limit": 5000000 }
+    },
+    {
+      "name": "no ceiling configured leaves the limit alone",
+      "withdrawal_limit": 8000000,
+      "max_withdrawal_amount": null,
+      "expected": { "effective_limit": 8000000 }
+    }
+  ]
+}

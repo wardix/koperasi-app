@@ -120,5 +120,6 @@ await applyAllMigrations(db);
 await runSeed(db);
 
 export default db;
+export { sql, getSql };
 export { mapRow, mapRows, COLUMN_KEY_MAP, CAMEL_CASE_FIELDS } from "./db/mapRow";
 export * from "./db/entities";

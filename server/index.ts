@@ -24,6 +24,7 @@ import memberSelfServiceRoutes from './routes/memberSelfService'
 import ewaRoutes from './routes/ewa'
 import uploadRoutes from './routes/upload'
 import lettersRoutes from './routes/letters'
+import mobileRoutes from './mobile'
 import { registerLegacyAuthAliases } from './lib/authLegacy'
 import { serveStatic } from 'hono/bun'
 
@@ -138,6 +139,7 @@ app.route('/api/v1/accounting', accountingRoutes)
 app.route('/api/v1/ewa', ewaRoutes)
 app.route('/api/v1/upload', uploadRoutes)
 app.route('/api/v1/letters', lettersRoutes)
+app.route('/api', mobileRoutes)
 
 // Serve uploaded files statically
 app.use('/uploads/*', serveStatic({ root: './' }))
@@ -152,6 +154,7 @@ const port = parseInt(process.env.PORT || '3000', 10)
 console.log(`Hono server running on http://localhost:${port}`)
 console.log(`Started development server: http://localhost:${port}`)
 
+export { app }
 export default {
   port,
   fetch: app.fetch,
