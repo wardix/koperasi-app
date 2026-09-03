@@ -247,7 +247,7 @@ export default function ReportsTemplate() {
                 width: 100%;
                 max-width: 100%;
                 margin: 0 !important;
-                padding: 24px 40px !important;
+                padding: 16px 24px !important;
                 border: none !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
@@ -268,6 +268,10 @@ export default function ReportsTemplate() {
               }
               tr {
                 page-break-inside: avoid;
+              }
+              .signature-block {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
               }
             }
           `}</style>
@@ -448,10 +452,10 @@ export default function ReportsTemplate() {
                   }
 
                   return (
-                  <Card id="printable-report-area" style={{ padding: '40px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                    <VStack gap={5}>
+                  <Card id="printable-report-area" style={{ padding: '28px 32px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                    <VStack gap={4}>
                       {/* Document Header */}
-                      <div style={{ borderBottom: '3px double var(--color-border)', paddingBottom: '16px', textAlign: 'center', marginBottom: '16px' }}>
+                      <div style={{ borderBottom: '3px double var(--color-border)', paddingBottom: '12px', textAlign: 'center', marginBottom: '12px' }}>
                         <Heading level={2} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-primary)' }}>{koperasiName}</Heading>
                       </div>
 
@@ -819,138 +823,213 @@ export default function ReportsTemplate() {
                       )}
 
                       {selectedReport === 'balance_sheet' && balanceRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Laporan Posisi Keuangan (Neraca) yang menyajikan Aset, Kewajiban, dan Ekuitas.
+                        <VStack gap={3}>
+                          <Text type="body" style={{ fontSize: '13px' }}>
+                            Laporan Posisi Keuangan (Neraca) menyajikan perbandingan antara Aset (Aktiva) di sisi kiri dengan Kewajiban & Ekuitas (Pasiva) di sisi kanan.
                           </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Kode Akun</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Akun</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  ASET (ASSETS)
-                                </td>
-                              </tr>
-                              {(hideZeroBalance
-                                ? balanceRes.assets.filter((item: any) => Number(item.balance) !== 0)
-                                : balanceRes.assets
-                              ).map((item: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
-                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                    {formatRp(item.balance)}
-                                  </td>
-                                </tr>
-                              ))}
-                              {hideZeroBalance && balanceRes.assets.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                <tr>
-                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                                    Tidak ada pos aset bersaldo pada periode ini.
-                                  </td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Aset</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalAssets)}</td>
-                              </tr>
 
-                              <tr>
-                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  KEWAJIBAN (LIABILITIES)
-                                </td>
-                              </tr>
-                              {(hideZeroBalance
-                                ? balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0)
-                                : balanceRes.liabilities
-                              ).map((item: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
-                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                    {formatRp(item.balance)}
-                                  </td>
-                                </tr>
-                              ))}
-                              {hideZeroBalance && balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                <tr>
-                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                                    Tidak ada pos kewajiban bersaldo pada periode ini.
-                                  </td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Kewajiban</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalLiabilities)}</td>
-                              </tr>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                            gap: '16px',
+                            alignItems: 'stretch',
+                            marginTop: '4px'
+                          }}>
+                            {/* SISI KIRI: ASET (AKTIVA) */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              border: '1px solid var(--color-border)',
+                              borderRadius: '6px',
+                              overflow: 'hidden',
+                              backgroundColor: 'var(--color-background-primary)'
+                            }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                  <tr style={{ backgroundColor: 'var(--color-background-secondary)', borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                                    <th colSpan={3} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
+                                      ASET (AKTIVA)
+                                    </th>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
+                                    <th style={{ padding: '6px 10px', width: '65px', fontWeight: 600 }}>Kode</th>
+                                    <th style={{ padding: '6px 10px', fontWeight: 600 }}>Nama Akun</th>
+                                    <th style={{ padding: '6px 10px', width: '110px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(hideZeroBalance
+                                    ? balanceRes.assets.filter((item: any) => Number(item.balance) !== 0)
+                                    : balanceRes.assets
+                                  ).map((item: any, idx: number) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)', fontSize: '13px' }}>
+                                      <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '12px' }}>{item.code}</td>
+                                      <td style={{ padding: '6px 10px' }}>{item.name}</td>
+                                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
+                                        {formatRp(item.balance)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {hideZeroBalance && balanceRes.assets.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                    <tr>
+                                      <td colSpan={3} style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '12px' }}>
+                                        Tidak ada pos aset bersaldo pada periode ini.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
 
-                              <tr>
-                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  EKUITAS (EQUITY)
-                                </td>
-                              </tr>
-                              {(hideZeroBalance
-                                ? balanceRes.equity.filter((item: any) => Number(item.balance) !== 0)
-                                : balanceRes.equity
-                              ).map((item: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
-                                  <td style={{ padding: '12px 8px' }}>
-                                    {item.name}
-                                    {item.code === '33102' && <Text type="supporting" color="secondary" style={{ display: 'block', fontSize: 12 }}>* Termasuk Laba Bersih Tahun Berjalan</Text>}
-                                  </td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                    {formatRp(item.balance)}
-                                  </td>
-                                </tr>
-                              ))}
-                              {hideZeroBalance && balanceRes.equity.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                <tr>
-                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                                    Tidak ada pos ekuitas bersaldo pada periode ini.
-                                  </td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Ekuitas</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalEquity)}</td>
-                              </tr>
-                              
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '16px 8px', color: balanceRes.totalAssets === (balanceRes.totalLiabilities + balanceRes.totalEquity) ? 'inherit' : 'var(--color-critical-500)' }}>
-                                  TOTAL KEWAJIBAN & EKUITAS
-                                </td>
-                                <td style={{ padding: '16px 8px', textAlign: 'right', color: balanceRes.totalAssets === (balanceRes.totalLiabilities + balanceRes.totalEquity) ? 'inherit' : 'var(--color-critical-500)' }}>
+                              {/* TOTAL ASET */}
+                              <div style={{
+                                marginTop: 'auto',
+                                borderTop: '2px solid var(--color-border)',
+                                backgroundColor: 'var(--color-background-subtle)',
+                                padding: '10px 10px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontWeight: 700,
+                                fontSize: '13px'
+                              }}>
+                                <span>TOTAL ASET</span>
+                                <span style={{ color: 'var(--color-primary-600, inherit)' }}>
+                                  {formatRp(balanceRes.totalAssets)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* SISI KANAN: KEWAJIBAN & EKUITAS (PASIVA) */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              border: '1px solid var(--color-border)',
+                              borderRadius: '6px',
+                              overflow: 'hidden',
+                              backgroundColor: 'var(--color-background-primary)'
+                            }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                  <tr style={{ backgroundColor: 'var(--color-background-secondary)', borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                                    <th colSpan={3} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
+                                      KEWAJIBAN & EKUITAS (PASIVA)
+                                    </th>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
+                                    <th style={{ padding: '6px 10px', width: '65px', fontWeight: 600 }}>Kode</th>
+                                    <th style={{ padding: '6px 10px', fontWeight: 600 }}>Nama Akun</th>
+                                    <th style={{ padding: '6px 10px', width: '110px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {/* Sub-header: Kewajiban */}
+                                  <tr style={{ backgroundColor: 'var(--color-background-subtle)' }}>
+                                    <td colSpan={3} style={{ padding: '5px 10px', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+                                      1. KEWAJIBAN (LIABILITIES)
+                                    </td>
+                                  </tr>
+                                  {(hideZeroBalance
+                                    ? balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0)
+                                    : balanceRes.liabilities
+                                  ).map((item: any, idx: number) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)', fontSize: '13px' }}>
+                                      <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '12px' }}>{item.code}</td>
+                                      <td style={{ padding: '6px 10px' }}>{item.name}</td>
+                                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
+                                        {formatRp(item.balance)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {hideZeroBalance && balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                    <tr>
+                                      <td colSpan={3} style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '12px' }}>
+                                        Tidak ada pos kewajiban bersaldo.
+                                      </td>
+                                    </tr>
+                                  )}
+                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '12px', backgroundColor: 'var(--color-background-primary)' }}>
+                                    <td colSpan={2} style={{ padding: '6px 10px', textAlign: 'right' }}>Total Kewajiban:</td>
+                                    <td style={{ padding: '6px 10px', textAlign: 'right' }}>{formatRp(balanceRes.totalLiabilities)}</td>
+                                  </tr>
+
+                                  {/* Sub-header: Ekuitas */}
+                                  <tr style={{ backgroundColor: 'var(--color-background-subtle)' }}>
+                                    <td colSpan={3} style={{ padding: '5px 10px', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+                                      2. EKUITAS (EQUITY)
+                                    </td>
+                                  </tr>
+                                  {(hideZeroBalance
+                                    ? balanceRes.equity.filter((item: any) => Number(item.balance) !== 0)
+                                    : balanceRes.equity
+                                  ).map((item: any, idx: number) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)', fontSize: '13px' }}>
+                                      <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '12px' }}>{item.code}</td>
+                                      <td style={{ padding: '6px 10px' }}>
+                                        {item.name}
+                                        {item.code === '33102' && (
+                                          <Text type="supporting" color="secondary" style={{ display: 'block', fontSize: '10px' }}>
+                                            * Termasuk Laba Bersih Tahun Berjalan
+                                          </Text>
+                                        )}
+                                      </td>
+                                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
+                                        {formatRp(item.balance)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {hideZeroBalance && balanceRes.equity.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                    <tr>
+                                      <td colSpan={3} style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '12px' }}>
+                                        Tidak ada pos ekuitas bersaldo.
+                                      </td>
+                                    </tr>
+                                  )}
+                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '12px', backgroundColor: 'var(--color-background-primary)' }}>
+                                    <td colSpan={2} style={{ padding: '6px 10px', textAlign: 'right' }}>Total Ekuitas:</td>
+                                    <td style={{ padding: '6px 10px', textAlign: 'right' }}>{formatRp(balanceRes.totalEquity)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+
+                              {/* TOTAL KEWAJIBAN & EKUITAS */}
+                              <div style={{
+                                marginTop: 'auto',
+                                borderTop: '2px solid var(--color-border)',
+                                backgroundColor: 'var(--color-background-subtle)',
+                                padding: '10px 10px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                color: balanceRes.totalAssets === (balanceRes.totalLiabilities + balanceRes.totalEquity) ? 'inherit' : 'var(--color-critical-500)'
+                              }}>
+                                <span>TOTAL KEWAJIBAN & EKUITAS</span>
+                                <span>
                                   {formatRp(balanceRes.totalLiabilities + balanceRes.totalEquity)}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </VStack>
                       )}
 
                       {/* Signature block */}
-                      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
+                      <div className="signature-block" style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', gap: '20px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <div style={{ textAlign: 'center', flex: 1 }}>
-                          <Text type="body">Disiapkan oleh,</Text>
-                          <div style={{ height: '70px' }} />
-                          <Text type="body" style={{ fontWeight: 600, textDecoration: 'underline' }}>Bendahara Koperasi</Text>
+                          <Text type="body" style={{ fontSize: '13px' }}>Disiapkan oleh,</Text>
+                          <div style={{ height: '48px' }} />
+                          <Text type="body" style={{ fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>Bendahara Koperasi</Text>
                         </div>
                         <div style={{ textAlign: 'center', flex: 1 }}>
-                          <Text type="body">Disetujui oleh,</Text>
-                          <div style={{ height: '70px' }} />
-                          <Text type="body" style={{ fontWeight: 600, textDecoration: 'underline' }}>Ketua Koperasi</Text>
+                          <Text type="body" style={{ fontSize: '13px' }}>Disetujui oleh,</Text>
+                          <div style={{ height: '48px' }} />
+                          <Text type="body" style={{ fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>Ketua Koperasi</Text>
                         </div>
                         <div style={{ textAlign: 'center', flex: 1 }}>
-                          <Text type="body">Diketahui oleh,</Text>
-                          <div style={{ height: '70px' }} />
-                          <Text type="body" style={{ fontWeight: 600, textDecoration: 'underline' }}>Pengawas Koperasi</Text>
+                          <Text type="body" style={{ fontSize: '13px' }}>Diketahui oleh,</Text>
+                          <div style={{ height: '48px' }} />
+                          <Text type="body" style={{ fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>Pengawas Koperasi</Text>
                         </div>
                       </div>
                     </VStack>
