@@ -148,8 +148,8 @@ async function authenticateIdentity(identity: SsoIdentity, deviceName?: string) 
 
   return {
     token,
-    refresh_token: identity.refreshToken,
-    expires_in: identity.expiresIn,
+    refresh_token: identity.refreshToken || "",
+    expires_in: identity.expiresIn || 3600,
     employee: formatEmployee(employee),
   };
 }

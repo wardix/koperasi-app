@@ -13,26 +13,30 @@ export function formatEmployee(employee: any, employer?: any) {
     joinDateStr = joinDateStr.slice(0, 10);
   }
 
+  const salary = Math.round(Number(employee.base_salary || employee.withdrawal_limit || 0));
+
   return {
     id: Number(employee.id),
     name: employee.name,
     email: employee.email,
     nik: employee.nik,
-    withdrawal_limit: Number(employee.withdrawal_limit),
+    employee_number: employee.nip || employee.nik || null,
+    monthly_salary: salary,
+    withdrawal_limit: Number(employee.withdrawal_limit || salary),
     join_date: joinDateStr,
     status: employee.status,
     status_label:
       employee.status === "active"
-        ? "Aktif"
+        ? "Active"
         : employee.status === "frozen"
-        ? "Dibekukan"
-        : "Tidak Aktif",
+        ? "Frozen"
+        : "Inactive",
     can_request_withdrawal: employee.status === "active",
-    kyc_status: employee.kyc_status,
+    kyc_status: employee.kyc_status || null,
     bank: {
-      name: employee.bank_name,
-      account_number: employee.bank_account_number,
-      account_holder: employee.bank_account_holder,
+      name: employee.bank_name || null,
+      account_number: employee.bank_account_number || null,
+      account_holder: employee.bank_account_holder || null,
       is_complete: hasBankDetails,
     },
     employer: emp
@@ -40,6 +44,7 @@ export function formatEmployee(employee: any, employer?: any) {
           id: Number(emp.id),
           company_name: emp.company_name,
           cutoff_day: Number(emp.cutoff_day),
+          fee_percent: Number(emp.fee_percent ?? 5),
           fee_tiers: emp.fee_tiers,
           max_withdrawal_amount: emp.max_withdrawal_amount
             ? Number(emp.max_withdrawal_amount)
