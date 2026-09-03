@@ -167,8 +167,11 @@ const googleSchema = z.object({
 const handleGoogle = async (c: any) => {
   const data = c.req.valid("json");
   const token = (data.access_token || data.token || data.id_token) as string;
+  console.log(`[Mobile Auth /google] Verifying token for device: ${data.device_name || 'unknown'}...`);
   const identity = await sso.verify(token);
+  console.log(`[Mobile Auth /google] SSO Identity verified: ${identity.email} (${identity.subjectId})`);
   const result = await authenticateIdentity(identity, data.device_name);
+  console.log(`[Mobile Auth /google] Returning 201 for ${result.employee?.email}, token ID: ${result.token?.split('|')[0]}`);
   return c.json(result, 201);
 };
 

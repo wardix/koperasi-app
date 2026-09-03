@@ -29,8 +29,11 @@ import { registerLegacyAuthAliases } from './lib/authLegacy'
 import { serveStatic } from 'hono/bun'
 
 import { HTTPException } from 'hono/http-exception'
+import { logger } from 'hono/logger'
 
 const app = new Hono()
+
+app.use('*', logger())
 
 app.onError((err, c) => {
   console.error(err)
