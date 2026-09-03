@@ -90,10 +90,24 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
     hasBankDetails;
 
   const minimumAmount = parseInt(process.env.MINIMUM_WITHDRAWAL_AMOUNT || "50000", 10);
+  const monthlySalary = Math.round(Number(employee.base_salary || employee.withdrawal_limit || 0));
+  const accessCapAmount = balance.effectiveLimit;
+  const accessCapPercent = monthlySalary > 0 
+    ? Number(((accessCapAmount / monthlySalary) * 100).toFixed(2)) 
+    : 100;
+  const feePercent = Number(employer.fee_percent ?? 5);
 
   return c.json({
     data: {
       ...balance.toArray(),
+      monthly_salary: monthlySalary,
+      daily_rate: balance.dailyRate,
+      gross_earned: balance.unlocked,
+      access_cap_percent: accessCapPercent,
+      access_cap_amount: accessCapAmount,
+      already_withdrawn: balance.alreadyWithdrawn,
+      max_withdrawable: balance.maxWithdrawable,
+      fee_percent: feePercent,
       minimum_amount: minimumAmount,
       can_request: canRequest,
     },
