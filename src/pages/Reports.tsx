@@ -29,6 +29,7 @@ export default function ReportsTemplate() {
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [hideZeroBalance, setHideZeroBalance] = useState(true);
 
   const { data: reportResponse, isLoading: isSummaryLoading, error: summaryError, refetch: fetchSummary } = useApiQuery<ReportData>('/api/reports/summary');
   const { data: arRes, isLoading: isArLoading, error: arError, refetch: fetchAr } = useApiQuery<Array<{ memberName: string, principal: number, totalAmount: number, paidAmount: number, remainingAmount: number, status: string }>>('/api/reports/ar');
@@ -123,20 +124,32 @@ export default function ReportsTemplate() {
         }
       } else if (selectedReport === 'income_statement' && incomeRes) {
         filename = "laporan_laba_rugi.csv";
-        csvContent += "Akun,Saldo\r\n";
-        incomeRes.revenues.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
-        incomeRes.expenses.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
-        csvContent += `Total Pendapatan,${incomeRes.totalRevenue}\r\n`;
-        csvContent += `Total Beban,${incomeRes.totalExpense}\r\n`;
-        csvContent += `Laba/Rugi Bersih,${incomeRes.netIncome}\r\n`;
+        csvContent += "Kode Akun,Nama Akun,Saldo\r\n";
+        const revs = hideZeroBalance ? incomeRes.revenues.filter((r: any) => Number(r.balance) !== 0) : incomeRes.revenues;
+        const exps = hideZeroBalance ? incomeRes.expenses.filter((r: any) => Number(r.balance) !== 0) : incomeRes.expenses;
+        csvContent += "--- PENDAPATAN ---\r\n";
+        revs.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
+        csvContent += `Total Pendapatan,,${incomeRes.totalRevenue}\r\n`;
+        csvContent += "--- BEBAN ---\r\n";
+        exps.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
+        csvContent += `Total Beban,,${incomeRes.totalExpense}\r\n`;
+        csvContent += `Laba/Rugi Bersih,,${incomeRes.netIncome}\r\n`;
       } else if (selectedReport === 'balance_sheet' && balanceRes) {
         filename = "laporan_neraca.csv";
-        csvContent += "Akun,Saldo\r\n";
-        balanceRes.assets.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
-        balanceRes.liabilities.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
-        balanceRes.equity.forEach((r: any) => csvContent += `${r.code} - ${r.name},${r.balance}\r\n`);
-        csvContent += `Total Aset,${balanceRes.totalAssets}\r\n`;
-        csvContent += `Total Kewajiban & Ekuitas,${balanceRes.totalLiabilities + balanceRes.totalEquity}\r\n`;
+        csvContent += "Kode Akun,Nama Akun,Saldo\r\n";
+        const ass = hideZeroBalance ? balanceRes.assets.filter((r: any) => Number(r.balance) !== 0) : balanceRes.assets;
+        const lia = hideZeroBalance ? balanceRes.liabilities.filter((r: any) => Number(r.balance) !== 0) : balanceRes.liabilities;
+        const equ = hideZeroBalance ? balanceRes.equity.filter((r: any) => Number(r.balance) !== 0) : balanceRes.equity;
+        csvContent += "--- ASET ---\r\n";
+        ass.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
+        csvContent += `Total Aset,,${balanceRes.totalAssets}\r\n`;
+        csvContent += "--- KEWAJIBAN ---\r\n";
+        lia.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
+        csvContent += `Total Kewajiban,,${balanceRes.totalLiabilities}\r\n`;
+        csvContent += "--- EKUITAS ---\r\n";
+        equ.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
+        csvContent += `Total Ekuitas,,${balanceRes.totalEquity}\r\n`;
+        csvContent += `Total Kewajiban & Ekuitas,,${balanceRes.totalLiabilities + balanceRes.totalEquity}\r\n`;
       }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -369,6 +382,30 @@ export default function ReportsTemplate() {
                           🔄 Reset Filter
                         </button>
                       )}
+                      {['income_statement', 'balance_sheet'].includes(selectedReport) && (
+                        <div style={{ marginTop: '8px', paddingTop: '10px', borderTop: '1px dashed var(--color-border-primary)' }}>
+                          <label style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            color: 'var(--color-text-primary)'
+                          }}>
+                            <input 
+                              type="checkbox" 
+                              checked={hideZeroBalance} 
+                              onChange={(e) => setHideZeroBalance(e.target.checked)} 
+                              style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                            />
+                            <span style={{ fontWeight: 500 }}>Sembunyikan Saldo Nol</span>
+                          </label>
+                          <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '3px', display: 'block' }}>
+                            {hideZeroBalance ? '✓ Akun Rp 0 disembunyikan' : 'Seluruh bagan akun ditampilkan'}
+                          </Text>
+                        </div>
+                      )}
                     </VStack>
                   )}
                 </VStack>
@@ -436,6 +473,9 @@ export default function ReportsTemplate() {
                             : (selectedReport === 'income_statement' || selectedReport === 'cashflow_statement') && (startDate || endDate)
                             ? `Periode: ${startDate || 'Awal'} s.d ${endDate || 'Sekarang'} (Dicetak: ${formattedDate})`
                             : `Per Tanggal: ${formattedDate}`}
+                          {['income_statement', 'balance_sheet'].includes(selectedReport) && (
+                            <span> • {hideZeroBalance ? 'Hanya Akun Bersaldo' : 'Seluruh Bagan Akun'}</span>
+                          )}
                         </Text>
                       </div>
 
@@ -714,7 +754,10 @@ export default function ReportsTemplate() {
                                   PENDAPATAN (REVENUE)
                                 </td>
                               </tr>
-                              {incomeRes.revenues.map((item: any, idx: number) => (
+                              {(hideZeroBalance
+                                ? incomeRes.revenues.filter((item: any) => Number(item.balance) !== 0)
+                                : incomeRes.revenues
+                              ).map((item: any, idx: number) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
                                   <td style={{ padding: '12px 8px' }}>{item.name}</td>
@@ -723,6 +766,13 @@ export default function ReportsTemplate() {
                                   </td>
                                 </tr>
                               ))}
+                              {hideZeroBalance && incomeRes.revenues.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                    Tidak ada pos pendapatan bersaldo pada periode ini.
+                                  </td>
+                                </tr>
+                              )}
                               <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
                                 <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Pendapatan</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(incomeRes.totalRevenue)}</td>
@@ -733,7 +783,10 @@ export default function ReportsTemplate() {
                                   BEBAN (EXPENSE)
                                 </td>
                               </tr>
-                              {incomeRes.expenses.map((item: any, idx: number) => (
+                              {(hideZeroBalance
+                                ? incomeRes.expenses.filter((item: any) => Number(item.balance) !== 0)
+                                : incomeRes.expenses
+                              ).map((item: any, idx: number) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
                                   <td style={{ padding: '12px 8px' }}>{item.name}</td>
@@ -742,6 +795,13 @@ export default function ReportsTemplate() {
                                   </td>
                                 </tr>
                               ))}
+                              {hideZeroBalance && incomeRes.expenses.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                    Tidak ada pos beban bersaldo pada periode ini.
+                                  </td>
+                                </tr>
+                              )}
                               <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
                                 <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Beban</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-critical-500)' }}>{formatRp(incomeRes.totalExpense)}</td>
@@ -777,7 +837,10 @@ export default function ReportsTemplate() {
                                   ASET (ASSETS)
                                 </td>
                               </tr>
-                              {balanceRes.assets.map((item: any, idx: number) => (
+                              {(hideZeroBalance
+                                ? balanceRes.assets.filter((item: any) => Number(item.balance) !== 0)
+                                : balanceRes.assets
+                              ).map((item: any, idx: number) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
                                   <td style={{ padding: '12px 8px' }}>{item.name}</td>
@@ -786,6 +849,13 @@ export default function ReportsTemplate() {
                                   </td>
                                 </tr>
                               ))}
+                              {hideZeroBalance && balanceRes.assets.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                    Tidak ada pos aset bersaldo pada periode ini.
+                                  </td>
+                                </tr>
+                              )}
                               <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
                                 <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Aset</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalAssets)}</td>
@@ -796,7 +866,10 @@ export default function ReportsTemplate() {
                                   KEWAJIBAN (LIABILITIES)
                                 </td>
                               </tr>
-                              {balanceRes.liabilities.map((item: any, idx: number) => (
+                              {(hideZeroBalance
+                                ? balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0)
+                                : balanceRes.liabilities
+                              ).map((item: any, idx: number) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
                                   <td style={{ padding: '12px 8px' }}>{item.name}</td>
@@ -805,6 +878,13 @@ export default function ReportsTemplate() {
                                   </td>
                                 </tr>
                               ))}
+                              {hideZeroBalance && balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                    Tidak ada pos kewajiban bersaldo pada periode ini.
+                                  </td>
+                                </tr>
+                              )}
                               <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
                                 <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Kewajiban</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalLiabilities)}</td>
@@ -815,7 +895,10 @@ export default function ReportsTemplate() {
                                   EKUITAS (EQUITY)
                                 </td>
                               </tr>
-                              {balanceRes.equity.map((item: any, idx: number) => (
+                              {(hideZeroBalance
+                                ? balanceRes.equity.filter((item: any) => Number(item.balance) !== 0)
+                                : balanceRes.equity
+                              ).map((item: any, idx: number) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                   <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
                                   <td style={{ padding: '12px 8px' }}>
@@ -827,6 +910,13 @@ export default function ReportsTemplate() {
                                   </td>
                                 </tr>
                               ))}
+                              {hideZeroBalance && balanceRes.equity.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                    Tidak ada pos ekuitas bersaldo pada periode ini.
+                                  </td>
+                                </tr>
+                              )}
                               <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
                                 <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Ekuitas</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(balanceRes.totalEquity)}</td>
