@@ -936,16 +936,21 @@ export default function ReportsTemplate() {
                       )}
 
                       {/* Signature block */}
-                      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
-                        <div style={{ textAlign: 'center', width: '200px' }}>
+                      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
+                        <div style={{ textAlign: 'center', flex: 1 }}>
                           <Text type="body">Disiapkan oleh,</Text>
                           <div style={{ height: '70px' }} />
                           <Text type="body" style={{ fontWeight: 600, textDecoration: 'underline' }}>Bendahara Koperasi</Text>
                         </div>
-                        <div style={{ textAlign: 'center', width: '200px' }}>
+                        <div style={{ textAlign: 'center', flex: 1 }}>
                           <Text type="body">Disetujui oleh,</Text>
                           <div style={{ height: '70px' }} />
                           <Text type="body" style={{ fontWeight: 600, textDecoration: 'underline' }}>Ketua Koperasi</Text>
+                        </div>
+                        <div style={{ textAlign: 'center', flex: 1 }}>
+                          <Text type="body">Diketahui oleh,</Text>
+                          <div style={{ height: '70px' }} />
+                          <Text type="body" style={{ fontWeight: 600, textDecoration: 'underline' }}>Pengawas Koperasi</Text>
                         </div>
                       </div>
                     </VStack>
