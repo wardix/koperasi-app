@@ -1242,10 +1242,11 @@ describe("API Endpoints", () => {
 
   afterAll(async () => {
     try {
-      // Clean up postgres test database tables.
-      // Do not db.close() here: the SQL pool is a module singleton shared with
-      // other test files in the same bun test process.
-      await db.run("TRUNCATE TABLE schema_migrations, admins, members, loans, loan_payments, transactions, settings, token_blacklist, rate_limits CASCADE;");
+      // Clean up only test-specific records created during this suite.
+      // NEVER truncate operational tables or schema_migrations.
+      await db.run("DELETE FROM admins WHERE id = 'super-admin-1' OR email = 'super-admin-1@koperasi.com'");
+      await db.run("DELETE FROM token_blacklist WHERE jti_token IN ('expired-token-xyz', 'valid-token-abc')");
+      await db.run("DELETE FROM rate_limits WHERE ip IN ('1.1.1.1', '2.2.2.2')");
     } catch {
       // ignore cleanup errors
     }
