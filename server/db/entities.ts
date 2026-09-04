@@ -310,3 +310,29 @@ export const journalLineRowSchema = z.object({
   description: strNull,
 });
 export type JournalLineRow = z.infer<typeof journalLineRowSchema>;
+
+// ---------------------------------------------------------------------------
+// Voluntary Savings Withdrawals
+// ---------------------------------------------------------------------------
+
+export const savingsWithdrawalRowSchema = z.object({
+  id: str,
+  member_id: str,
+  amount: num,
+  destination_bank: str,
+  destination_account: str,
+  destination_name: str,
+  notes: strNull,
+  status: str.default("Menunggu"),
+  payment_source_account_id: strNull,
+  transaction_id: strNull,
+  approved_by: strNull,
+  approved_at: strNull,
+  rejected_by: strNull,
+  rejected_at: strNull,
+  rejection_reason: strNull,
+  created_at: str,
+  updated_at: str,
+});
+export type SavingsWithdrawalRow = z.infer<typeof savingsWithdrawalRowSchema>;
+

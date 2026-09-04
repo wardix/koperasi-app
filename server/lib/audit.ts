@@ -41,7 +41,9 @@ export type AuditAction =
   | 'settle_ewa_payroll'
   | 'create_letter'
   | 'update_letter'
-  | 'delete_letter';
+  | 'delete_letter'
+  | 'approve_savings_withdrawal'
+  | 'reject_savings_withdrawal';
 
 export interface AuditRecord {
   actor: string;        // admin email who performed the action

@@ -109,6 +109,18 @@ export default function MemberPortal() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
 
+  // Voluntary Savings Withdrawal State
+  const [savingsWithdrawals, setSavingsWithdrawals] = useState<any[]>([]);
+  const [showWithdrawForm, setShowWithdrawForm] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawBank, setWithdrawBank] = useState('');
+  const [withdrawAccount, setWithdrawAccount] = useState('');
+  const [withdrawName, setWithdrawName] = useState('');
+  const [withdrawNotes, setWithdrawNotes] = useState('');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawError, setWithdrawError] = useState('');
+  const [withdrawSuccess, setWithdrawSuccess] = useState('');
+
   // EWA State
   const [ewaQuota, setEwaQuota] = useState<any>(null);
   const [ewaHistory, setEwaHistory] = useState<any[]>([]);
@@ -323,6 +335,50 @@ export default function MemberPortal() {
     }
   };
 
+  const handleApplyWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = readPortalToken();
+    if (!token) return;
+    setWithdrawLoading(true);
+    setWithdrawError('');
+    setWithdrawSuccess('');
+    try {
+      const numericAmount = parseFloat(withdrawAmount.replace(/\D/g, '')) || 0;
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
+      const res = await fetch('/api/v1/portal/savings/withdraw', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          amount: numericAmount,
+          destinationBank: withdrawBank,
+          destinationAccount: withdrawAccount,
+          destinationName: withdrawName,
+          notes: withdrawNotes || undefined,
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        setWithdrawSuccess(res.message || 'Pengajuan penarikan simpanan sukarela berhasil dikirim!');
+        setWithdrawAmount('');
+        setWithdrawNotes('');
+        loadData();
+        setTimeout(() => {
+          setShowWithdrawForm(false);
+          setWithdrawSuccess('');
+        }, 3000);
+      } else {
+        setWithdrawError(res.message || 'Gagal mengajukan penarikan');
+      }
+    } catch {
+      setWithdrawError('Terjadi kesalahan jaringan');
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
+
   const clearPreviewSession = useCallback(() => {
     sessionStorage.removeItem(PREVIEW_TOKEN_KEY);
     sessionStorage.removeItem(PREVIEW_NAME_KEY);
@@ -349,19 +405,30 @@ export default function MemberPortal() {
     try {
       setLoading(true);
       const headers = { Authorization: `Bearer ${token}` };
-      const [profileRes, txRes, loansRes] = await Promise.all([
+      const [profileRes, txRes, loansRes, withdrawalsRes] = await Promise.all([
         fetch('/api/v1/portal/profile', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/savings/transactions', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/loans', { headers }).then((r) => r.json()),
+        fetch('/api/v1/portal/savings/withdrawals', { headers }).then((r) => r.json()).catch(() => ({ success: false, data: [] })),
       ]);
 
-      if (profileRes.success) {
+      if (profileRes.success && profileRes.data) {
         setProfile(profileRes.data);
         if (profileRes.data.isCoopMember === false) {
           setActiveTab('ewa');
         }
+        if (profileRes.data.employee) {
+          if (!withdrawBank && profileRes.data.employee.bankName) setWithdrawBank(profileRes.data.employee.bankName);
+          if (!withdrawAccount && profileRes.data.employee.bankAccountNumber) setWithdrawAccount(profileRes.data.employee.bankAccountNumber);
+          if (!withdrawName && (profileRes.data.employee.bankAccountName || profileRes.data.name)) {
+            setWithdrawName(profileRes.data.employee.bankAccountName || profileRes.data.name);
+          }
+        } else if (profileRes.data.name && !withdrawName) {
+          setWithdrawName(profileRes.data.name);
+        }
       }
       if (txRes.success) setTransactions(txRes.data || []);
+      if (withdrawalsRes.success) setSavingsWithdrawals(withdrawalsRes.data || []);
       if (loansRes.success) {
         setLoans(loansRes.data || []);
       } else if (loansRes.message) {
@@ -820,6 +887,76 @@ export default function MemberPortal() {
     },
   ];
 
+  const withdrawalCols: TableColumn<any>[] = [
+    {
+      key: 'createdAt',
+      header: 'Tgl Pengajuan',
+      width: pixel(130),
+      renderCell: (i) => new Date(i.createdAt).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+    },
+    {
+      key: 'amount',
+      header: 'Nominal Penarikan',
+      width: pixel(160),
+      renderCell: (i) => (
+        <Text type="body" weight="bold" style={{ color: 'var(--color-critical-500, #ef4444)' }}>
+          {formatRp(i.amount)}
+        </Text>
+      ),
+    },
+    {
+      key: 'destinationBank',
+      header: 'Rekening Tujuan',
+      width: proportional(1.5),
+      renderCell: (i) => (
+        <VStack gap={0}>
+          <Text type="body" weight="medium">{i.destinationBank} - {i.destinationAccount}</Text>
+          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+            a.n. {i.destinationName}
+          </Text>
+        </VStack>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: pixel(120),
+      renderCell: (i) => {
+        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        if (i.status === 'Menunggu') variant = 'warning';
+        else if (i.status === 'Disetujui') variant = 'success';
+        else if (i.status === 'Ditolak') variant = 'critical';
+        return <Badge variant={variant} label={i.status} />;
+      },
+    },
+    {
+      key: 'notes',
+      header: 'Keterangan',
+      width: proportional(1.5),
+      renderCell: (i) => {
+        if (i.status === 'Ditolak' && i.rejectionReason) {
+          return (
+            <Text type="supporting" color="critical">
+              Alasan ditolak: {i.rejectionReason}
+            </Text>
+          );
+        }
+        if (i.status === 'Disetujui' && i.approvedAt) {
+          return (
+            <Text type="supporting" color="success">
+              Dicairkan pada {new Date(i.approvedAt).toLocaleDateString('id-ID')}
+            </Text>
+          );
+        }
+        return <Text type="supporting" color="secondary">{i.notes || '-'}</Text>;
+      },
+    },
+  ];
+
   const loanCols: TableColumn<PortalLoan>[] = [
     {
       key: 'createdAt',
@@ -975,7 +1112,32 @@ export default function MemberPortal() {
               </Card>
               <Card>
                 <VStack gap={2}>
-                  <Text type="supporting">Sukarela</Text>
+                  <HStack justify="space-between" vAlign="center">
+                    <Text type="supporting">Sukarela</Text>
+                    {(profile?.simpananSukarela || 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('savings');
+                          setShowWithdrawForm(true);
+                          setWithdrawError('');
+                          setWithdrawSuccess('');
+                        }}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'var(--color-primary-600, #2563eb)',
+                          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                          border: 'none',
+                          borderRadius: 4,
+                          padding: '2px 8px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        + Tarik Dana
+                      </button>
+                    )}
+                  </HStack>
                   <Heading level={3}>{formatRp(profile?.simpananSukarela || 0)}</Heading>
                 </VStack>
               </Card>
@@ -1096,6 +1258,18 @@ export default function MemberPortal() {
                       setApplyError('');
                       setApplySuccess('');
                     }}
+                  />
+                )}
+                {activeTab === 'savings' && (
+                  <Button
+                    label={showWithdrawForm ? 'Tutup Formulir' : '+ Tarik Simpanan Sukarela'}
+                    variant={showWithdrawForm ? 'ghost' : 'primary'}
+                    onClick={() => {
+                      setShowWithdrawForm(!showWithdrawForm);
+                      setWithdrawError('');
+                      setWithdrawSuccess('');
+                    }}
+                    isDisabled={(profile?.simpananSukarela || 0) <= 0}
                   />
                 )}
               </HStack>
@@ -1311,12 +1485,184 @@ export default function MemberPortal() {
                 </Card>
               )}
 
+              {activeTab === 'savings' && showWithdrawForm && (
+                <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
+                  <form onSubmit={handleApplyWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <VStack gap={1}>
+                      <Heading level={4}>Formulir Pengajuan Penarikan Simpanan Sukarela</Heading>
+                      <Text type="supporting" color="secondary">
+                        Simpanan sukarela dapat ditarik sewaktu-waktu sesuai saldo yang tersedia. Dana yang disetujui akan ditransfer langsung ke rekening bank tujuan Anda oleh bagian kasir/keuangan koperasi.
+                      </Text>
+                    </VStack>
+
+                    {withdrawError && (
+                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                        ⚠️ {withdrawError}
+                      </Text>
+                    )}
+
+                    {withdrawSuccess && (
+                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                        ✅ {withdrawSuccess}
+                      </Text>
+                    )}
+
+                    {/* Saldo Sukarela Card & Quick Percentage Presets */}
+                    <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
+                      <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                        <VStack gap={0}>
+                          <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
+                            Saldo Simpanan Sukarela Tersedia:
+                          </Text>
+                          <Heading level={3} color="primary">
+                            {formatRp(profile?.simpananSukarela || 0)}
+                          </Heading>
+                        </VStack>
+                        <HStack gap={1} wrap="wrap">
+                          {[
+                            { label: '25%', ratio: 0.25 },
+                            { label: '50%', ratio: 0.5 },
+                            { label: '75%', ratio: 0.75 },
+                            { label: 'Tarik Semua (100%)', ratio: 1.0 },
+                          ].map((preset) => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => {
+                                const current = Number(profile?.simpananSukarela || 0);
+                                const val = Math.floor(current * preset.ratio);
+                                setWithdrawAmount(val > 0 ? val.toLocaleString('id-ID') : '');
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                borderRadius: 4,
+                                border: '1px solid var(--color-border-primary, #d1d5db)',
+                                backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </HStack>
+                      </HStack>
+                    </Card>
+
+                    <Grid gap={4}>
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nominal Penarikan (Rp):</Text>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Contoh: 500.000"
+                          value={withdrawAmount}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setWithdrawAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
+                          }}
+                          style={{ ...inputStyle, fontSize: 16, fontWeight: 600 }}
+                          required
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nama Bank Tujuan:</Text>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Bank Mandiri / BCA / BRI"
+                          value={withdrawBank}
+                          onChange={(e) => setWithdrawBank(e.target.value)}
+                          style={inputStyle}
+                          required
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nomor Rekening Tujuan:</Text>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 1234567890"
+                          value={withdrawAccount}
+                          onChange={(e) => setWithdrawAccount(e.target.value)}
+                          style={inputStyle}
+                          required
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nama Pemilik Rekening:</Text>
+                        <input
+                          type="text"
+                          placeholder="Nama lengkap sesuai buku tabungan"
+                          value={withdrawName}
+                          onChange={(e) => setWithdrawName(e.target.value)}
+                          style={inputStyle}
+                          required
+                        />
+                      </VStack>
+                    </Grid>
+
+                    <VStack gap={2}>
+                      <Text type="supporting">Catatan / Keperluan (Opsional):</Text>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Kebutuhan keluarga mendesak"
+                        value={withdrawNotes}
+                        onChange={(e) => setWithdrawNotes(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </VStack>
+
+                    <HStack justify="flex-end" gap={2}>
+                      <Button
+                        label="Batal"
+                        variant="ghost"
+                        onClick={() => setShowWithdrawForm(false)}
+                        isDisabled={withdrawLoading}
+                      />
+                      <Button
+                        label={withdrawLoading ? 'Mengirim Pengajuan...' : 'Kirim Pengajuan Penarikan'}
+                        variant="primary"
+                        type="submit"
+                        isDisabled={withdrawLoading}
+                      />
+                    </HStack>
+                  </form>
+                </Card>
+              )}
+
               {activeTab === 'savings' ? (
-                transactions.length > 0 ? (
-                  <Table data={transactions} columns={txCols} idKey="id" density="balanced" />
-                ) : (
-                  <Text type="supporting">Belum ada transaksi</Text>
-                )
+                <VStack gap={5}>
+                  {/* Status Permohonan Penarikan Sukarela */}
+                  {savingsWithdrawals.length > 0 && (
+                    <VStack gap={2}>
+                      <HStack justify="space-between" vAlign="center">
+                        <Text type="body" weight="bold">
+                          Riwayat Pengajuan Penarikan Simpanan Sukarela
+                        </Text>
+                        <Badge
+                          variant={savingsWithdrawals.some((w) => w.status === 'Menunggu') ? 'warning' : 'neutral'}
+                          label={`${savingsWithdrawals.filter((w) => w.status === 'Menunggu').length} Menunggu`}
+                        />
+                      </HStack>
+                      <Table data={savingsWithdrawals} columns={withdrawalCols} idKey="id" density="balanced" />
+                    </VStack>
+                  )}
+
+                  {/* Mutasi Simpanan */}
+                  <VStack gap={2}>
+                    <Text type="body" weight="bold">
+                      Buku Mutasi Simpanan
+                    </Text>
+                    {transactions.length > 0 ? (
+                      <Table data={transactions} columns={txCols} idKey="id" density="balanced" />
+                    ) : (
+                      <Text type="supporting">Belum ada transaksi</Text>
+                    )}
+                  </VStack>
+                </VStack>
               ) : activeTab === 'ewa' ? (
                 ewaLoading ? (
                   <Spinner size="md" />

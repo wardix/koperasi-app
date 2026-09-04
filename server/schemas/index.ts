@@ -535,3 +535,20 @@ export const ewaFeeTierItemSchema = z.object({
 export const saveEwaFeeTiersSchema = z.object({
   tiers: z.array(ewaFeeTierItemSchema).min(1, "Minimal harus ada satu rentang tarif"),
 });
+
+export const savingsWithdrawalCreateSchema = z.object({
+  amount: z.number().int().positive("Nominal penarikan harus lebih dari 0"),
+  destinationBank: z.string().min(1, "Bank tujuan harus diisi").transform(sanitize),
+  destinationAccount: z.string().min(1, "Nomor rekening tujuan harus diisi").transform(sanitize),
+  destinationName: z.string().min(1, "Nama pemilik rekening harus diisi").transform(sanitize),
+  notes: z.string().transform(sanitize).optional().nullable(),
+});
+
+export const savingsWithdrawalApproveSchema = z.object({
+  paymentSourceAccountId: z.string().optional().nullable(),
+  notes: z.string().transform(sanitize).optional().nullable(),
+});
+
+export const savingsWithdrawalRejectSchema = z.object({
+  rejectionReason: z.string().min(1, "Alasan penolakan wajib diisi").transform(sanitize),
+});

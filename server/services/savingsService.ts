@@ -11,6 +11,7 @@ export type UpdateSavingsInput = {
   savingsType: SavingsType;
   /** Optional backdated date as YYYY-MM-DD. Defaults to now when omitted. */
   transactionDate?: string;
+  paymentSourceAccountId?: string | null;
 };
 
 /** @deprecated use resolveCalendarDateIso from ../lib/dates */
@@ -19,6 +20,7 @@ export function resolveTransactionCreatedAt(transactionDate?: string): string {
 }
 
 export type UpdateSavingsResult = {
+  transactionId: string;
   newTotal: number;
   before: MemberSavingsCols;
   after: {
@@ -89,13 +91,14 @@ export async function updateMemberSavings(
   );
   const createdAt = resolveTransactionCreatedAt(input.transactionDate);
 
+  const transactionId = crypto.randomUUID();
+
   await database.transaction(async () => {
     await database
       .query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?")
       .run(newPokok, newWajib, newSukarela, newTotal, memberId);
 
-      const transactionId = crypto.randomUUID();
-      await database.query(`
+    await database.query(`
       INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -109,33 +112,42 @@ export async function updateMemberSavings(
         createdBy
       );
 
-      // Otomatisasi Jurnal
-      let simpananAccountCode = '21101';
-      if (input.savingsType === 'pokok') simpananAccountCode = '31101';
-      else if (input.savingsType === 'wajib') simpananAccountCode = '31102';
-      
-      const kasCode = '11102'; // Default Kas Bank
-      const absAmount = Math.abs(additionalSavingsNum);
-      const isSetor = additionalSavingsNum >= 0;
-
-      try {
-        await recordAutoJournal({
-          transaction_date: createdAt,
-          description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} — ${member.name}`,
-          reference_type: `savings_${isSetor ? 'setor' : 'tarik'}`,
-          reference_id: transactionId,
-          lines: [
-            { account_code: kasCode, debit: isSetor ? absAmount : 0, credit: isSetor ? 0 : absAmount },
-            { account_code: simpananAccountCode, debit: isSetor ? 0 : absAmount, credit: isSetor ? absAmount : 0 },
-          ]
-        });
-      } catch (err) {
-        console.error("Gagal auto-journal simpanan:", err);
+    // Otomatisasi Jurnal
+    let simpananAccountCode = '21101';
+    if (input.savingsType === 'pokok') simpananAccountCode = '31101';
+    else if (input.savingsType === 'wajib') simpananAccountCode = '31102';
+    
+    let kasCode = '11102'; // Default Kas Bank
+    if (input.paymentSourceAccountId) {
+      const acc = (await database
+        .query("SELECT code FROM accounts WHERE id::text = ? OR code = ?")
+        .get(input.paymentSourceAccountId, input.paymentSourceAccountId)) as { code?: string } | null;
+      if (acc?.code) {
+        kasCode = acc.code;
       }
+    }
 
-    })();
+    const absAmount = Math.abs(additionalSavingsNum);
+    const isSetor = additionalSavingsNum >= 0;
+
+    try {
+      await recordAutoJournal({
+        transaction_date: createdAt,
+        description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} — ${member.name}`,
+        reference_type: `savings_${isSetor ? 'setor' : 'tarik'}`,
+        reference_id: transactionId,
+        lines: [
+          { account_code: kasCode, debit: isSetor ? absAmount : 0, credit: isSetor ? 0 : absAmount },
+          { account_code: simpananAccountCode, debit: isSetor ? 0 : absAmount, credit: isSetor ? absAmount : 0 },
+        ]
+      });
+    } catch (err) {
+      console.error("Gagal auto-journal simpanan:", err);
+    }
+  })();
 
   return {
+    transactionId,
     newTotal,
     before: member,
     after: {

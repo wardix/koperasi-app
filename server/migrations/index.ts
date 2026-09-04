@@ -27,6 +27,7 @@ import { createAddContractEndDateMigration } from "./0029_add_contract_end_date"
 import { createEwaFeeTiersMigration } from "./0030_create_ewa_fee_tiers";
 import { createAddKopnuteraMobileTablesMigration } from "./0031_add_kopnutera_mobile_tables";
 import { createMergeEwaAndMobileTablesMigration } from "./0032_merge_ewa_and_mobile_tables";
+import { createAddSavingsWithdrawalsMigration } from "./0033_add_savings_withdrawals";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -72,6 +73,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createEwaFeeTiersMigration(db),
     createAddKopnuteraMobileTablesMigration(db),
     createMergeEwaAndMobileTablesMigration(db),
+    createAddSavingsWithdrawalsMigration(db),
   ];
 }
 

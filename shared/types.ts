@@ -294,3 +294,27 @@ export interface ReportData {
   };
   timestamp: string;
 }
+
+export interface SavingsWithdrawalRow {
+  id: string;
+  memberId: string;
+  memberName?: string;
+  memberNik?: string;
+  amount: number;
+  destinationBank: string;
+  destinationAccount: string;
+  destinationName: string;
+  notes?: string | null;
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak';
+  paymentSourceAccountId?: string | null;
+  paymentSourceName?: string | null;
+  transactionId?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+

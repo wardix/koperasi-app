@@ -21,7 +21,11 @@ import {
   getEwaRequestsList,
   getEwaFeeTiers,
 } from '../services/ewaService';
-import { ewaRequestCreateSchema } from '../schemas';
+import { ewaRequestCreateSchema, savingsWithdrawalCreateSchema } from '../schemas';
+import {
+  getMemberWithdrawals,
+  createSavingsWithdrawalRequest,
+} from '../services/savingsWithdrawalService';
 
 // Get member / employee profile and savings summary
 memberSelfService.get('/profile', async (c) => {
@@ -228,6 +232,39 @@ memberSelfService.get('/savings/transactions', async (c) => {
 
   return c.json({ success: true, data: transactions });
 });
+
+// Get voluntary savings withdrawal requests history for logged-in member
+memberSelfService.get('/savings/withdrawals', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+
+  const withdrawals = await getMemberWithdrawals(db, memberId);
+  return c.json({ success: true, data: withdrawals });
+});
+
+// Submit a new voluntary savings withdrawal request
+memberSelfService.post('/savings/withdraw', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = savingsWithdrawalCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400);
+  }
+
+  try {
+    const result = await createSavingsWithdrawalRequest(db, memberId, parsed.data);
+    return c.json({
+      success: true,
+      message: 'Permohonan penarikan simpanan sukarela berhasil dikirim! Menunggu persetujuan pengurus/bendahara.',
+      data: result,
+    }, 201);
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal mengajukan penarikan simpanan sukarela' }, 400);
+  }
+});
+
 
 // Get member loans (paidAmount is not a loans column — sum from loan_payments)
 memberSelfService.get('/loans', async (c) => {

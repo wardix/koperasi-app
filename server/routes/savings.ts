@@ -3,8 +3,18 @@ import db from '../db'
 import type { TransactionRow } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { SAVINGS_TRANSACTION_TYPES, batchSavingsImportSchema } from '../schemas'
+import {
+  SAVINGS_TRANSACTION_TYPES,
+  batchSavingsImportSchema,
+  savingsWithdrawalApproveSchema,
+  savingsWithdrawalRejectSchema,
+} from '../schemas'
 import { batchImportSavings } from '../services/savingsService'
+import {
+  getWithdrawalsList,
+  approveSavingsWithdrawal,
+  rejectSavingsWithdrawal,
+} from '../services/savingsWithdrawalService'
 import { audit, getActor, getClientIp } from '../lib/audit'
 import { clearStatsCache } from './stats'
 
@@ -91,6 +101,125 @@ savings.post('/batch-import', requirePermission('update:savings'), async (c) => 
     message: `Berhasil mengimpor ${result.processedCount} data simpanan`,
     data: result,
   })
+})
+
+// Get payment sources (Kas / Bank) for disbursement
+savings.get('/payment-sources', requirePermission('read:members'), async (c) => {
+  const accounts = await db.query(`
+    SELECT id, code, name, type 
+    FROM accounts 
+    WHERE code LIKE '111%'
+    ORDER BY code ASC
+  `).all<any>()
+
+  return c.json({ success: true, data: accounts })
+})
+
+// List voluntary savings withdrawal requests (with filters)
+savings.get('/withdrawals', requirePermission('read:members'), async (c) => {
+  const status = c.req.query('status')
+  const memberId = c.req.query('memberId')
+  const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
+
+  const result = await getWithdrawalsList(db, {
+    status,
+    memberId,
+    page,
+    limit,
+  })
+
+  return c.json({
+    success: true,
+    data: result,
+  })
+})
+
+// Approve voluntary savings withdrawal request
+savings.post('/withdrawals/:id/approve', requirePermission('update:savings'), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({}))
+  const parsed = savingsWithdrawalApproveSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const actor = getActor(c) || 'admin'
+  try {
+    const result = await approveSavingsWithdrawal(
+      db,
+      id,
+      actor,
+      parsed.data.paymentSourceAccountId
+    )
+
+    await audit(db, {
+      actor,
+      action: 'approve_savings_withdrawal',
+      entity: 'savings_withdrawals',
+      entityId: id,
+      after: {
+        amount: result.amount,
+        memberId: result.memberId,
+        paymentSourceAccountId: parsed.data.paymentSourceAccountId,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+
+    return c.json({
+      success: true,
+      message: `Penarikan simpanan sukarela sebesar Rp ${Number(result.amount).toLocaleString('id-ID')} berhasil disetujui dan dibukukan.`,
+      data: result,
+    })
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menyetujui penarikan simpanan sukarela' }, 400)
+  }
+})
+
+// Reject voluntary savings withdrawal request
+savings.post('/withdrawals/:id/reject', requirePermission('update:savings'), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({}))
+  const parsed = savingsWithdrawalRejectSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const actor = getActor(c) || 'admin'
+  try {
+    const result = await rejectSavingsWithdrawal(
+      db,
+      id,
+      actor,
+      parsed.data.rejectionReason
+    )
+
+    await audit(db, {
+      actor,
+      action: 'reject_savings_withdrawal',
+      entity: 'savings_withdrawals',
+      entityId: id,
+      after: {
+        amount: result.amount,
+        memberId: result.memberId,
+        rejectionReason: parsed.data.rejectionReason,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+
+    return c.json({
+      success: true,
+      message: 'Permohonan penarikan simpanan sukarela berhasil ditolak.',
+      data: result,
+    })
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menolak penarikan simpanan sukarela' }, 400)
+  }
 })
 
 export default savings
