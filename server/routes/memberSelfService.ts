@@ -270,6 +270,25 @@ memberSelfService.get('/loans/:loanId/schedule', async (c) => {
   return c.json({ success: true, data: schedule });
 });
 
+// Get payment history for a specific loan
+memberSelfService.get('/loans/:loanId/payments', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+  const loanId = c.req.param('loanId');
+
+  // Verify the loan belongs to the member
+  const loan = await db.query("SELECT id FROM loans WHERE id = ? AND memberId = ?").get(loanId, memberId);
+  if (!loan) {
+    return c.json({ success: false, message: 'Loan not found or unauthorized' }, 404);
+  }
+
+  const payments = await db.query(
+    'SELECT id, loanId, amount, paymentDate, method FROM loan_payments WHERE loanId = ? ORDER BY paymentDate ASC, id ASC'
+  ).all(loanId);
+
+  return c.json({ success: true, data: payments });
+});
+
 // Submit new loan application by member
 memberSelfService.post('/loans/apply', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload;

@@ -78,6 +78,14 @@ type ScheduleRow = {
   lateFee?: number;
 };
 
+type PaymentRow = {
+  id: string;
+  loanId: string;
+  amount: number;
+  paymentDate: string;
+  method?: string;
+};
+
 export default function MemberPortal() {
   const navigate = useNavigate();
   const { mode, setMode } = useThemeMode();
@@ -98,6 +106,8 @@ export default function MemberPortal() {
   const [selectedLoan, setSelectedLoan] = useState<PortalLoan | null>(null);
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   // EWA State
   const [ewaQuota, setEwaQuota] = useState<any>(null);
@@ -381,21 +391,30 @@ export default function MemberPortal() {
     if (!token) return;
     setSelectedLoan(loan);
     setScheduleLoading(true);
+    setPaymentsLoading(true);
     setSchedule([]);
+    setPayments([]);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await fetch(`/api/v1/portal/loans/${loan.id}/schedule`, { headers }).then((r) =>
-        r.json()
-      );
-      if (res.success) {
-        setSchedule(res.data || []);
+      const [schedRes, payRes] = await Promise.all([
+        fetch(`/api/v1/portal/loans/${loan.id}/schedule`, { headers }).then((r) => r.json()),
+        fetch(`/api/v1/portal/loans/${loan.id}/payments`, { headers }).then((r) => r.json()),
+      ]);
+
+      if (schedRes.success) {
+        setSchedule(schedRes.data || []);
       } else {
-        setError(res.message || 'Gagal memuat jadwal angsuran');
+        setError(schedRes.message || 'Gagal memuat jadwal angsuran');
+      }
+
+      if (payRes.success) {
+        setPayments(payRes.data || []);
       }
     } catch {
-      setError('Gagal memuat jadwal angsuran');
+      setError('Gagal memuat detail pinjaman');
     } finally {
       setScheduleLoading(false);
+      setPaymentsLoading(false);
     }
   };
 
@@ -573,6 +592,44 @@ export default function MemberPortal() {
             i.status === 'Paid' ? 'Lunas' : i.status === 'Late' ? 'Terlambat' : 'Belum';
           return <Badge variant={variant} label={label} />;
         },
+      },
+    ],
+    []
+  );
+
+  const paymentCols: TableColumn<PaymentRow>[] = useMemo(
+    () => [
+      {
+        key: 'paymentDate',
+        header: 'Tanggal Bayar',
+        width: pixel(160),
+        renderCell: (p) => (
+          <Text type="body">
+            {p.paymentDate
+              ? new Date(p.paymentDate).toLocaleDateString('id-ID', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                })
+              : '—'}
+          </Text>
+        ),
+      },
+      {
+        key: 'amount',
+        header: 'Jumlah Bayar',
+        width: pixel(160),
+        renderCell: (p) => (
+          <Text type="body" weight="semibold" color="success">
+            {formatRp(p.amount)}
+          </Text>
+        ),
+      },
+      {
+        key: 'method',
+        header: 'Metode Pembayaran',
+        width: pixel(140),
+        renderCell: (p) => <Badge variant="neutral" label={p.method || 'Transfer'} />,
       },
     ],
     []
@@ -1668,45 +1725,72 @@ export default function MemberPortal() {
                   <Table data={loans} columns={loanCols} idKey="id" density="balanced" />
 
                   {selectedLoan && (
-                    <VStack gap={3}>
-                      <Heading level={4}>
-                        Jadwal Angsuran — {selectedLoan.purpose || 'Pinjaman'}
-                      </Heading>
-                      <HStack gap={4} wrap="wrap">
-                        <Text type="supporting">
-                          Pokok: <Text type="body" weight="semibold">{formatRp(selectedLoan.amount)}</Text>
-                        </Text>
-                        <Text type="supporting">
-                          Total tagihan:{' '}
-                          <Text type="body" weight="semibold">
-                            {formatRp(selectedLoan.totalAmount || selectedLoan.amount)}
-                          </Text>
-                        </Text>
-                        {selectedLoan.monthlyPayment != null && (
+                    <VStack gap={4}>
+                      <VStack gap={2}>
+                        <Heading level={4}>
+                          Detail Pinjaman — {selectedLoan.purpose || 'Pinjaman'}
+                        </Heading>
+                        <HStack gap={4} wrap="wrap">
                           <Text type="supporting">
-                            Angsuran/bulan:{' '}
+                            Pokok: <Text type="body" weight="semibold">{formatRp(selectedLoan.amount)}</Text>
+                          </Text>
+                          <Text type="supporting">
+                            Total tagihan:{' '}
                             <Text type="body" weight="semibold">
-                              {formatRp(selectedLoan.monthlyPayment)}
+                              {formatRp(selectedLoan.totalAmount || selectedLoan.amount)}
                             </Text>
                           </Text>
-                        )}
-                        <Text type="supporting">
-                          Sisa dari jadwal:{' '}
-                          <Text type="body" weight="semibold">
-                            {formatRp(remainingOnSchedule)}
+                          {selectedLoan.monthlyPayment != null && (
+                            <Text type="supporting">
+                              Angsuran/bulan:{' '}
+                              <Text type="body" weight="semibold">
+                                {formatRp(selectedLoan.monthlyPayment)}
+                              </Text>
+                            </Text>
+                          )}
+                          <Text type="supporting">
+                            Sisa dari jadwal:{' '}
+                            <Text type="body" weight="semibold">
+                              {formatRp(remainingOnSchedule)}
+                            </Text>
                           </Text>
-                        </Text>
-                      </HStack>
+                        </HStack>
+                      </VStack>
 
-                      {scheduleLoading ? (
-                        <Spinner size="md" />
-                      ) : schedule.length > 0 ? (
-                        <Table data={schedule} columns={scheduleCols} idKey="id" density="balanced" />
-                      ) : (
-                        <Text type="supporting">
-                          Jadwal angsuran belum tersedia (pinjaman mungkin belum disetujui).
-                        </Text>
-                      )}
+                      {/* Riwayat Pembayaran Masuk */}
+                      <VStack gap={2}>
+                        <HStack hAlign="space-between" vAlign="center">
+                          <Heading level={5}>Riwayat Pembayaran Masuk</Heading>
+                          {payments.length > 0 && (
+                            <Text type="supporting" color="secondary">
+                              {payments.length} kali pembayaran (Total: {formatRp(payments.reduce((s, p) => s + Number(p.amount || 0), 0))})
+                            </Text>
+                          )}
+                        </HStack>
+                        {paymentsLoading ? (
+                          <Spinner size="md" />
+                        ) : payments.length > 0 ? (
+                          <Table data={payments} columns={paymentCols} idKey="id" density="balanced" />
+                        ) : (
+                          <Text type="supporting" color="secondary">
+                            Belum ada riwayat pembayaran yang tercatat.
+                          </Text>
+                        )}
+                      </VStack>
+
+                      {/* Jadwal Angsuran */}
+                      <VStack gap={2}>
+                        <Heading level={5}>Jadwal Angsuran</Heading>
+                        {scheduleLoading ? (
+                          <Spinner size="md" />
+                        ) : schedule.length > 0 ? (
+                          <Table data={schedule} columns={scheduleCols} idKey="id" density="balanced" />
+                        ) : (
+                          <Text type="supporting">
+                            Jadwal angsuran belum tersedia (pinjaman mungkin belum disetujui).
+                          </Text>
+                        )}
+                      </VStack>
                     </VStack>
                   )}
                 </VStack>
