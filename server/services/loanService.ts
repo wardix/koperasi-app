@@ -438,6 +438,11 @@ export type UpdateLoanStatusOptions = {
    * bungaPinjaman for schedule generation and is snapshotted on the loan row.
    */
   interestRate?: number;
+  /**
+   * Optional source cash/bank account UUID for disbursement auto-journal.
+   * Defaults to Bank Mandiri (11102) if omitted.
+   */
+  paymentSourceAccountId?: string;
 };
 
 export async function updateLoanStatus(
@@ -500,6 +505,16 @@ export async function updateLoanStatus(
 
       if (loan) {
         try {
+          let kasCode = '11102'; // default Bank Mandiri
+          if (options?.paymentSourceAccountId) {
+            const acc = (await database
+              .query("SELECT code FROM accounts WHERE id = ?")
+              .get(options.paymentSourceAccountId)) as { code?: string } | null;
+            if (acc?.code) {
+              kasCode = acc.code;
+            }
+          }
+
           await recordAutoJournal({
             transaction_date: approvedAt,
             description: `Pencairan Pinjaman Anggota — ${loan.borrower_name}`,
@@ -507,7 +522,7 @@ export async function updateLoanStatus(
             reference_id: loanId,
             lines: [
               { account_code: '11201', debit: loan.amount }, // Piutang
-              { account_code: '11102', credit: loan.amount } // Kas Keluar
+              { account_code: kasCode, credit: loan.amount } // Kas/Bank Keluar
             ]
           });
         } catch (err) {

@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import {useMemo, useState, useEffect} from 'react';
 import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {DateInput} from '@astryxdesign/core/DateInput';
@@ -62,12 +62,24 @@ function parseRateInput(raw: string): number | null {
 interface Props {
   loan: LoanRow;
   onClose: () => void;
-  onConfirm: (payload: {approvedDate: string; interestRate: number}) => void;
+  onConfirm: (payload: {approvedDate: string; interestRate: number; paymentSourceAccountId?: string}) => void;
 }
 
 export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
   const {data: settings} = useApiQuery<SettingsData>('/api/settings');
   const defaultRate = parseFloat(settings?.bungaPinjaman || '0') || 0;
+
+  const {data: paymentSourcesRes} = useApiQuery<{success: boolean; data: Array<{id: string; code: string; name: string; type: string}>}>('/api/loans/payment-sources');
+  const paymentSources = paymentSourcesRes?.data || [];
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+
+  useEffect(() => {
+    if (!selectedAccountId && paymentSources.length > 0) {
+      const mandiri = paymentSources.find((a) => a.code === '11102');
+      if (mandiri) setSelectedAccountId(mandiri.id);
+      else setSelectedAccountId(paymentSources[0].id);
+    }
+  }, [paymentSources, selectedAccountId]);
 
   const [approvedDate, setApprovedDate] = useState(defaultApprovedDate(loan));
   const [rateInput, setRateInput] = useState<string | null>(null);
@@ -143,6 +155,41 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
         ) : null}
       </VStack>
 
+      <VStack gap={1}>
+        <Text type="body" weight="medium">
+          Sumber Dana Pencairan
+        </Text>
+        <Text type="supporting" color="secondary">
+          Akun kas/bank yang akan dikreditkan saat pinjaman dicairkan
+        </Text>
+        <select
+          value={selectedAccountId}
+          onChange={(e) => setSelectedAccountId(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            borderRadius: 6,
+            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            backgroundColor: 'var(--color-background-primary, #ffffff)',
+            color: 'var(--color-text-primary, #111827)',
+            fontSize: 14,
+            boxSizing: 'border-box',
+          }}
+        >
+          {paymentSources.map((acc) => (
+            <option key={acc.id} value={acc.id}>
+              {acc.name} ({acc.code})
+            </option>
+          ))}
+          {paymentSources.length === 0 && (
+            <>
+              <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
+              <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
+            </>
+          )}
+        </select>
+      </VStack>
+
       {simulation && parsedRate != null ? (
         <VStack
           gap={2}
@@ -196,7 +243,11 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
               setRateError('Isi biaya admin 0–100 (% per tahun)');
               return;
             }
-            onConfirm({approvedDate, interestRate: rate});
+            onConfirm({
+              approvedDate,
+              interestRate: rate,
+              paymentSourceAccountId: selectedAccountId || undefined,
+            });
           }}
         />
       </HStack>

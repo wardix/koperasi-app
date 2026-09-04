@@ -145,6 +145,18 @@ loans.post('/', requirePermission('create:loans'), async (c) => {
   }
 })
 
+// Get Available Payment Sources (Cash/Bank accounts) for Loan Disbursement
+loans.get('/payment-sources', requirePermission('approve:loans'), async (c) => {
+  const accounts = await db.query(`
+    SELECT id, code, name, type 
+    FROM accounts 
+    WHERE code LIKE '111%'
+    ORDER BY code ASC
+  `).all<any>();
+
+  return c.json({ success: true, data: accounts });
+});
+
 loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
   const body = await c.req.json()
   const parsed = loanStatusSchema.safeParse(body)
@@ -155,8 +167,8 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
 
   try {
     const id = requireRouteParam(c, 'id')
-    const { status, approvedDate, interestRate } = parsed.data
-    const { before } = await updateLoanStatus(db, id, status, { approvedDate, interestRate })
+    const { status, approvedDate, interestRate, paymentSourceAccountId } = parsed.data
+    const { before } = await updateLoanStatus(db, id, status, { approvedDate, interestRate, paymentSourceAccountId })
 
     const action = status === 'Disetujui' ? 'approve_loan' : 'reject_loan'
     await audit(db, {
@@ -169,6 +181,7 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
         status,
         approvedDate: approvedDate ?? null,
         interestRate: interestRate ?? null,
+        paymentSourceAccountId: paymentSourceAccountId ?? null,
       },
       ip: getClientIp(c),
     })

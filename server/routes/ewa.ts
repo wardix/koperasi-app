@@ -52,6 +52,18 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
   return c.json({ success: true, ...result });
 });
 
+// 1.1 Get Available Payment Sources (Cash/Bank accounts) for EWA Disbursement
+ewa.get('/payment-sources', requirePermission('approve:loans'), async (c) => {
+  const accounts = await db.query(`
+    SELECT id, code, name, type 
+    FROM accounts 
+    WHERE code LIKE '111%'
+    ORDER BY code ASC
+  `).all<any>();
+
+  return c.json({ success: true, data: accounts });
+});
+
 // 2. Disburse EWA Request
 ewa.post('/requests/:id/disburse', requirePermission('approve:loans'), async (c) => {
   const id = c.req.param('id');

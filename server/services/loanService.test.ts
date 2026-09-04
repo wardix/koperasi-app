@@ -322,6 +322,52 @@ describe("loanService", () => {
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
 
+  test("updateLoanStatus Disetujui records auto-journal crediting selected paymentSourceAccountId", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Disburse Source Test ${memberId}`;
+
+    const kasAcc = await db.query("SELECT id FROM accounts WHERE code = '11101' LIMIT 1").get<{ id: string }>();
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 1000000, 6, "Test", "Menunggu", new Date().toISOString()]
+    );
+
+    await updateLoanStatus(db, loanId, "Disetujui", {
+      approvedDate: "2026-09-01",
+      paymentSourceAccountId: kasAcc?.id,
+    });
+
+    const journal = await db
+      .query("SELECT id FROM journal_entries WHERE reference_type = 'loan_disbursement' AND reference_id = ?")
+      .get<{ id: string }>(loanId);
+
+    expect(journal).toBeDefined();
+
+    if (journal) {
+      const creditLine = await db
+        .query("SELECT jl.*, a.code as account_code FROM journal_lines jl JOIN accounts a ON jl.account_id = a.id WHERE jl.journal_entry_id = ? AND jl.credit > 0")
+        .get<{ account_code: string; credit: number }>(journal.id);
+
+      expect(creditLine?.account_code).toBe("11101");
+      expect(Number(creditLine?.credit)).toBe(1000000);
+
+      await db.run("DELETE FROM journal_lines WHERE journal_entry_id = ?", [journal.id]);
+      await db.run("DELETE FROM journal_entries WHERE id = ?", [journal.id]);
+    }
+
+    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
+    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
   test("regenerateLoanInstallmentSchedule accepts a new interestRate override", async () => {
     const memberId = crypto.randomUUID();
     const loanId = crypto.randomUUID();

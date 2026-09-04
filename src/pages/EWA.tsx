@@ -43,6 +43,12 @@ export default function EWA() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Payment Sources State (Kas Kecil / Bank Mandiri)
+  const [paymentSources, setPaymentSources] = useState<Array<{ id: string; code: string; name: string; type: string }>>([]);
+  const [showDisburseModal, setShowDisburseModal] = useState(false);
+  const [selectedDisburseReq, setSelectedDisburseReq] = useState<EWARequest | null>(null);
+  const [selectedPaymentSourceId, setSelectedPaymentSourceId] = useState<string>('');
+
   // Employees State
   const [employees, setEmployees] = useState<CompanyEmployee[]>([]);
   const [empLoading, setEmpLoading] = useState(false);
@@ -168,23 +174,62 @@ export default function EWA() {
     if (activeTab === 'fee-tiers') fetchFeeTiers();
   }, [activeTab]);
 
-  // Handle Disburse
-  const handleDisburse = async (req: EWARequest) => {
-    if (!confirm(`Konfirmasi pencairan dana EWA sebesar ${formatRp(req.disbursedAmount)} ke ${req.destinationBank} (${req.destinationAccount}) atas nama ${req.destinationName}?`)) {
-      return;
+  // Fetch Payment Sources (Kas Kecil / Bank Mandiri)
+  const fetchPaymentSources = async () => {
+    try {
+      const res = await apiFetch('/api/v1/ewa/payment-sources');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setPaymentSources(data.data);
+        const mandiri = data.data.find((a: any) => a.code === '11102');
+        if (mandiri) {
+          setSelectedPaymentSourceId(mandiri.id);
+        } else if (data.data.length > 0) {
+          setSelectedPaymentSourceId(data.data[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Gagal mengambil sumber dana EWA:', err);
     }
+  };
+
+  useEffect(() => {
+    fetchPaymentSources();
+  }, []);
+
+  // Open Disburse Modal
+  const openDisburseModal = (req: EWARequest) => {
+    setSelectedDisburseReq(req);
+    // Prioritize Bank Mandiri (11102) if available
+    const mandiri = paymentSources.find((a) => a.code === '11102');
+    if (mandiri) {
+      setSelectedPaymentSourceId(mandiri.id);
+    } else if (paymentSources.length > 0) {
+      setSelectedPaymentSourceId(paymentSources[0].id);
+    }
+    setShowDisburseModal(true);
+  };
+
+  // Submit Disburse
+  const handleConfirmDisburse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDisburseReq) return;
     setActionLoading(true);
     setActionMessage(null);
     try {
-      const res = await apiFetch(`/api/v1/ewa/requests/${req.id}/disburse`, {
+      const res = await apiFetch(`/api/v1/ewa/requests/${selectedDisburseReq.id}/disburse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          paymentSourceAccountId: selectedPaymentSourceId || undefined,
+        }),
       });
       const data = await res.json();
 
       if (data.success) {
         setActionMessage({ text: data.message || 'Dana berhasil dicairkan!', type: 'success' });
+        setShowDisburseModal(false);
+        setSelectedDisburseReq(null);
         fetchRequests();
       } else {
         setActionMessage({ text: data.message || 'Gagal mencairkan EWA', type: 'error' });
@@ -568,7 +613,7 @@ export default function EWA() {
                 variant="primary"
                 size="sm"
                 isDisabled={actionLoading}
-                onClick={() => handleDisburse(r)}
+                onClick={() => openDisburseModal(r)}
               />
               <Button
                 label="Tolak"
@@ -584,7 +629,7 @@ export default function EWA() {
           ),
       },
     ],
-    [actionLoading]
+    [actionLoading, paymentSources]
   );
 
   // Table Columns - Employees
@@ -1270,6 +1315,119 @@ export default function EWA() {
                 )}
               </VStack>
             </Card>
+          )}
+
+          {/* Modal Disburse */}
+          {showDisburseModal && selectedDisburseReq && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}
+            >
+              <Card style={{ width: 480, padding: 24, maxWidth: '90%' }}>
+                <form onSubmit={handleConfirmDisburse}>
+                  <VStack gap={4}>
+                    <Heading level={4}>Konfirmasi Pencairan Dana EWA</Heading>
+                    
+                    <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
+                      <VStack gap={2}>
+                        <HStack justify="space-between">
+                          <Text type="supporting">Karyawan:</Text>
+                          <Text type="body" weight="semibold">{selectedDisburseReq.employeeName}</Text>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text type="supporting">NIP / NIK:</Text>
+                          <Text type="body">{selectedDisburseReq.employeeNip || '-'}</Text>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text type="supporting">Nominal Dicairkan:</Text>
+                          <Text type="body" weight="bold" color="success">
+                            {formatRp(selectedDisburseReq.disbursedAmount)}
+                          </Text>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text type="supporting">Biaya Admin EWA:</Text>
+                          <Text type="body">{formatRp(selectedDisburseReq.feeAmount)}</Text>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text type="supporting">Total Potong Payroll:</Text>
+                          <Text type="body" weight="bold">
+                            {formatRp(selectedDisburseReq.totalPayrollDeduction)}
+                          </Text>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text type="supporting">Tujuan Transfer:</Text>
+                          <Text type="body" weight="medium">
+                            {selectedDisburseReq.destinationBank} - {selectedDisburseReq.destinationAccount}
+                          </Text>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text type="supporting">Atas Nama:</Text>
+                          <Text type="body">{selectedDisburseReq.destinationName}</Text>
+                        </HStack>
+                      </VStack>
+                    </Card>
+
+                    <VStack gap={2}>
+                      <Text type="body" weight="semibold">Sumber Dana Pencairan:</Text>
+                      <select
+                        value={selectedPaymentSourceId}
+                        onChange={(e) => setSelectedPaymentSourceId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 6,
+                          border: '1px solid var(--color-border-primary)',
+                          backgroundColor: 'var(--color-background-primary)',
+                          color: 'var(--color-text-primary)',
+                          fontSize: 14,
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        {paymentSources.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.name} ({acc.code})
+                          </option>
+                        ))}
+                        {paymentSources.length === 0 && (
+                          <>
+                            <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
+                            <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
+                          </>
+                        )}
+                      </select>
+                      <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
+                        Akun kas/bank yang dipilih akan dikreditkan secara otomatis pada Jurnal Akuntansi.
+                      </Text>
+                    </VStack>
+
+                    <HStack justify="end" gap={2}>
+                      <Button
+                        label="Batal"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => {
+                          setShowDisburseModal(false);
+                          setSelectedDisburseReq(null);
+                        }}
+                      />
+                      <Button
+                        label={actionLoading ? 'Memproses...' : 'Konfirmasi Pencairan'}
+                        variant="primary"
+                        type="submit"
+                        isDisabled={actionLoading}
+                      />
+                    </HStack>
+                  </VStack>
+                </form>
+              </Card>
+            </div>
           )}
 
           {/* Modal Reject */}

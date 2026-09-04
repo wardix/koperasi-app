@@ -248,6 +248,11 @@ export const loanStatusSchema = z.object({
    * When omitted on approve, falls back to settings.bungaPinjaman.
    */
   interestRate: z.number().min(0).max(100).optional(),
+  /**
+   * Optional source cash/bank account UUID for disbursement auto-journal.
+   * Defaults to Bank Mandiri (11102) if omitted.
+   */
+  paymentSourceAccountId: z.string().uuid("Akun kas/bank tidak valid").optional(),
 })
 
 export const paymentSchema = z.object({
