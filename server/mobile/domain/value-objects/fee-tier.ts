@@ -26,6 +26,8 @@ export class FeeTier {
       min_amount: this.minAmount,
       max_amount: this.maxAmount,
       fee: this.fee,
+      min: this.minAmount,
+      max: this.maxAmount,
     };
   }
 

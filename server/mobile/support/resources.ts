@@ -15,6 +15,31 @@ export function formatEmployee(employee: any, employer?: any) {
 
   const salary = Math.round(Number(employee.base_salary || employee.withdrawal_limit || 0));
 
+  const rawTiers = Array.isArray(emp?.fee_tiers)
+    ? emp.fee_tiers
+    : typeof emp?.fee_tiers === "string"
+    ? JSON.parse(emp.fee_tiers)
+    : [];
+
+  const formattedFeeTiers = rawTiers.map((t: any) => {
+    const minVal = Number(t.min_amount ?? t.min ?? 0);
+    const maxVal =
+      t.max_amount !== undefined && t.max_amount !== null
+        ? Number(t.max_amount)
+        : t.max !== undefined && t.max !== null
+        ? Number(t.max)
+        : null;
+    const feeVal = Number(t.fee ?? 0);
+
+    return {
+      min_amount: minVal,
+      max_amount: maxVal,
+      fee: feeVal,
+      min: minVal,
+      max: maxVal,
+    };
+  });
+
   return {
     id: Number(employee.id),
     name: employee.name,
@@ -27,12 +52,12 @@ export function formatEmployee(employee: any, employer?: any) {
     status: employee.status,
     status_label:
       employee.status === "active"
-        ? "Active"
+        ? "Aktif"
         : employee.status === "frozen"
-        ? "Frozen"
-        : "Inactive",
+        ? "Dibekukan"
+        : "Tidak Aktif",
     can_request_withdrawal: employee.status === "active",
-    kyc_status: employee.kyc_status || null,
+    kyc_status: employee.kyc_status || "unverified",
     bank: {
       name: employee.bank_name || null,
       account_number: employee.bank_account_number || null,
@@ -45,10 +70,10 @@ export function formatEmployee(employee: any, employer?: any) {
           company_name: emp.company_name,
           cutoff_day: Number(emp.cutoff_day),
           fee_percent: Number(emp.fee_percent ?? 5),
-          fee_tiers: emp.fee_tiers,
+          fee_tiers: formattedFeeTiers,
           max_withdrawal_amount: emp.max_withdrawal_amount
             ? Number(emp.max_withdrawal_amount)
-            : null,
+            : 5000000,
         }
       : undefined,
   };

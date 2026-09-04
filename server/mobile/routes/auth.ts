@@ -146,10 +146,12 @@ async function authenticateIdentity(identity: SsoIdentity, deviceName?: string) 
     )
   `.catch(() => {});
 
+  const refreshToken = identity.refreshToken || randomBytes(40).toString("hex");
+
   return {
     token,
-    refresh_token: identity.refreshToken || "",
-    expires_in: identity.expiresIn || 3600,
+    refresh_token: refreshToken,
+    expires_in: 1728000,
     employee: formatEmployee(employee),
   };
 }
