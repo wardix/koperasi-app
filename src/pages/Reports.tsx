@@ -627,7 +627,7 @@ export default function ReportsTemplate() {
                               <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
                                 <td colSpan={4} style={{ padding: '12px 8px' }}>Total Sisa Piutang Koperasi</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                  {formatRp(arRes.reduce((sum, item) => sum + item.remainingAmount, 0))}
+                                  {formatRp(arRes.reduce((sum, item) => sum + Number(item.remainingAmount || 0), 0))}
                                 </td>
                                 <td></td>
                               </tr>
@@ -669,7 +669,7 @@ export default function ReportsTemplate() {
                               <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
                                 <td colSpan={4} style={{ padding: '12px 8px' }}>Total Simpanan Koperasi</td>
                                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                  {formatRp(savingsMemberRes.reduce((sum, item) => sum + item.totalSavings, 0))}
+                                  {formatRp(savingsMemberRes.reduce((sum, item) => sum + Number(item.totalSavings || 0), 0))}
                                 </td>
                               </tr>
                             </tbody>

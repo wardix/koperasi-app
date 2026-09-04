@@ -118,10 +118,10 @@ reports.get('/ar', requirePermission('read:reports'), async (c) => {
     SELECT 
       m.name as "memberName", 
       l.id as "loanId", 
-      l.amount as "principal", 
-      COALESCE(l.totalAmount, l.amount) as "totalAmount", 
-      COALESCE(SUM(p.amount), 0) as "paidAmount",
-      (COALESCE(l.totalAmount, l.amount) - COALESCE(SUM(p.amount), 0)) as "remainingAmount", 
+      CAST(l.amount AS INT) as "principal", 
+      CAST(COALESCE(l.totalAmount, l.amount) AS INT) as "totalAmount", 
+      CAST(COALESCE(SUM(p.amount), 0) AS INT) as "paidAmount",
+      CAST(COALESCE(l.totalAmount, l.amount) - COALESCE(SUM(p.amount), 0) AS INT) as "remainingAmount", 
       l.status
     FROM loans l
     JOIN members m ON l.memberId = m.id
@@ -135,7 +135,12 @@ reports.get('/ar', requirePermission('read:reports'), async (c) => {
 
 reports.get('/savings-member', requirePermission('read:reports'), async (c) => {
   const rows = await db.query(`
-    SELECT name as "memberName", simpananPokok, simpananWajib, simpananSukarela, totalSavings
+    SELECT 
+      name as "memberName", 
+      CAST(simpananPokok AS INT) as "simpananPokok", 
+      CAST(simpananWajib AS INT) as "simpananWajib", 
+      CAST(simpananSukarela AS INT) as "simpananSukarela", 
+      CAST(totalSavings AS INT) as "totalSavings"
     FROM members
     WHERE deletedAt IS NULL
     ORDER BY name ASC
