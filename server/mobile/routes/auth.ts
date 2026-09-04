@@ -133,15 +133,16 @@ async function authenticateIdentity(identity: SsoIdentity, deviceName?: string) 
 
   // Record audit log
   sql`
-    INSERT INTO audit_logs (action, actor_type, actor_id, target_type, target_id, employer_id, metadata, created_at)
+    INSERT INTO audit_logs (id, actor, action, entity, entity_id, before, after, ip, created_at)
     VALUES (
+      ${crypto.randomUUID()},
+      ${employee.email || employee.name || String(employee.id)},
       'employee.signed_in',
-      'employee',
-      ${employee.id},
-      'employee',
-      ${employee.id},
-      ${employee.employer_id},
-      ${JSON.stringify({ device: deviceName })},
+      'employees',
+      ${String(employee.id)},
+      NULL,
+      ${JSON.stringify({ device: deviceName, employer_id: employee.employer_id })}::jsonb,
+      NULL,
       NOW()
     )
   `.catch(() => {});

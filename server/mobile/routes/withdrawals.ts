@@ -11,9 +11,9 @@ const withdrawalRouter = new Hono();
 
 // GET /api/withdrawals
 withdrawalRouter.get("/", authMiddleware, async (c) => {
-  const employee = c.get("employee");
-  const page = Math.max(1, parseInt(c.req.query("page") || "1", 10));
-  const perPage = Math.min(100, Math.max(1, parseInt(c.req.query("per_page") || "20", 10)));
+  const employee = c.get("employee") as any;
+  const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
+  const perPage = Math.min(100, Math.max(1, parseInt(c.req.query("per_page") || "20", 10) || 20));
   const offset = (page - 1) * perPage;
 
   const rows = await sql`
@@ -26,7 +26,7 @@ withdrawalRouter.get("/", authMiddleware, async (c) => {
   const [countRow] = await sql`
     SELECT COUNT(*)::INT AS total FROM withdrawal_requests WHERE employee_id = ${employee.id}
   `;
-  const total = countRow.total;
+  const total = countRow?.total ?? 0;
 
   return c.json({
     data: rows.map(formatWithdrawal),
@@ -41,7 +41,7 @@ withdrawalRouter.get("/", authMiddleware, async (c) => {
 
 // GET /api/withdrawals/:id
 withdrawalRouter.get("/:id", authMiddleware, async (c) => {
-  const employee = c.get("employee");
+  const employee = c.get("employee") as any;
   const id = parseInt(c.req.param("id"), 10);
 
   if (isNaN(id)) {
@@ -68,9 +68,9 @@ const storeWithdrawalSchema = z.object({
 });
 
 withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSchema), async (c) => {
-  const employee = c.get("employee");
+  const employee = c.get("employee") as any;
   const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
-  const { amount, idempotency_key } = c.req.valid("json");
+  const { amount, idempotency_key } = c.req.valid("json" as never) as any;
 
   // Eligibility check
   if (employer.status !== "active") {
@@ -123,7 +123,7 @@ withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSch
       FROM withdrawal_requests
       WHERE employee_id = ${lockedEmp.id} AND status = 'pending_transfer'
     `;
-    if (openRow.count >= maxOpenRequests) {
+    if ((openRow?.count ?? 0) >= maxOpenRequests) {
       throw WithdrawalException.tooManyOpenRequests(maxOpenRequests);
     }
 
@@ -164,16 +164,17 @@ withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSch
     const newRequest = rows[0];
 
     // Audit log
+    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || null;
     await tx`
       INSERT INTO audit_logs (
-        action, actor_type, actor_id, target_type, target_id, employer_id, metadata, created_at
+        id, actor, action, entity, entity_id, before, after, ip, created_at
       ) VALUES (
+        ${crypto.randomUUID()},
+        ${lockedEmp.email || lockedEmp.name || String(lockedEmp.id)},
         'withdrawal.requested',
-        'employee',
-        ${lockedEmp.id},
-        'withdrawal_request',
-        ${newRequest.id},
-        ${lockedEmp.employer_id},
+        'withdrawal_requests',
+        ${String(newRequest.id)},
+        NULL,
         ${JSON.stringify({
           amount,
           fee: newRequest.fee,
@@ -181,7 +182,9 @@ withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSch
           max_withdrawable_at_request: balance.maxWithdrawable,
           already_withdrawn_at_request: balance.alreadyWithdrawn,
           effective_limit_at_request: balance.effectiveLimit,
+          employer_id: lockedEmp.employer_id,
         })}::jsonb,
+        ${clientIp},
         NOW()
       )
     `;
