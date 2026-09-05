@@ -28,6 +28,8 @@ import { createEwaFeeTiersMigration } from "./0030_create_ewa_fee_tiers";
 import { createAddKopnuteraMobileTablesMigration } from "./0031_add_kopnutera_mobile_tables";
 import { createMergeEwaAndMobileTablesMigration } from "./0032_merge_ewa_and_mobile_tables";
 import { createAddSavingsWithdrawalsMigration } from "./0033_add_savings_withdrawals";
+import { createAddSavingsDepositsMigration } from "./0034_add_savings_deposits";
+import { createAddCoopBankSettingsMigration } from "./0035_add_coop_bank_settings";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -74,6 +76,8 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddKopnuteraMobileTablesMigration(db),
     createMergeEwaAndMobileTablesMigration(db),
     createAddSavingsWithdrawalsMigration(db),
+    createAddSavingsDepositsMigration(db),
+    createAddCoopBankSettingsMigration(db),
   ];
 }
 

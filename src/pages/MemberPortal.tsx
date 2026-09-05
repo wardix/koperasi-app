@@ -121,6 +121,23 @@ export default function MemberPortal() {
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState('');
 
+  // Savings Deposit Confirmation State
+  const [savingsDeposits, setSavingsDeposits] = useState<any[]>([]);
+  const [showDepositForm, setShowDepositForm] = useState(false);
+  const [depositSavingsType, setDepositSavingsType] = useState<'pokok' | 'wajib' | 'sukarela'>('wajib');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositTransferDate, setDepositTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [depositSenderBank, setDepositSenderBank] = useState('');
+  const [depositSenderAccount, setDepositSenderAccount] = useState('');
+  const [depositSenderName, setDepositSenderName] = useState('');
+  const [depositNotes, setDepositNotes] = useState('');
+  const [depositProofUrl, setDepositProofUrl] = useState('');
+  const [depositProofName, setDepositProofName] = useState('');
+  const [depositUploadingProof, setDepositUploadingProof] = useState(false);
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositError, setDepositError] = useState('');
+  const [depositSuccess, setDepositSuccess] = useState('');
+
   // EWA State
   const [ewaQuota, setEwaQuota] = useState<any>(null);
   const [ewaHistory, setEwaHistory] = useState<any[]>([]);
@@ -379,6 +396,104 @@ export default function MemberPortal() {
     }
   };
 
+  const handleUploadDepositProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setDepositError('Ukuran file bukti transfer maksimal 5MB');
+      return;
+    }
+
+    try {
+      setDepositUploadingProof(true);
+      setDepositError('');
+      const token = readPortalToken();
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/v1/upload/savings-proof', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }).then((r) => r.json());
+
+      if (res.success && res.data) {
+        setDepositProofUrl(res.data.url);
+        setDepositProofName(res.data.filename || file.name);
+      } else {
+        setDepositError(res.message || 'Gagal mengunggah bukti transfer');
+      }
+    } catch {
+      setDepositError('Terjadi kesalahan jaringan saat mengunggah bukti');
+    } finally {
+      setDepositUploadingProof(false);
+    }
+  };
+
+  const handleApplyDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = readPortalToken();
+    if (!token) return;
+
+    setDepositLoading(true);
+    setDepositError('');
+    setDepositSuccess('');
+
+    try {
+      const numericAmount = parseFloat(depositAmount.replace(/\D/g, '')) || 0;
+      if (numericAmount <= 0) {
+        setDepositError('Nominal setoran harus lebih besar dari Rp 0');
+        setDepositLoading(false);
+        return;
+      }
+
+      const res = await fetch('/api/v1/portal/savings/deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          savingsType: depositSavingsType,
+          amount: numericAmount,
+          transferDate: depositTransferDate,
+          senderBank: depositSenderBank.trim() || undefined,
+          senderAccount: depositSenderAccount.trim() || undefined,
+          senderName: depositSenderName.trim() || undefined,
+          proofUrl: depositProofUrl || undefined,
+          proofName: depositProofName || undefined,
+          notes: depositNotes.trim() || undefined,
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        setDepositSuccess(res.message || 'Konfirmasi setoran simpanan berhasil dikirim!');
+        setDepositAmount('');
+        setDepositNotes('');
+        setDepositProofUrl('');
+        setDepositProofName('');
+        // Reset file input if present
+        const fileInput = document.getElementById('deposit-proof-file') as HTMLInputElement | null;
+        if (fileInput) fileInput.value = '';
+
+        loadData();
+        setTimeout(() => {
+          setShowDepositForm(false);
+          setDepositSuccess('');
+        }, 3500);
+      } else {
+        setDepositError(res.message || 'Gagal mengirim konfirmasi setoran');
+      }
+    } catch {
+      setDepositError('Terjadi kesalahan jaringan saat mengirim konfirmasi setoran');
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
   const clearPreviewSession = useCallback(() => {
     sessionStorage.removeItem(PREVIEW_TOKEN_KEY);
     sessionStorage.removeItem(PREVIEW_NAME_KEY);
@@ -405,11 +520,12 @@ export default function MemberPortal() {
     try {
       setLoading(true);
       const headers = { Authorization: `Bearer ${token}` };
-      const [profileRes, txRes, loansRes, withdrawalsRes] = await Promise.all([
+      const [profileRes, txRes, loansRes, withdrawalsRes, depositsRes] = await Promise.all([
         fetch('/api/v1/portal/profile', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/savings/transactions', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/loans', { headers }).then((r) => r.json()),
         fetch('/api/v1/portal/savings/withdrawals', { headers }).then((r) => r.json()).catch(() => ({ success: false, data: [] })),
+        fetch('/api/v1/portal/savings/deposits', { headers }).then((r) => r.json()).catch(() => ({ success: false, data: [] })),
       ]);
 
       if (profileRes.success && profileRes.data) {
@@ -423,12 +539,17 @@ export default function MemberPortal() {
           if (!withdrawName && (profileRes.data.employee.bankAccountName || profileRes.data.name)) {
             setWithdrawName(profileRes.data.employee.bankAccountName || profileRes.data.name);
           }
-        } else if (profileRes.data.name && !withdrawName) {
-          setWithdrawName(profileRes.data.name);
+          if (!depositSenderName && (profileRes.data.employee.bankAccountName || profileRes.data.name)) {
+            setDepositSenderName(profileRes.data.employee.bankAccountName || profileRes.data.name);
+          }
+        } else if (profileRes.data.name) {
+          if (!withdrawName) setWithdrawName(profileRes.data.name);
+          if (!depositSenderName) setDepositSenderName(profileRes.data.name);
         }
       }
       if (txRes.success) setTransactions(txRes.data || []);
       if (withdrawalsRes.success) setSavingsWithdrawals(withdrawalsRes.data || []);
+      if (depositsRes?.success) setSavingsDeposits(depositsRes.data || []);
       if (loansRes.success) {
         setLoans(loansRes.data || []);
       } else if (loansRes.message) {
@@ -957,6 +1078,118 @@ export default function MemberPortal() {
     },
   ];
 
+  const depositCols: TableColumn<any>[] = [
+    {
+      key: 'transferDate',
+      header: 'Tgl Transfer',
+      width: pixel(120),
+      renderCell: (i) => i.transferDate || '-',
+    },
+    {
+      key: 'savingsType',
+      header: 'Jenis Simpanan',
+      width: pixel(150),
+      renderCell: (i) => {
+        let label = 'Simpanan Sukarela';
+        let variant: 'primary' | 'neutral' | 'success' = 'neutral';
+        if (i.savingsType === 'pokok') {
+          label = 'Simpanan Pokok';
+          variant = 'primary';
+        } else if (i.savingsType === 'wajib') {
+          label = 'Simpanan Wajib';
+          variant = 'success';
+        }
+        return <Badge variant={variant} label={label} />;
+      },
+    },
+    {
+      key: 'amount',
+      header: 'Nominal Setoran',
+      width: pixel(150),
+      renderCell: (i) => (
+        <Text type="body" weight="bold" color="primary">
+          {formatRp(i.amount)}
+        </Text>
+      ),
+    },
+    {
+      key: 'senderBank',
+      header: 'Rekening Pengirim',
+      width: proportional(1.5),
+      renderCell: (i) => (
+        <VStack gap={0}>
+          <Text type="body" weight="medium">
+            {i.senderBank || '-'} {i.senderAccount ? `(${i.senderAccount})` : ''}
+          </Text>
+          {i.senderName && (
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              a.n. {i.senderName}
+            </Text>
+          )}
+        </VStack>
+      ),
+    },
+    {
+      key: 'proofUrl',
+      header: 'Bukti Transfer',
+      width: pixel(130),
+      renderCell: (i) => {
+        if (!i.proofUrl) {
+          return <Text type="supporting" color="secondary">Tanpa bukti</Text>;
+        }
+        return (
+          <a
+            href={i.proofUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: 'var(--color-primary-600, #2563eb)',
+              textDecoration: 'underline',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            Lihat Bukti ↗
+          </a>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: pixel(120),
+      renderCell: (i) => {
+        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        if (i.status === 'Menunggu') variant = 'warning';
+        else if (i.status === 'Diverifikasi') variant = 'success';
+        else if (i.status === 'Ditolak') variant = 'critical';
+        return <Badge variant={variant} label={i.status} />;
+      },
+    },
+    {
+      key: 'notes',
+      header: 'Keterangan',
+      width: proportional(1.5),
+      renderCell: (i) => {
+        if (i.status === 'Ditolak' && i.rejectionReason) {
+          return (
+            <Text type="supporting" color="critical">
+              Alasan ditolak: {i.rejectionReason}
+            </Text>
+          );
+        }
+        if (i.status === 'Diverifikasi' && i.verifiedAt) {
+          return (
+            <Text type="supporting" color="success">
+              Diverifikasi pada {new Date(i.verifiedAt).toLocaleDateString('id-ID')}
+            </Text>
+          );
+        }
+        return <Text type="supporting" color="secondary">{i.notes || '-'}</Text>;
+      },
+    },
+  ];
+
   const loanCols: TableColumn<PortalLoan>[] = [
     {
       key: 'createdAt',
@@ -1261,16 +1494,29 @@ export default function MemberPortal() {
                   />
                 )}
                 {activeTab === 'savings' && (
-                  <Button
-                    label={showWithdrawForm ? 'Tutup Formulir' : '+ Tarik Simpanan Sukarela'}
-                    variant={showWithdrawForm ? 'ghost' : 'primary'}
-                    onClick={() => {
-                      setShowWithdrawForm(!showWithdrawForm);
-                      setWithdrawError('');
-                      setWithdrawSuccess('');
-                    }}
-                    isDisabled={(profile?.simpananSukarela || 0) <= 0}
-                  />
+                  <HStack gap={2} wrap="wrap">
+                    <Button
+                      label={showDepositForm ? 'Tutup Form Setoran' : '+ Konfirmasi Setoran Transfer'}
+                      variant={showDepositForm ? 'ghost' : 'primary'}
+                      onClick={() => {
+                        setShowDepositForm(!showDepositForm);
+                        setShowWithdrawForm(false);
+                        setDepositError('');
+                        setDepositSuccess('');
+                      }}
+                    />
+                    <Button
+                      label={showWithdrawForm ? 'Tutup Form Penarikan' : 'Tarik Simpanan Sukarela'}
+                      variant={showWithdrawForm ? 'ghost' : 'secondary'}
+                      onClick={() => {
+                        setShowWithdrawForm(!showWithdrawForm);
+                        setShowDepositForm(false);
+                        setWithdrawError('');
+                        setWithdrawSuccess('');
+                      }}
+                      isDisabled={(profile?.simpananSukarela || 0) <= 0}
+                    />
+                  </HStack>
                 )}
               </HStack>
 
@@ -1485,6 +1731,210 @@ export default function MemberPortal() {
                 </Card>
               )}
 
+              {activeTab === 'savings' && showDepositForm && (
+                <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
+                  <form onSubmit={handleApplyDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <VStack gap={1}>
+                      <Heading level={4}>Konfirmasi Setoran Simpanan (Transfer Bank)</Heading>
+                      <Text type="supporting" color="secondary">
+                        Gunakan formulir ini untuk mengonfirmasi setoran yang telah Anda transfer ke rekening {profile?.coopBank?.bankName || 'Bank Mandiri'} resmi koperasi ({profile?.coopBank?.accountNumber || '1060022716008'}). Setoran akan diverifikasi oleh bendahara dan otomatis dibukukan ke saldo simpanan Anda.
+                      </Text>
+                    </VStack>
+
+                    {depositError && (
+                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                        ⚠️ {depositError}
+                      </Text>
+                    )}
+
+                    {depositSuccess && (
+                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                        ✅ {depositSuccess}
+                      </Text>
+                    )}
+
+                    {/* Info Rekening Bank Resmi Koperasi */}
+                    <Card style={{ padding: 14, backgroundColor: 'rgba(37, 99, 235, 0.05)', border: '1px solid var(--color-primary-200, #bfdbfe)' }}>
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="bold" color="primary">
+                          🏦 Rekening Tujuan Transfer Koperasi:
+                        </Text>
+                        <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                          <VStack gap={0}>
+                            <Text type="body" weight="bold">
+                              {profile?.coopBank?.bankName || 'Bank Mandiri'}: {profile?.coopBank?.accountNumber || '1060022716008'}
+                            </Text>
+                            <Text type="supporting" color="secondary">
+                              a.n. {profile?.coopBank?.accountName || 'Koperasi Jasa Nusa Sejahtera Prima'}
+                            </Text>
+                          </VStack>
+                          <Text type="supporting" size="sm" color="secondary">
+                            Pastikan nominal transfer sesuai dengan mutasi rekening.
+                          </Text>
+                        </HStack>
+                      </VStack>
+                    </Card>
+
+                    <Grid gap={4}>
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Jenis Simpanan:</Text>
+                        <select
+                          value={depositSavingsType}
+                          onChange={(e) => setDepositSavingsType(e.target.value as any)}
+                          style={{ ...inputStyle, cursor: 'pointer' }}
+                        >
+                          <option
+                            value="pokok"
+                            disabled={(profile?.simpananPokok || 0) >= 500000}
+                          >
+                            Simpanan Pokok {(profile?.simpananPokok || 0) >= 500000 ? '(Sudah Lunas Rp 500.000)' : `(Sisa: ${formatRp(500000 - (profile?.simpananPokok || 0))})`}
+                          </option>
+                          <option value="wajib">Simpanan Wajib</option>
+                          <option value="sukarela">Simpanan Sukarela</option>
+                        </select>
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nominal Setoran (Rp):</Text>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Contoh: 100.000"
+                          value={depositAmount}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setDepositAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
+                          }}
+                          style={{ ...inputStyle, fontSize: 16, fontWeight: 600 }}
+                          required
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Tanggal Transfer:</Text>
+                        <input
+                          type="date"
+                          value={depositTransferDate}
+                          max={new Date().toISOString().slice(0, 10)}
+                          onChange={(e) => setDepositTransferDate(e.target.value)}
+                          style={inputStyle}
+                          required
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Bank Pengirim (Opsional):</Text>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Bank Mandiri / BCA / BRI"
+                          value={depositSenderBank}
+                          onChange={(e) => setDepositSenderBank(e.target.value)}
+                          style={inputStyle}
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nomor Rekening Pengirim (Opsional):</Text>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 1234567890"
+                          value={depositSenderAccount}
+                          onChange={(e) => setDepositSenderAccount(e.target.value)}
+                          style={inputStyle}
+                        />
+                      </VStack>
+
+                      <VStack gap={2}>
+                        <Text type="supporting" weight="semibold">Nama Pemilik Rekening Pengirim (Opsional):</Text>
+                        <input
+                          type="text"
+                          placeholder="Nama pengirim sesuai rekening"
+                          value={depositSenderName}
+                          onChange={(e) => setDepositSenderName(e.target.value)}
+                          style={inputStyle}
+                        />
+                      </VStack>
+                    </Grid>
+
+                    {/* Bukti Transfer (Opsional) */}
+                    <VStack gap={2}>
+                      <Text type="supporting" weight="semibold">
+                        Unggah Bukti Transfer / Resi ATM / Tangkapan Layar (Opsional):
+                      </Text>
+                      <HStack gap={3} vAlign="center" wrap="wrap">
+                        <input
+                          type="file"
+                          id="deposit-proof-file"
+                          accept="image/png,image/jpeg,image/webp,image/jpg,application/pdf"
+                          onChange={handleUploadDepositProof}
+                          disabled={depositUploadingProof}
+                          style={{ fontSize: 14 }}
+                        />
+                        {depositUploadingProof && (
+                          <HStack gap={1} vAlign="center">
+                            <Spinner size="sm" />
+                            <Text type="supporting" color="secondary">Mengunggah file...</Text>
+                          </HStack>
+                        )}
+                        {depositProofUrl && !depositUploadingProof && (
+                          <HStack gap={2} vAlign="center">
+                            <Text type="supporting" color="success" weight="medium">
+                              ✓ Bukti terunggah: {depositProofName}
+                            </Text>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDepositProofUrl('');
+                                setDepositProofName('');
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--color-critical-500, #ef4444)',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                                textDecoration: 'underline',
+                              }}
+                            >
+                              Hapus
+                            </button>
+                          </HStack>
+                        )}
+                      </HStack>
+                      <Text type="supporting" size="sm" color="secondary">
+                        Format: JPG, PNG, WEBP, atau PDF. Maksimal 5MB. Unggah bukti bersifat opsional namun membantu mempercepat verifikasi bendahara.
+                      </Text>
+                    </VStack>
+
+                    <VStack gap={2}>
+                      <Text type="supporting">Catatan Tambahan (Opsional):</Text>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Setoran simpanan wajib bulan September 2026"
+                        value={depositNotes}
+                        onChange={(e) => setDepositNotes(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </VStack>
+
+                    <HStack justify="flex-end" gap={2}>
+                      <Button
+                        label="Batal"
+                        variant="ghost"
+                        onClick={() => setShowDepositForm(false)}
+                        isDisabled={depositLoading || depositUploadingProof}
+                      />
+                      <Button
+                        label={depositLoading ? 'Mengirim Konfirmasi...' : 'Kirim Konfirmasi Setoran'}
+                        variant="primary"
+                        type="submit"
+                        isDisabled={depositLoading || depositUploadingProof}
+                      />
+                    </HStack>
+                  </form>
+                </Card>
+              )}
+
               {activeTab === 'savings' && showWithdrawForm && (
                 <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
                   <form onSubmit={handleApplyWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1635,6 +2085,22 @@ export default function MemberPortal() {
 
               {activeTab === 'savings' ? (
                 <VStack gap={5}>
+                  {/* Status Konfirmasi Setoran Simpanan (Transfer Masuk) */}
+                  {savingsDeposits.length > 0 && (
+                    <VStack gap={2}>
+                      <HStack justify="space-between" vAlign="center">
+                        <Text type="body" weight="bold">
+                          Riwayat Konfirmasi Setoran Simpanan (Transfer Bank)
+                        </Text>
+                        <Badge
+                          variant={savingsDeposits.some((d) => d.status === 'Menunggu') ? 'warning' : 'neutral'}
+                          label={`${savingsDeposits.filter((d) => d.status === 'Menunggu').length} Menunggu`}
+                        />
+                      </HStack>
+                      <Table data={savingsDeposits} columns={depositCols} idKey="id" density="balanced" />
+                    </VStack>
+                  )}
+
                   {/* Status Permohonan Penarikan Sukarela */}
                   {savingsWithdrawals.length > 0 && (
                     <VStack gap={2}>

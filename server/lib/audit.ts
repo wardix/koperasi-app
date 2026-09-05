@@ -43,7 +43,9 @@ export type AuditAction =
   | 'update_letter'
   | 'delete_letter'
   | 'approve_savings_withdrawal'
-  | 'reject_savings_withdrawal';
+  | 'reject_savings_withdrawal'
+  | 'approve_savings_deposit'
+  | 'reject_savings_deposit';
 
 export interface AuditRecord {
   actor: string;        // admin email who performed the action

@@ -26,9 +26,11 @@ import {useA11yDialog} from '../hooks/useA11yDialog';
 import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
 import {ApproveSavingsWithdrawalDialogContent} from '../components/ApproveSavingsWithdrawalDialog';
 import {RejectSavingsWithdrawalDialogContent} from '../components/RejectSavingsWithdrawalDialog';
+import {ApproveSavingsDepositDialogContent} from '../components/ApproveSavingsDepositDialog';
+import {RejectSavingsDepositDialogContent} from '../components/RejectSavingsDepositDialog';
 import {useAuth} from '../hooks/useAuth';
 
-import type {SavingsTransactionRow, SavingsWithdrawalRow, PaginatedResponse} from '../shared/types';
+import type {SavingsTransactionRow, SavingsWithdrawalRow, SavingsDepositRow, PaginatedResponse} from '../shared/types';
 
 const transactionTypeValues = [
   {value: 'setor_pokok', label: 'Setor Pokok'},
@@ -49,7 +51,7 @@ export default function SavingsTemplate() {
   const {hasPermission} = useAuth();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<'transactions' | 'withdrawals'>('transactions');
+  const [activeTab, setActiveTab] = useState<'transactions' | 'deposits' | 'withdrawals'>('transactions');
 
   // Transactions state
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
@@ -69,6 +71,37 @@ export default function SavingsTemplate() {
   const filtered = useMemo(() => {
     return applyFilters(filters, localTransactions);
   }, [filters, applyFilters, localTransactions]);
+
+  // Deposits state (Transfer Confirmation)
+  const [depositStatusFilter, setDepositStatusFilter] = useState<string>('Semua');
+  const [depositTypeFilter, setDepositTypeFilter] = useState<string>('Semua');
+  const [depositPage, setDepositPage] = useState<number>(1);
+  const [depositLimit] = useState<number>(20);
+
+  const depositQueryUrl = useMemo(() => {
+    let url = `/api/savings/deposits?page=${depositPage}&limit=${depositLimit}`;
+    if (depositStatusFilter !== 'Semua') {
+      url += `&status=${encodeURIComponent(depositStatusFilter)}`;
+    }
+    if (depositTypeFilter !== 'Semua') {
+      url += `&savingsType=${encodeURIComponent(depositTypeFilter)}`;
+    }
+    return url;
+  }, [depositPage, depositLimit, depositStatusFilter, depositTypeFilter]);
+
+  const {
+    data: depositsResponse,
+    isLoading: depositsLoading,
+    error: depositsError,
+    refetch: fetchDeposits,
+  } = useApiQuery<PaginatedResponse<SavingsDepositRow>>(depositQueryUrl);
+
+  const {
+    data: pendingDepositsCountResponse,
+    refetch: fetchPendingDepositsCount,
+  } = useApiQuery<PaginatedResponse<SavingsDepositRow>>('/api/savings/deposits?status=Menunggu&limit=1');
+
+  const pendingDepositsCount = pendingDepositsCountResponse?.total ?? 0;
 
   // Withdrawals state
   const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState<string>('Semua');
@@ -366,6 +399,217 @@ export default function SavingsTemplate() {
     },
   ], [hasPermission, dialog, fetchWithdrawals, fetchPendingCount, fetchTransactions]);
 
+  const depositColumns: TableColumn<SavingsDepositRow>[] = useMemo(() => [
+    {
+      key: 'transferDate',
+      header: 'Tgl Transfer',
+      width: pixel(120),
+      renderCell: (item: SavingsDepositRow) => (
+        <Text type="body">{item.transferDate || '-'}</Text>
+      ),
+    },
+    {
+      key: 'memberName',
+      header: 'Nama Anggota',
+      width: proportional(2),
+      renderCell: (item: SavingsDepositRow) => (
+        <VStack gap={0}>
+          <Text type="body" weight="medium">{item.memberName || 'Anggota Koperasi'}</Text>
+          {item.memberNik && (
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              NIK: {item.memberNik}
+            </Text>
+          )}
+        </VStack>
+      ),
+    },
+    {
+      key: 'savingsType',
+      header: 'Jenis Simpanan',
+      width: pixel(150),
+      renderCell: (item: SavingsDepositRow) => {
+        let label = 'Simpanan Sukarela';
+        let variant: 'primary' | 'neutral' | 'success' = 'neutral';
+        if (item.savingsType === 'pokok') {
+          label = 'Simpanan Pokok';
+          variant = 'primary';
+        } else if (item.savingsType === 'wajib') {
+          label = 'Simpanan Wajib';
+          variant = 'success';
+        }
+        return <Badge variant={variant} label={label} />;
+      },
+    },
+    {
+      key: 'amount',
+      header: 'Nominal Setoran',
+      width: pixel(160),
+      renderCell: (item: SavingsDepositRow) => (
+        <Text type="body" weight="bold" color="primary">
+          {formatRp(item.amount)}
+        </Text>
+      ),
+    },
+    {
+      key: 'senderInfo',
+      header: 'Rekening Pengirim',
+      width: proportional(2),
+      renderCell: (item: SavingsDepositRow) => (
+        <VStack gap={0}>
+          <Text type="body">
+            {item.senderBank || '-'} {item.senderAccount ? `(${item.senderAccount})` : ''}
+          </Text>
+          {item.senderName && (
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              a.n. {item.senderName}
+            </Text>
+          )}
+        </VStack>
+      ),
+    },
+    {
+      key: 'proofUrl',
+      header: 'Bukti Transfer',
+      width: pixel(130),
+      renderCell: (item: SavingsDepositRow) => {
+        if (!item.proofUrl) {
+          return <Text type="supporting" color="secondary">Tanpa bukti</Text>;
+        }
+        return (
+          <a
+            href={item.proofUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: 'var(--color-primary-600, #2563eb)',
+              textDecoration: 'underline',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            Lihat Bukti ↗
+          </a>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: pixel(120),
+      renderCell: (item: SavingsDepositRow) => {
+        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        if (item.status === 'Menunggu') variant = 'warning';
+        else if (item.status === 'Diverifikasi') variant = 'success';
+        else if (item.status === 'Ditolak') variant = 'critical';
+        return <Badge variant={variant} label={item.status} />;
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Aksi / Keterangan',
+      width: proportional(2.5),
+      renderCell: (item: SavingsDepositRow) => {
+        if (item.status === 'Menunggu') {
+          if (hasPermission('update:savings')) {
+            return (
+              <HStack gap={2}>
+                <Button
+                  label="Verifikasi"
+                  variant="primary"
+                  onClick={() => {
+                    dialog.show(
+                      <ApproveSavingsDepositDialogContent
+                        deposit={item}
+                        onClose={() => dialog.hide()}
+                        onConfirm={async (payload) => {
+                          try {
+                            const res = await fetch(`/api/savings/deposits/${item.id}/approve`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload),
+                            }).then((r) => r.json());
+                            if (res.success) {
+                              dialog.hide();
+                              fetchDeposits();
+                              fetchPendingDepositsCount();
+                              fetchTransactions();
+                            } else {
+                              alert(res.message || 'Gagal memverifikasi setoran');
+                            }
+                          } catch {
+                            alert('Terjadi kesalahan jaringan');
+                          }
+                        }}
+                      />
+                    );
+                  }}
+                />
+                <Button
+                  label="Tolak"
+                  variant="ghost"
+                  onClick={() => {
+                    dialog.show(
+                      <RejectSavingsDepositDialogContent
+                        deposit={item}
+                        onClose={() => dialog.hide()}
+                        onConfirm={async (reason) => {
+                          try {
+                            const res = await fetch(`/api/savings/deposits/${item.id}/reject`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ rejectionReason: reason }),
+                            }).then((r) => r.json());
+                            if (res.success) {
+                              dialog.hide();
+                              fetchDeposits();
+                              fetchPendingDepositsCount();
+                              fetchTransactions();
+                            } else {
+                              alert(res.message || 'Gagal menolak setoran');
+                            }
+                          } catch {
+                            alert('Terjadi kesalahan jaringan');
+                          }
+                        }}
+                      />
+                    );
+                  }}
+                />
+              </HStack>
+            );
+          }
+          return <Text type="supporting" color="secondary">Menunggu verifikasi</Text>;
+        }
+
+        if (item.status === 'Diverifikasi') {
+          return (
+            <VStack gap={0}>
+              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600, #16a34a)' }}>
+                ✓ Diverifikasi
+              </Text>
+              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                {item.paymentTargetName ? `Rek: ${item.paymentTargetName}` : ''}
+              </Text>
+            </VStack>
+          );
+        }
+
+        return (
+          <VStack gap={0}>
+            <Text type="supporting" color="critical" weight="medium">
+              ✗ Ditolak
+            </Text>
+            {item.rejectionReason && (
+              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                Alasan: {item.rejectionReason}
+              </Text>
+            )}
+          </VStack>
+        );
+      },
+    },
+  ], [hasPermission, dialog, fetchDeposits, fetchPendingDepositsCount, fetchTransactions]);
+
   return (
     <>
       <Layout
@@ -422,6 +666,49 @@ export default function SavingsTemplate() {
                   }}
                 >
                   Riwayat Mutasi Simpanan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('deposits');
+                    fetchDeposits();
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: activeTab === 'deposits' ? 600 : 500,
+                    fontSize: 14,
+                    backgroundColor: activeTab === 'deposits' ? 'var(--color-background-primary, #ffffff)' : 'transparent',
+                    color: activeTab === 'deposits' ? 'var(--color-text-primary, #111827)' : 'var(--color-text-secondary, #6b7280)',
+                    boxShadow: activeTab === 'deposits' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Konfirmasi Setoran Masuk
+                  {pendingDepositsCount > 0 && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'var(--color-primary-600, #2563eb)',
+                        color: '#ffffff',
+                        borderRadius: 9999,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '1px 7px',
+                        minWidth: 18,
+                        height: 18,
+                      }}
+                    >
+                      {pendingDepositsCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -497,6 +784,106 @@ export default function SavingsTemplate() {
                     limit={transactionsResponse?.limit || limit}
                     total={transactionsResponse?.total || 0}
                     onPageChange={setPage}
+                  />
+                </VStack>
+              </DataStateView>
+            ) : activeTab === 'deposits' ? (
+              <DataStateView
+                isLoading={depositsLoading}
+                error={depositsError}
+                onRetry={fetchDeposits}
+                errorTitle="Gagal Memuat Data Konfirmasi Setoran"
+              >
+                <VStack gap={4}>
+                  {/* Status & Type Filter Pills */}
+                  <HStack gap={4} wrap="wrap" vAlign="center" justify="space-between">
+                    <HStack gap={2} vAlign="center" wrap="wrap">
+                      <Text type="supporting" weight="semibold" color="secondary">
+                        Status:
+                      </Text>
+                      {['Semua', 'Menunggu', 'Diverifikasi', 'Ditolak'].map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => {
+                            setDepositStatusFilter(st);
+                            setDepositPage(1);
+                          }}
+                          style={{
+                            padding: '4px 12px',
+                            borderRadius: 20,
+                            fontSize: 13,
+                            fontWeight: depositStatusFilter === st ? 600 : 500,
+                            cursor: 'pointer',
+                            border: `1px solid ${depositStatusFilter === st ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
+                            backgroundColor: depositStatusFilter === st ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
+                            color: depositStatusFilter === st ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
+                          }}
+                        >
+                          {st}
+                          {st === 'Menunggu' && pendingDepositsCount > 0 && ` (${pendingDepositsCount})`}
+                        </button>
+                      ))}
+                    </HStack>
+
+                    <HStack gap={2} vAlign="center" wrap="wrap">
+                      <Text type="supporting" weight="semibold" color="secondary">
+                        Jenis:
+                      </Text>
+                      {[
+                        { val: 'Semua', label: 'Semua Jenis' },
+                        { val: 'pokok', label: 'Pokok' },
+                        { val: 'wajib', label: 'Wajib' },
+                        { val: 'sukarela', label: 'Sukarela' },
+                      ].map((t) => (
+                        <button
+                          key={t.val}
+                          type="button"
+                          onClick={() => {
+                            setDepositTypeFilter(t.val);
+                            setDepositPage(1);
+                          }}
+                          style={{
+                            padding: '4px 12px',
+                            borderRadius: 20,
+                            fontSize: 13,
+                            fontWeight: depositTypeFilter === t.val ? 600 : 500,
+                            cursor: 'pointer',
+                            border: `1px solid ${depositTypeFilter === t.val ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
+                            backgroundColor: depositTypeFilter === t.val ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
+                            color: depositTypeFilter === t.val ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </HStack>
+                  </HStack>
+
+                  <Table<SavingsDepositRow>
+                    data={depositsResponse?.data || []}
+                    columns={depositColumns}
+                    idKey="id"
+                    density="balanced"
+                    dividers="rows"
+                    hasHover
+                  />
+
+                  {(!depositsResponse?.data || depositsResponse.data.length === 0) && (
+                    <VStack hAlign="center" padding={6}>
+                      <Text type="body" color="secondary">
+                        {depositStatusFilter === 'Semua' && depositTypeFilter === 'Semua'
+                          ? 'Belum ada data konfirmasi setoran simpanan masuk.'
+                          : `Tidak ada data konfirmasi setoran dengan filter yang dipilih.`}
+                      </Text>
+                    </VStack>
+                  )}
+
+                  <Pagination
+                    page={depositsResponse?.page || 1}
+                    limit={depositsResponse?.limit || depositLimit}
+                    total={depositsResponse?.total || 0}
+                    onPageChange={setDepositPage}
                   />
                 </VStack>
               </DataStateView>

@@ -8,6 +8,8 @@ import {
   batchSavingsImportSchema,
   savingsWithdrawalApproveSchema,
   savingsWithdrawalRejectSchema,
+  savingsDepositApproveSchema,
+  savingsDepositRejectSchema,
 } from '../schemas'
 import { batchImportSavings } from '../services/savingsService'
 import {
@@ -15,6 +17,11 @@ import {
   approveSavingsWithdrawal,
   rejectSavingsWithdrawal,
 } from '../services/savingsWithdrawalService'
+import {
+  getDepositsList,
+  approveSavingsDeposit,
+  rejectSavingsDeposit,
+} from '../services/savingsDepositService'
 import { audit, getActor, getClientIp } from '../lib/audit'
 import { clearStatsCache } from './stats'
 
@@ -219,6 +226,122 @@ savings.post('/withdrawals/:id/reject', requirePermission('update:savings'), asy
     })
   } catch (err: any) {
     return c.json({ success: false, message: err.message || 'Gagal menolak penarikan simpanan sukarela' }, 400)
+  }
+})
+
+// List savings deposit confirmations (for admin/treasurer review)
+savings.get('/deposits', requirePermission('read:members'), async (c) => {
+  const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
+  const status = c.req.query('status') || undefined
+  const savingsType = c.req.query('savingsType') || undefined
+  const memberId = c.req.query('memberId') || undefined
+
+  const result = await getDepositsList(db, {
+    status,
+    savingsType,
+    memberId,
+    page,
+    limit,
+  })
+
+  return c.json({
+    success: true,
+    data: result,
+  })
+})
+
+// Approve savings deposit confirmation (books transaction & updates member savings)
+savings.post('/deposits/:id/approve', requirePermission('update:savings'), async (c) => {
+  const id = c.req.param('id')
+  if (!id) {
+    return c.json({ success: false, message: 'ID konfirmasi setoran diperlukan' }, 400)
+  }
+  const body = await c.req.json().catch(() => ({}))
+  const parsed = savingsDepositApproveSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const actor = getActor(c) || 'admin'
+  try {
+    const result = await approveSavingsDeposit(
+      db,
+      id,
+      actor,
+      parsed.data.paymentTargetAccountId
+    )
+
+    await audit(db, {
+      actor,
+      action: 'approve_savings_deposit',
+      entity: 'savings_deposits',
+      entityId: id,
+      after: {
+        amount: result.amount,
+        memberId: result.memberId,
+        savingsType: result.savingsType,
+        paymentTargetAccountId: parsed.data.paymentTargetAccountId,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+
+    return c.json({
+      success: true,
+      message: `Konfirmasi setoran simpanan ${result.savingsType} sebesar Rp ${Number(result.amount).toLocaleString('id-ID')} berhasil disetujui dan dibukukan.`,
+      data: result,
+    })
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menyetujui setoran simpanan' }, 400)
+  }
+})
+
+// Reject savings deposit confirmation
+savings.post('/deposits/:id/reject', requirePermission('update:savings'), async (c) => {
+  const id = c.req.param('id')
+  if (!id) {
+    return c.json({ success: false, message: 'ID konfirmasi setoran diperlukan' }, 400)
+  }
+  const body = await c.req.json().catch(() => ({}))
+  const parsed = savingsDepositRejectSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const actor = getActor(c) || 'admin'
+  try {
+    const result = await rejectSavingsDeposit(
+      db,
+      id,
+      actor,
+      parsed.data.rejectionReason
+    )
+
+    await audit(db, {
+      actor,
+      action: 'reject_savings_deposit',
+      entity: 'savings_deposits',
+      entityId: id,
+      after: {
+        amount: result.amount,
+        memberId: result.memberId,
+        rejectionReason: parsed.data.rejectionReason,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+
+    return c.json({
+      success: true,
+      message: 'Konfirmasi setoran simpanan berhasil ditolak.',
+      data: result,
+    })
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menolak setoran simpanan' }, 400)
   }
 })
 

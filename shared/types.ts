@@ -172,6 +172,9 @@ export interface SettingsData {
   viewReports?: string | boolean;
   selfRegister?: string | boolean;
   ssoAutoRegister?: string | boolean;
+  coopBankName?: string;
+  coopBankAccountNumber?: string;
+  coopBankAccountName?: string;
 }
 
 export interface SavingsTransactionRow {
@@ -317,4 +320,32 @@ export interface SavingsWithdrawalRow {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface SavingsDepositRow {
+  id: string;
+  memberId: string;
+  memberName?: string;
+  memberNik?: string;
+  savingsType: 'pokok' | 'wajib' | 'sukarela';
+  amount: number;
+  transferDate: string;
+  senderBank?: string | null;
+  senderAccount?: string | null;
+  senderName?: string | null;
+  proofUrl?: string | null;
+  proofName?: string | null;
+  notes?: string | null;
+  status: 'Menunggu' | 'Diverifikasi' | 'Ditolak';
+  paymentTargetAccountId?: string | null;
+  paymentTargetName?: string | null;
+  transactionId?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 

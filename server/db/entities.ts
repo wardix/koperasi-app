@@ -336,3 +336,33 @@ export const savingsWithdrawalRowSchema = z.object({
 });
 export type SavingsWithdrawalRow = z.infer<typeof savingsWithdrawalRowSchema>;
 
+// ---------------------------------------------------------------------------
+// Savings Deposits (Transfer Confirmation)
+// ---------------------------------------------------------------------------
+
+export const savingsDepositRowSchema = z.object({
+  id: str,
+  member_id: str,
+  savings_type: str,
+  amount: num,
+  transfer_date: str,
+  sender_bank: strNull,
+  sender_account: strNull,
+  sender_name: strNull,
+  proof_url: strNull,
+  proof_name: strNull,
+  notes: strNull,
+  status: str.default("Menunggu"),
+  payment_target_account_id: strNull,
+  transaction_id: strNull,
+  verified_by: strNull,
+  verified_at: strNull,
+  rejected_by: strNull,
+  rejected_at: strNull,
+  rejection_reason: strNull,
+  created_at: str,
+  updated_at: str,
+});
+export type SavingsDepositRow = z.infer<typeof savingsDepositRowSchema>;
+
+

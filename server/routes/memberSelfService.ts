@@ -21,11 +21,19 @@ import {
   getEwaRequestsList,
   getEwaFeeTiers,
 } from '../services/ewaService';
-import { ewaRequestCreateSchema, savingsWithdrawalCreateSchema } from '../schemas';
+import {
+  ewaRequestCreateSchema,
+  savingsWithdrawalCreateSchema,
+  savingsDepositCreateSchema,
+} from '../schemas';
 import {
   getMemberWithdrawals,
   createSavingsWithdrawalRequest,
 } from '../services/savingsWithdrawalService';
+import {
+  getMemberDeposits,
+  createSavingsDepositRequest,
+} from '../services/savingsDepositService';
 
 // Get member / employee profile and savings summary
 memberSelfService.get('/profile', async (c) => {
@@ -54,10 +62,14 @@ memberSelfService.get('/profile', async (c) => {
   }
 
   const isCoopMember = !!member;
-  const bungaSetting = await db
-    .query("SELECT value FROM settings WHERE key = 'bungaPinjaman'")
-    .get<{ value: string }>();
-  const loanInterestRate = parseFloat(bungaSetting?.value || "0");
+  const settingsRows = await db
+    .query("SELECT key, value FROM settings WHERE key IN ('bungaPinjaman', 'coopBankName', 'coopBankAccountNumber', 'coopBankAccountName', 'koperasiName')")
+    .all<{ key: string; value: string }>();
+  const settingsMap: Record<string, string> = {};
+  for (const s of settingsRows) {
+    settingsMap[s.key] = s.value;
+  }
+  const loanInterestRate = parseFloat(settingsMap['bungaPinjaman'] || "0");
 
   const profileData = {
     id: member?.id || employee?.id,
@@ -78,6 +90,11 @@ memberSelfService.get('/profile', async (c) => {
     totalSavings: Number(member?.totalSavings || 0),
     isCoopMember,
     loanInterestRate,
+    coopBank: {
+      bankName: settingsMap['coopBankName'] || 'Bank Mandiri',
+      accountNumber: settingsMap['coopBankAccountNumber'] || '1060022716008',
+      accountName: settingsMap['coopBankAccountName'] || settingsMap['koperasiName'] || 'Koperasi Jasa Nusa Sejahtera Prima',
+    },
     employee: employee ? {
       id: employee.id,
       nip: employee.nip,
@@ -265,6 +282,37 @@ memberSelfService.post('/savings/withdraw', async (c) => {
   }
 });
 
+// Get savings deposit confirmations history for logged-in member
+memberSelfService.get('/savings/deposits', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+
+  const deposits = await getMemberDeposits(db, memberId);
+  return c.json({ success: true, data: deposits });
+});
+
+// Submit a new savings deposit confirmation (transfer to coop Bank Mandiri account)
+memberSelfService.post('/savings/deposit', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = savingsDepositCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400);
+  }
+
+  try {
+    const result = await createSavingsDepositRequest(db, memberId, parsed.data);
+    return c.json({
+      success: true,
+      message: 'Konfirmasi setoran simpanan berhasil dikirim! Menunggu verifikasi bendahara/pengurus.',
+      data: result,
+    }, 201);
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal mengirim konfirmasi setoran simpanan' }, 400);
+  }
+});
 
 // Get member loans (paidAmount is not a loans column — sum from loan_payments)
 memberSelfService.get('/loans', async (c) => {

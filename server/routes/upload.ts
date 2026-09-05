@@ -4,9 +4,14 @@ import { join, extname } from 'node:path';
 
 const upload = new Hono();
 
-const UPLOADS_DIR = join(process.cwd(), 'uploads', 'loans');
-if (!existsSync(UPLOADS_DIR)) {
-  mkdirSync(UPLOADS_DIR, { recursive: true });
+const LOANS_DIR = join(process.cwd(), 'uploads', 'loans');
+if (!existsSync(LOANS_DIR)) {
+  mkdirSync(LOANS_DIR, { recursive: true });
+}
+
+const SAVINGS_DIR = join(process.cwd(), 'uploads', 'savings');
+if (!existsSync(SAVINGS_DIR)) {
+  mkdirSync(SAVINGS_DIR, { recursive: true });
 }
 
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.heic']);
@@ -35,7 +40,7 @@ upload.post('/loan-attachment', async (c) => {
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const uniqueName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}_${safeName}`;
-    const targetPath = join(UPLOADS_DIR, uniqueName);
+    const targetPath = join(LOANS_DIR, uniqueName);
 
     const buffer = await file.arrayBuffer();
     await Bun.write(targetPath, buffer);
@@ -56,6 +61,54 @@ upload.post('/loan-attachment', async (c) => {
     return c.json({
       success: false,
       message: err instanceof Error ? err.message : 'Gagal mengunggah file lampiran'
+    }, 500);
+  }
+});
+
+upload.post('/savings-proof', async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const file = body['file'];
+
+    if (!file || !(file instanceof File)) {
+      return c.json({ success: false, message: 'File bukti transfer tidak ditemukan' }, 400);
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return c.json({ success: false, message: 'Ukuran file maksimal adalah 10 MB' }, 400);
+    }
+
+    const rawExt = extname(file.name).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(rawExt)) {
+      return c.json({
+        success: false,
+        message: 'Format file tidak didukung. Hanya file PDF, JPG, PNG, dan WebP yang diizinkan.'
+      }, 400);
+    }
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const uniqueName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}_${safeName}`;
+    const targetPath = join(SAVINGS_DIR, uniqueName);
+
+    const buffer = await file.arrayBuffer();
+    await Bun.write(targetPath, buffer);
+
+    const fileUrl = `/uploads/savings/${uniqueName}`;
+
+    return c.json({
+      success: true,
+      data: {
+        url: fileUrl,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      },
+    });
+  } catch (err) {
+    console.error('Error handling savings proof upload:', err);
+    return c.json({
+      success: false,
+      message: err instanceof Error ? err.message : 'Gagal mengunggah bukti transfer'
     }, 500);
   }
 });

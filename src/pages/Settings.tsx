@@ -74,6 +74,9 @@ export default function SettingsTemplate() {
   const [alamat, setAlamat] = useState('Jl. Jend. Sudirman No. 123, Jakarta');
   const [telepon, setTelepon] = useState('021-555-0192');
   const [email, setEmail] = useState('info@majubersama.co.id');
+  const [coopBankName, setCoopBankName] = useState('Bank Mandiri');
+  const [coopBankAccountNumber, setCoopBankAccountNumber] = useState('1060022716008');
+  const [coopBankAccountName, setCoopBankAccountName] = useState('Koperasi Jasa Nusa Sejahtera Prima');
   
   const [bungaPinjaman, setBungaPinjaman] = useState('1.5');
   const [bungaSimpanan, setBungaSimpanan] = useState('4.0');
@@ -103,6 +106,9 @@ export default function SettingsTemplate() {
       if (settingsData.alamat) setAlamat(settingsData.alamat);
       if (settingsData.telepon) setTelepon(settingsData.telepon);
       if (settingsData.email) setEmail(settingsData.email);
+      if (settingsData.coopBankName) setCoopBankName(settingsData.coopBankName);
+      if (settingsData.coopBankAccountNumber) setCoopBankAccountNumber(settingsData.coopBankAccountNumber);
+      if (settingsData.coopBankAccountName) setCoopBankAccountName(settingsData.coopBankAccountName);
       if (settingsData.bungaPinjaman) setBungaPinjaman(settingsData.bungaPinjaman);
       if (settingsData.bungaSimpanan) setBungaSimpanan(settingsData.bungaSimpanan);
       if (settingsData.denda) setDenda(settingsData.denda);
@@ -123,6 +129,7 @@ export default function SettingsTemplate() {
     apiAction.execute(
       () => api.put('/api/settings', {
         koperasiName, alamat, telepon, email,
+        coopBankName, coopBankAccountNumber, coopBankAccountName,
         bungaPinjaman, bungaSimpanan, denda,
         viewReports: String(viewReports),
         selfRegister: String(selfRegister),
@@ -265,11 +272,17 @@ export default function SettingsTemplate() {
               alamat={alamat}
               telepon={telepon}
               email={email}
+              coopBankName={coopBankName}
+              coopBankAccountNumber={coopBankAccountNumber}
+              coopBankAccountName={coopBankAccountName}
               canUpdate={hasPermission('update:settings')}
               onKoperasiNameChange={setKoperasiName}
               onAlamatChange={setAlamat}
               onTeleponChange={setTelepon}
               onEmailChange={setEmail}
+              onCoopBankNameChange={setCoopBankName}
+              onCoopBankAccountNumberChange={setCoopBankAccountNumber}
+              onCoopBankAccountNameChange={setCoopBankAccountName}
               onSave={saveSettings}
             />
 
