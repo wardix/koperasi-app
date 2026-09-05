@@ -175,6 +175,10 @@ export interface SettingsData {
   coopBankName?: string;
   coopBankAccountNumber?: string;
   coopBankAccountName?: string;
+  waNotificationEnabled?: string | boolean;
+  waWebhookUrl?: string;
+  waWebhookToken?: string;
+  waNotificationTarget?: string;
 }
 
 export interface SavingsTransactionRow {

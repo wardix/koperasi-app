@@ -6,6 +6,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { resolveWalletBalance } from "./wallet.js";
 import { WithdrawalException, FeeScheduleException } from "../domain/exceptions.js";
 import { formatWithdrawal } from "../support/resources.js";
+import { notifyEwaRequest } from "../../services/waNotificationService";
 
 const withdrawalRouter = new Hono();
 
@@ -191,6 +192,14 @@ withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSch
 
     return { request: newRequest, isNew: true };
   });
+
+  if (createdRequest.isNew) {
+    notifyEwaRequest({
+      memberName: employee?.name || employee?.full_name || 'Karyawan',
+      memberCode: employee?.nip || undefined,
+      amount: Number(amount),
+    });
+  }
 
   return c.json(
     { data: formatWithdrawal(createdRequest.request) },

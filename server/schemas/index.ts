@@ -339,6 +339,10 @@ export const ALLOWED_SETTINGS_KEYS = [
   'coopBankName',
   'coopBankAccountNumber',
   'coopBankAccountName',
+  'waNotificationEnabled',
+  'waWebhookUrl',
+  'waWebhookToken',
+  'waNotificationTarget',
 ];
 
 export const settingsSchema = z.record(

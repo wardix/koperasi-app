@@ -4,6 +4,7 @@ import { settingsSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
+import { sendWaTestMessage } from '../services/waNotificationService'
 
 const settings = new Hono()
 
@@ -26,7 +27,33 @@ settings.get('/', requirePermission('read:settings'), async (c) => {
   for (const s of settingsArray) {
     settingsObj[s.key] = s.value
   }
+
+  // Fallback to environment variables if not yet saved in database
+  if (settingsObj.waNotificationEnabled === undefined && process.env.WA_NOTIFICATION_ENABLED !== undefined) {
+    settingsObj.waNotificationEnabled = process.env.WA_NOTIFICATION_ENABLED;
+  }
+  if (!settingsObj.waWebhookUrl && process.env.WA_WEBHOOK_URL) {
+    settingsObj.waWebhookUrl = process.env.WA_WEBHOOK_URL;
+  }
+  if (!settingsObj.waWebhookToken && process.env.WA_WEBHOOK_TOKEN) {
+    settingsObj.waWebhookToken = process.env.WA_WEBHOOK_TOKEN;
+  }
+  if (!settingsObj.waNotificationTarget && process.env.WA_NOTIFICATION_TARGET) {
+    settingsObj.waNotificationTarget = process.env.WA_NOTIFICATION_TARGET;
+  }
+
   return c.json({ success: true, data: settingsObj })
+})
+
+settings.post('/test-wa', requirePermission('update:settings'), async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const result = await sendWaTestMessage({
+    db,
+    target: body.target,
+    webhookUrl: body.webhookUrl,
+    token: body.token,
+  });
+  return c.json(result, result.success ? 200 : 400);
 })
 
 settings.put('/', requirePermission('update:settings'), async (c) => {

@@ -34,6 +34,12 @@ import {
   getMemberDeposits,
   createSavingsDepositRequest,
 } from '../services/savingsDepositService';
+import {
+  notifyEwaRequest,
+  notifySavingsWithdrawal,
+  notifySavingsDeposit,
+  notifyLoanApplication,
+} from '../services/waNotificationService';
 
 // Get member / employee profile and savings summary
 memberSelfService.get('/profile', async (c) => {
@@ -228,6 +234,14 @@ memberSelfService.post('/ewa/request', async (c) => {
 
   try {
     const result = await createEwaRequest(db, employee.id, parsed.data);
+
+    notifyEwaRequest({
+      memberName: employee.name,
+      memberCode: employee.nip || undefined,
+      amount: result.amountRequested,
+      db,
+    });
+
     return c.json({
       success: true,
       message: 'Pengajuan penarikan EWA berhasil dikirim! Menunggu proses pencairan oleh bagian kasir/keuangan.',
@@ -272,6 +286,14 @@ memberSelfService.post('/savings/withdraw', async (c) => {
 
   try {
     const result = await createSavingsWithdrawalRequest(db, memberId, parsed.data);
+
+    const member = await db.query("SELECT name FROM members WHERE id = ?").get<{ name: string }>(memberId);
+    notifySavingsWithdrawal({
+      memberName: member?.name || 'Anggota',
+      amount: parsed.data.amount,
+      db,
+    });
+
     return c.json({
       success: true,
       message: 'Permohonan penarikan simpanan sukarela berhasil dikirim! Menunggu persetujuan pengurus/bendahara.',
@@ -304,6 +326,14 @@ memberSelfService.post('/savings/deposit', async (c) => {
 
   try {
     const result = await createSavingsDepositRequest(db, memberId, parsed.data);
+
+    const member = await db.query("SELECT name FROM members WHERE id = ?").get<{ name: string }>(memberId);
+    notifySavingsDeposit({
+      memberName: member?.name || 'Anggota',
+      amount: parsed.data.amount,
+      db,
+    });
+
     return c.json({
       success: true,
       message: 'Konfirmasi setoran simpanan berhasil dikirim! Menunggu verifikasi bendahara/pengurus.',
@@ -424,6 +454,13 @@ memberSelfService.post('/loans/apply', async (c) => {
      VALUES (?, ?, ?, ?, ?, ?, 'Menunggu', ?, ?, ?)`,
     [loanId, memberId, member.name, amount, tenor, purpose, createdAt, attachmentUrl, attachmentName]
   );
+
+  notifyLoanApplication({
+    memberName: member.name,
+    amount,
+    tenorMonths: tenor,
+    db,
+  });
 
   return c.json({
     success: true,

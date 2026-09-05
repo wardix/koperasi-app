@@ -8,6 +8,7 @@ import { LoanProviderClient } from "../services/loan-provider.js";
 import { LoanCalculator } from "../domain/rules/loan-calculator.js";
 import { LoanException } from "../domain/exceptions.js";
 import { formatLoanApplication } from "../support/resources.js";
+import { notifyLoanApplication } from "../../services/waNotificationService";
 
 const loanRouter = new Hono();
 const provider = new LoanProviderClient();
@@ -143,6 +144,13 @@ loanRouter.post("/", authMiddleware, zValidator("json", storeLoanSchema), async 
     )
     RETURNING *
   `;
+
+  notifyLoanApplication({
+    memberName: employee.name || employee.full_name || 'Karyawan',
+    memberCode: employee.nip || undefined,
+    amount: quote.principal,
+    tenorMonths: quote.tenorMonths,
+  });
 
   return c.json({ data: formatLoanApplication(row, true) }, 201);
 });

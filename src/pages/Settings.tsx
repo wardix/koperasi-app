@@ -37,10 +37,12 @@ import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
 import {ProfileSettings} from '../components/settings/ProfileSettings';
 import {ParameterSettings} from '../components/settings/ParameterSettings';
 import {TwoFactorSettings} from '../components/settings/TwoFactorSettings';
+import {WaNotificationSettings} from '../components/settings/WaNotificationSettings';
 
 const NAV_ITEMS = [
   'Profil Koperasi',
   'Parameter Bunga',
+  'Notifikasi WhatsApp',
   'Hak Akses',
   'Keamanan',
 ];
@@ -54,6 +56,9 @@ const SETTINGS_ITEMS: SearchableItem[] = [
   {id: '6', label: 'Bunga Simpanan (%)'},
   {id: '7', label: 'Denda Keterlambatan'},
   {id: '8', label: 'Izinkan Anggota Melihat Laporan'},
+  {id: '9', label: 'Notifikasi WhatsApp'},
+  {id: '10', label: 'URL Webhook Gateway'},
+  {id: '11', label: 'Nomor WhatsApp Pengurus'},
 ];
 
 const settingsSearchSource: SearchSource<SearchableItem> = {
@@ -86,6 +91,12 @@ export default function SettingsTemplate() {
   const [selfRegister, setSelfRegister] = useState(true);
   const [ssoAutoRegister, setSsoAutoRegister] = useState(true);
 
+  // WhatsApp notification settings
+  const [waNotificationEnabled, setWaNotificationEnabled] = useState(false);
+  const [waWebhookUrl, setWaWebhookUrl] = useState('');
+  const [waWebhookToken, setWaWebhookToken] = useState('');
+  const [waNotificationTarget, setWaNotificationTarget] = useState('');
+
   // 2FA state (per-user, not org-wide)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [totpUri, setTotpUri] = useState<string | null>(null);
@@ -115,6 +126,12 @@ export default function SettingsTemplate() {
       if (settingsData.viewReports !== undefined) setViewReports(settingsData.viewReports === 'true' || settingsData.viewReports === true);
       if (settingsData.selfRegister !== undefined) setSelfRegister(settingsData.selfRegister === 'true' || settingsData.selfRegister === true);
       if (settingsData.ssoAutoRegister !== undefined) setSsoAutoRegister(settingsData.ssoAutoRegister === 'true' || settingsData.ssoAutoRegister === true);
+      if (settingsData.waNotificationEnabled !== undefined) {
+        setWaNotificationEnabled(settingsData.waNotificationEnabled === 'true' || settingsData.waNotificationEnabled === true);
+      }
+      if (settingsData.waWebhookUrl) setWaWebhookUrl(settingsData.waWebhookUrl);
+      if (settingsData.waWebhookToken) setWaWebhookToken(settingsData.waWebhookToken);
+      if (settingsData.waNotificationTarget) setWaNotificationTarget(settingsData.waNotificationTarget);
     }
   }, [settingsData]);
 
@@ -133,7 +150,11 @@ export default function SettingsTemplate() {
         bungaPinjaman, bungaSimpanan, denda,
         viewReports: String(viewReports),
         selfRegister: String(selfRegister),
-        ssoAutoRegister: String(ssoAutoRegister)
+        ssoAutoRegister: String(ssoAutoRegister),
+        waNotificationEnabled: String(waNotificationEnabled),
+        waWebhookUrl,
+        waWebhookToken,
+        waNotificationTarget,
       }),
       {
         successMsg: 'Pengaturan berhasil disimpan!',
@@ -296,6 +317,21 @@ export default function SettingsTemplate() {
               onBungaPinjamanChange={setBungaPinjaman}
               onBungaSimpananChange={setBungaSimpanan}
               onDendaChange={setDenda}
+              onSave={saveSettings}
+            />
+
+            <Divider />
+
+            <WaNotificationSettings
+              waNotificationEnabled={waNotificationEnabled}
+              waWebhookUrl={waWebhookUrl}
+              waWebhookToken={waWebhookToken}
+              waNotificationTarget={waNotificationTarget}
+              canUpdate={hasPermission('update:settings')}
+              onWaNotificationEnabledChange={setWaNotificationEnabled}
+              onWaWebhookUrlChange={setWaWebhookUrl}
+              onWaWebhookTokenChange={setWaWebhookToken}
+              onWaNotificationTargetChange={setWaNotificationTarget}
               onSave={saveSettings}
             />
 
