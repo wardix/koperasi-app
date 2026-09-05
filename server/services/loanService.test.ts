@@ -15,6 +15,21 @@ import {
 } from "./loanService";
 import { ServiceError } from "./errors";
 
+async function cleanupTestLoan(loanId: string, memberId: string) {
+  await db.run(
+    "DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE reference_id = ? OR reference_id IN (SELECT id FROM loan_payments WHERE loanId = ?) OR description LIKE ?)",
+    [loanId, loanId, `%${memberId}%`]
+  );
+  await db.run(
+    "DELETE FROM journal_entries WHERE reference_id = ? OR reference_id IN (SELECT id FROM loan_payments WHERE loanId = ?) OR description LIKE ?",
+    [loanId, loanId, `%${memberId}%`]
+  );
+  await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
+  await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
+  await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+  await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+}
+
 describe("loanService", () => {
   describe("calculateLoanInterest table tests", () => {
     const cases = [
@@ -223,10 +238,7 @@ describe("loanService", () => {
     expect(rows[0].status).toBe("Paid");
     expect(Number(rows[1].paidAmount)).toBe(0);
 
-    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("updateLoanStatus Disetujui uses approvedDate for createdAt and approvedAt", async () => {
@@ -261,9 +273,7 @@ describe("loanService", () => {
     expect(approved.getMonth()).toBe(3);
     expect(approved.getDate()).toBe(1);
 
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("updateLoanStatus Disetujui uses per-loan interestRate for schedule snapshot", async () => {
@@ -317,9 +327,7 @@ describe("loanService", () => {
     expect(Number(schedules[0].principalAmount)).toBeLessThan(Number(schedules[1].principalAmount));
     expect(Number(schedules[0].interestAmount)).toBeGreaterThan(Number(schedules[1].interestAmount));
 
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("updateLoanStatus Disetujui records auto-journal crediting selected paymentSourceAccountId", async () => {
@@ -363,9 +371,7 @@ describe("loanService", () => {
       await db.run("DELETE FROM journal_entries WHERE id = ?", [journal.id]);
     }
 
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("regenerateLoanInstallmentSchedule accepts a new interestRate override", async () => {
@@ -400,9 +406,7 @@ describe("loanService", () => {
     expect(Number(after?.monthlyPayment)).not.toBe(Number(before?.monthlyPayment));
     expect(Number(after?.monthlyPayment)).toBe(calculateLoanInterest(principal, 6, 10).monthlyPayment);
 
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("replaceLoanInstallmentSchedule validates principal sum and keeps payments", async () => {
@@ -470,10 +474,7 @@ describe("loanService", () => {
     expect(Number(loan?.interestAmount)).toBe(70_000);
     expect(Number(loan?.totalInstallments)).toBe(2);
 
-    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("recordLoanPayment respects backdated paymentDate", async () => {
@@ -506,9 +507,7 @@ describe("loanService", () => {
     expect(d.getMonth()).toBe(1);
     expect(d.getDate()).toBe(10);
 
-    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("updateLoanDisbursementDate updates approvedAt and createdAt", async () => {
@@ -552,9 +551,7 @@ describe("loanService", () => {
     expect(new Date(loan!.createdAt).getDate()).toBe(15);
     expect(new Date(loan!.approvedAt).getDate()).toBe(15);
 
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("updateLoanPayment and deleteLoanPayment recalculate totals", async () => {
@@ -610,10 +607,7 @@ describe("loanService", () => {
       .get<{ paid: number }>(loanId);
     expect(Number(sum?.paid)).toBe(0);
 
-    await db.run("DELETE FROM loan_schedules WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 
   test("recordLoanPayment rejects overpayment", async () => {
@@ -692,8 +686,6 @@ describe("loanService", () => {
       expect(rejected[0].reason.message).toBe("Total pembayaran melebihi jumlah pinjaman");
     }
 
-    await db.run("DELETE FROM loan_payments WHERE loanId = ?", [loanId]);
-    await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupTestLoan(loanId, memberId);
   });
 });
