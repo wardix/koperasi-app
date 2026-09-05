@@ -54,19 +54,14 @@ export function WaNotificationSettings({
 
     setIsTesting(true);
     try {
-      const res = await api.post('/api/settings/test-wa', {
+      const data = await api.post<{ success: boolean; message: string }>('/api/settings/test-wa', {
         webhookUrl: waWebhookUrl,
         token: waWebhookToken,
         target: waNotificationTarget,
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast({ body: data.message || 'Pesan uji coba berhasil dikirim!', type: 'info' });
-      } else {
-        toast({ body: data.message || 'Gagal mengirim pesan uji coba', type: 'error' });
-      }
+      toast({ body: data.message || 'Pesan uji coba berhasil dikirim!', type: 'info' });
     } catch (err: any) {
-      toast({ body: err?.message || 'Gagal terhubung ke server', type: 'error' });
+      toast({ body: err?.message || 'Gagal mengirim pesan uji coba', type: 'error' });
     } finally {
       setIsTesting(false);
     }

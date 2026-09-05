@@ -173,33 +173,27 @@ export default function SettingsTemplate() {
   // ---------------------------------------------------------------------------
   const handleEnable2Fa = async () => {
     try {
-      const res = await api.get('/api/auth/totp/setup');
-      const data = await res.json();
-      if (data.success) {
-        setTotpUri(data.data.uri);
-        setTotpSecret(data.data.secret);
-        setRecoveryCodes(data.data.recoveryCodes);
-        setStep('setup');
-        setShowEnableModal(true);
-      }
-    } catch (e) {
+      const data = await api.get<{ uri: string; secret: string; recoveryCodes: string[] }>('/api/auth/totp/setup');
+      setTotpUri(data.uri);
+      setTotpSecret(data.secret);
+      setRecoveryCodes(data.recoveryCodes);
+      setStep('setup');
+      setShowEnableModal(true);
+    } catch (e: any) {
       console.error('Failed to setup 2FA:', e);
+      alert(e.message || 'Gagal menyiapkan 2FA');
     }
   };
 
   const handleVerify2Fa = async () => {
     try {
-      const res = await api.post('/api/auth/totp/verify', { token: verifyToken });
-      const data = await res.json();
-      if (data.success) {
-        setShowEnableModal(false);
-        setVerifyToken('');
-        fetchTotpStatus();
-      } else {
-        alert(data.message || 'Verifikasi gagal');
-      }
-    } catch (e) {
+      await api.post('/api/auth/totp/verify', { token: verifyToken });
+      setShowEnableModal(false);
+      setVerifyToken('');
+      fetchTotpStatus();
+    } catch (e: any) {
       console.error('Failed to verify 2FA:', e);
+      alert(e.message || 'Verifikasi gagal');
     }
   };
 
@@ -207,15 +201,11 @@ export default function SettingsTemplate() {
     const code = prompt('Masukkan kode pemulihan atau token TOTP untuk menonaktifkan 2FA:');
     if (!code) return;
     try {
-      const res = await api.post('/api/auth/totp/disable', { recoveryCode: code });
-      const data = await res.json();
-      if (data.success) {
-        fetchTotpStatus();
-      } else {
-        alert(data.message || 'Penonaktifan gagal');
-      }
-    } catch (e) {
+      await api.post('/api/auth/totp/disable', { recoveryCode: code });
+      fetchTotpStatus();
+    } catch (e: any) {
       console.error('Failed to disable 2FA:', e);
+      alert(e.message || 'Penonaktifan gagal');
     }
   };
 
@@ -223,15 +213,11 @@ export default function SettingsTemplate() {
     const token = prompt('Masukkan token TOTP Anda untuk verifikasi:');
     if (!token) return;
     try {
-      const res = await api.post('/api/auth/totp/recovery-codes', { token });
-      const data = await res.json();
-      if (data.success) {
-        alert(`Kode pemulihan baru:\n${data.data.recoveryCodes.join('\n')}\n\nSimpan kode ini dengan aman!`);
-      } else {
-        alert(data.message || 'Regenerasi gagal');
-      }
-    } catch (e) {
+      const data = await api.post<{ recoveryCodes: string[] }>('/api/auth/totp/recovery-codes', { token });
+      alert(`Kode pemulihan baru:\n${data.recoveryCodes.join('\n')}\n\nSimpan kode ini dengan aman!`);
+    } catch (e: any) {
       console.error('Failed to regenerate recovery codes:', e);
+      alert(e.message || 'Regenerasi gagal');
     }
   };
 
