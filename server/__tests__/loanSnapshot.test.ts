@@ -7,8 +7,8 @@ describe('Loan Interest Snapshot', () => {
 
   beforeEach(async () => {
     // Clean up test data
-    await db.run("DELETE FROM loan_payments WHERE loanId IN (SELECT id FROM loans WHERE status = 'Disetujui')")
-    await db.run("DELETE FROM loans WHERE status = 'Disetujui' OR status = 'Menunggu'")
+    await db.run("DELETE FROM loan_payments WHERE loanId = 'test-loan-pending' OR loanId LIKE 'test-loan-%'")
+    await db.run("DELETE FROM loans WHERE id = 'test-loan-pending' OR id LIKE 'test-loan-%'")
 
     // Ensure member exists for FK reference (use ON CONFLICT to handle existing members)
     await db.prepare(
@@ -90,4 +90,10 @@ describe('Loan Interest Snapshot', () => {
     // Payment should not exceed snapshot totalAmount (not recalculate from settings)
     expect(paid).toBeLessThanOrEqual(Number(loan.totalAmount));
   })
+
+  afterAll(async () => {
+    await db.run("DELETE FROM loan_payments WHERE loanId = 'test-loan-pending' OR loanId LIKE 'test-loan-%'");
+    await db.run("DELETE FROM loans WHERE id = 'test-loan-pending' OR id LIKE 'test-loan-%'");
+    await db.run("DELETE FROM members WHERE id = 'test-member-1'");
+  });
 })
