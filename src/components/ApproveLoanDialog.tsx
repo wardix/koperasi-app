@@ -122,6 +122,28 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
         </Text>
       </VStack>
 
+      {(loan.destinationBank || loan.destinationAccount) && (
+        <VStack
+          gap={0}
+          style={{
+            padding: '10px 14px',
+            backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
+            borderRadius: 6,
+            border: '1px solid var(--color-border-primary, #e5e7eb)',
+          }}
+        >
+          <Text type="supporting" color="secondary" weight="medium">
+            Rekening Tujuan Pencairan:
+          </Text>
+          <Text type="body" weight="semibold">
+            {loan.destinationBank || 'Bank'} — {loan.destinationAccount || '-'}
+          </Text>
+          <Text type="supporting" color="secondary">
+            a.n. {loan.destinationName || loan.name}
+          </Text>
+        </VStack>
+      )}
+
       <DateInput
         label="Tanggal Pencairan / Persetujuan"
         description="Tanggal ini dipakai di Arus Kas (pencairan) dan jadwal angsuran"

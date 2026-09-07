@@ -152,6 +152,12 @@ export interface LoanRow {
   attachmentUrl?: string | null;
   /** Supporting document attachment original file name */
   attachmentName?: string | null;
+  /** Destination bank name for disbursement transfer */
+  destinationBank?: string | null;
+  /** Destination bank account number */
+  destinationAccount?: string | null;
+  /** Destination bank account holder name */
+  destinationName?: string | null;
 }
 
 export interface PaginatedResponse<T> {

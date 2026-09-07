@@ -37,6 +37,9 @@ export const CAMEL_CASE_FIELDS = [
   "paidAmount",
   "attachmentUrl",
   "attachmentName",
+  "destinationBank",
+  "destinationAccount",
+  "destinationName",
   // loan_payments / cashflow aliases
   "loanId",
   "paymentDate",

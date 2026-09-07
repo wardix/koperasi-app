@@ -94,6 +94,9 @@ export const loanRowSchema = z.object({
   deletedAt: strNull,
   attachmentUrl: strNull.optional(),
   attachmentName: strNull.optional(),
+  destinationBank: strNull.optional(),
+  destinationAccount: strNull.optional(),
+  destinationName: strNull.optional(),
 });
 export type LoanRow = z.infer<typeof loanRowSchema>;
 

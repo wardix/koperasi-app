@@ -52,9 +52,9 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
   }
 
   if (search) {
-    conditions.push('(LOWER(COALESCE(m.name, l.name)) LIKE ? OR LOWER(l.purpose) LIKE ?)')
+    conditions.push('(LOWER(COALESCE(m.name, l.name)) LIKE ? OR LOWER(l.purpose) LIKE ? OR LOWER(COALESCE(e.bank_name, \'\')) LIKE ? OR LOWER(COALESCE(e.bank_account_number, \'\')) LIKE ?)')
     const pattern = `%${search.toLowerCase()}%`
-    params.push(pattern, pattern)
+    params.push(pattern, pattern, pattern, pattern)
   }
 
   if (status) {
@@ -67,12 +67,19 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
   const queryParams = fetchAll ? params : [...params, limit, offset]
 
   const rows = await db.query(`
-    SELECT l.*, COALESCE(m.name, l.name) as name, COALESCE(SUM(p.amount), 0) as paidAmount
+    SELECT 
+      l.*, 
+      COALESCE(m.name, l.name) as name, 
+      COALESCE(SUM(p.amount), 0) as paidAmount,
+      e.bank_name as "destinationBank",
+      e.bank_account_number as "destinationAccount",
+      COALESCE(e.bank_account_holder, e.name, m.name) as "destinationName"
     FROM loans l
     LEFT JOIN members m ON m.id = l.memberId
     LEFT JOIN loan_payments p ON l.id = p.loanId
+    LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik))
     ${whereClause}
-    GROUP BY l.id, m.name
+    GROUP BY l.id, m.name, e.bank_name, e.bank_account_number, e.bank_account_holder, e.name
     ORDER BY 
       CASE l.status
         WHEN 'Menunggu' THEN 1
@@ -94,6 +101,7 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
     SELECT COUNT(DISTINCT l.id) as count
     FROM loans l
     LEFT JOIN members m ON m.id = l.memberId
+    LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik))
     ${whereClause}
   `
   const totalRes = await db.query(countQuery).get(...params) as { count: number }

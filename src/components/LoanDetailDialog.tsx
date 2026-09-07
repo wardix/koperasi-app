@@ -130,6 +130,29 @@ export function LoanDetailDialogContent({
               remainingDebt={remainingDebt}
             />
 
+            {/* Destination Bank Account */}
+            {(loan.destinationBank || loan.destinationAccount) && (
+              <VStack
+                gap={1}
+                style={{
+                  padding: 'var(--spacing-3) var(--spacing-4)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-background-secondary)',
+                }}
+              >
+                <Text type="supporting" color="secondary" size="sm">
+                  Rekening Tujuan Transfer:
+                </Text>
+                <Text type="body" weight="semibold">
+                  {loan.destinationBank || 'Bank'} — {loan.destinationAccount || '-'}
+                </Text>
+                <Text type="supporting" color="secondary" size="sm">
+                  a.n. {loan.destinationName || loan.name}
+                </Text>
+              </VStack>
+            )}
+
             {/* Attachment section */}
             {loan.attachmentUrl && (
               <VStack

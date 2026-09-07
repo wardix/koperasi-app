@@ -289,6 +289,27 @@ export default function LoansTemplate() {
       renderCell: (item: LoanRow) => <Text type="body">{item.tenor} Bulan</Text>,
     },
     {
+      key: 'bank',
+      header: 'Rekening Tujuan',
+      width: proportional(1.5),
+      renderCell: (item: LoanRow) => (
+        item.destinationBank || item.destinationAccount ? (
+          <VStack gap={0}>
+            <Text type="body">
+              {item.destinationBank || 'Bank'} — {item.destinationAccount || '-'}
+            </Text>
+            <Text type="supporting" color="secondary">
+              a.n. {item.destinationName || item.name}
+            </Text>
+          </VStack>
+        ) : (
+          <Text type="supporting" color="secondary">
+            -
+          </Text>
+        )
+      ),
+    },
+    {
       key: 'status',
       header: 'Status',
       width: pixel(120),
