@@ -24,6 +24,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Pagination } from '../components/Pagination';
+import { CopyableAccountNumber } from '../components/CopyableAccountNumber';
 import type { CompanyEmployee, EWARequest, EwaFeeTier } from '../../shared/types';
 
 export default function EWA() {
@@ -558,14 +559,11 @@ export default function EWA() {
         header: 'Rekening Tujuan',
         width: proportional(1.5),
         renderCell: (r: EWARequest) => (
-          <VStack gap={0}>
-            <Text type="body">
-              {r.destinationBank} — {r.destinationAccount}
-            </Text>
-            <Text type="supporting" color="secondary">
-              a.n. {r.destinationName}
-            </Text>
-          </VStack>
+          <CopyableAccountNumber
+            bankName={r.destinationBank}
+            accountNumber={r.destinationAccount}
+            accountHolder={r.destinationName}
+          />
         ),
       },
       {
@@ -1361,11 +1359,13 @@ export default function EWA() {
                             {formatRp(selectedDisburseReq.totalPayrollDeduction)}
                           </Text>
                         </HStack>
-                        <HStack justify="space-between">
+                        <HStack justify="space-between" vAlign="center">
                           <Text type="supporting">Tujuan Transfer:</Text>
-                          <Text type="body" weight="medium">
-                            {selectedDisburseReq.destinationBank} - {selectedDisburseReq.destinationAccount}
-                          </Text>
+                          <CopyableAccountNumber
+                            bankName={selectedDisburseReq.destinationBank}
+                            accountNumber={selectedDisburseReq.destinationAccount}
+                            showHolder={false}
+                          />
                         </HStack>
                         <HStack justify="space-between">
                           <Text type="supporting">Atas Nama:</Text>

@@ -23,6 +23,7 @@ import {formatRp} from '../utils/format';
 import {exportToExcel, exportToPDF} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
+import {CopyableAccountNumber} from '../components/CopyableAccountNumber';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Button} from '@astryxdesign/core/Button';
 import {Card} from '@astryxdesign/core/Card';
@@ -293,20 +294,11 @@ export default function LoansTemplate() {
       header: 'Rekening Tujuan',
       width: proportional(1.5),
       renderCell: (item: LoanRow) => (
-        item.destinationBank || item.destinationAccount ? (
-          <VStack gap={0}>
-            <Text type="body">
-              {item.destinationBank || 'Bank'} — {item.destinationAccount || '-'}
-            </Text>
-            <Text type="supporting" color="secondary">
-              a.n. {item.destinationName || item.name}
-            </Text>
-          </VStack>
-        ) : (
-          <Text type="supporting" color="secondary">
-            -
-          </Text>
-        )
+        <CopyableAccountNumber
+          bankName={item.destinationBank}
+          accountNumber={item.destinationAccount}
+          accountHolder={item.destinationName || item.name}
+        />
       ),
     },
     {

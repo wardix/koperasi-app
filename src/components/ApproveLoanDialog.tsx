@@ -6,6 +6,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
 import {formatRp} from '../utils/format';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {CopyableAccountNumber} from './CopyableAccountNumber';
 import type {LoanRow, SettingsData} from '../shared/types';
 
 function todayIsoDate(): string {
@@ -124,7 +125,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
 
       {(loan.destinationBank || loan.destinationAccount) && (
         <VStack
-          gap={0}
+          gap={1}
           style={{
             padding: '10px 14px',
             backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
@@ -135,12 +136,11 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
           <Text type="supporting" color="secondary" weight="medium">
             Rekening Tujuan Pencairan:
           </Text>
-          <Text type="body" weight="semibold">
-            {loan.destinationBank || 'Bank'} — {loan.destinationAccount || '-'}
-          </Text>
-          <Text type="supporting" color="secondary">
-            a.n. {loan.destinationName || loan.name}
-          </Text>
+          <CopyableAccountNumber
+            bankName={loan.destinationBank}
+            accountNumber={loan.destinationAccount}
+            accountHolder={loan.destinationName || loan.name}
+          />
         </VStack>
       )}
 

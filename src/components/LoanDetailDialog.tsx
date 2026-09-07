@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { LoanInfoSection } from './loan/LoanInfoSection';
 import { LoanScheduleTable } from './loan/LoanScheduleTable';
 import { LoanPaymentSection } from './loan/LoanPaymentSection';
+import { CopyableAccountNumber } from './CopyableAccountNumber';
 
 interface Payment {
   id: string;
@@ -144,12 +145,11 @@ export function LoanDetailDialogContent({
                 <Text type="supporting" color="secondary" size="sm">
                   Rekening Tujuan Transfer:
                 </Text>
-                <Text type="body" weight="semibold">
-                  {loan.destinationBank || 'Bank'} — {loan.destinationAccount || '-'}
-                </Text>
-                <Text type="supporting" color="secondary" size="sm">
-                  a.n. {loan.destinationName || loan.name}
-                </Text>
+                <CopyableAccountNumber
+                  bankName={loan.destinationBank}
+                  accountNumber={loan.destinationAccount}
+                  accountHolder={loan.destinationName || loan.name}
+                />
               </VStack>
             )}
 
