@@ -17,20 +17,6 @@ function todayIsoDate(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/** Prefer loan.createdAt (application/loan date) as default disbursement date. */
-function defaultApprovedDate(loan: LoanRow): string {
-  if (loan.createdAt) {
-    const d = new Date(loan.createdAt);
-    if (!Number.isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-  }
-  return todayIsoDate();
-}
-
 function simulateAnnuity(amount: number, tenorMonths: number, annualRatePercent: number) {
   const tenor = Math.max(1, tenorMonths || 1);
   if (amount <= 0) return null;
@@ -82,7 +68,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
     }
   }, [paymentSources, selectedAccountId]);
 
-  const [approvedDate, setApprovedDate] = useState(defaultApprovedDate(loan));
+  const [approvedDate, setApprovedDate] = useState(() => todayIsoDate());
   const [rateInput, setRateInput] = useState<string | null>(null);
   const [rateError, setRateError] = useState('');
 
