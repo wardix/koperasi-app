@@ -424,22 +424,15 @@ export default function LettersPage() {
                 Penerbitan nomor surat resmi, perjanjian pinjaman anggota, dan perjanjian pinjaman modal (Anti Duplikasi).
               </Text>
             </VStack>
-            <HStack gap={2}>
-              <Button
-                label="🖨️ Cetak Agenda"
-                variant="secondary"
-                onClick={() => window.print()}
-              />
-              <Button
-                label="+ Terbitkan Nomor Surat"
-                variant="primary"
-                onClick={() => {
-                  setShowCreateModal(true);
-                  setFormError('');
-                  setFormSuccess('');
-                }}
-              />
-            </HStack>
+            <Button
+              label="+ Terbitkan Nomor Surat"
+              variant="primary"
+              onClick={() => {
+                setShowCreateModal(true);
+                setFormError('');
+                setFormSuccess('');
+              }}
+            />
           </HStack>
         </LayoutHeader>
       }
