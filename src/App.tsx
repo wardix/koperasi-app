@@ -22,8 +22,6 @@ import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
 import {formatRp, formatCompactRp, formatDate} from './utils/format';
 import {
-  BarChart,
-  Bar,
   LineChart,
   Line,
   XAxis,
@@ -35,7 +33,6 @@ import {
 import {Grid} from '@astryxdesign/core/Grid';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
-import {Divider} from '@astryxdesign/core/Divider';
 import {Icon} from '@astryxdesign/core/Icon';
 
 // ============= ICONS =============
@@ -196,69 +193,6 @@ const MetricCard = React.memo(function MetricCard({
   );
 });
 
-const StackedBarCard = React.memo(function StackedBarCard({
-  title,
-  data,
-}: {
-  title: string;
-  data: Array<{label: string; value: number; color: string}>;
-}) {
-  const total = data.reduce((sum, d) => sum + d.value, 0);
-  const chartData = [Object.fromEntries(data.map(d => [d.label, d.value]))];
-
-  return (
-    <Card className="hover-card">
-      <VStack gap={4}>
-        <Heading level={4}>{title}</Heading>
-        {data.length === 0 ? <Text>Belum ada data</Text> : (
-          <>
-            <ResponsiveContainer width="100%" height={24}>
-              <BarChart
-                data={chartData}
-                accessibilityLayer
-                layout="vertical"
-                margin={{top: 0, right: 0, bottom: 0, left: 0}}
-                barCategoryGap={0}>
-                <XAxis type="number" hide />
-                <YAxis type="category" hide />
-                {data.map((d, i) => (
-                  <Bar
-                    key={d.label}
-                    dataKey={d.label}
-                    stackId="stack"
-                    fill={d.color}
-                    isAnimationActive={false}
-                    radius={
-                      i === 0
-                        ? [4, 0, 0, 4]
-                        : i === data.length - 1
-                          ? [0, 4, 4, 0]
-                          : [0, 0, 0, 0]
-                    }
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-            <HStack gap={4} wrap="wrap">
-              {data.map(d => (
-                <VStack key={d.label} gap={0}>
-                  <HStack gap={2} vAlign="center">
-                    <Icon icon={StopIcon} size="xsm" style={{color: d.color}} />
-                    <Text type="supporting">{d.label}</Text>
-                  </HStack>
-                  <Text type="supporting" color="secondary">
-                    {d.value} - {((d.value / total) * 100).toFixed(2)}%
-                  </Text>
-                </VStack>
-              ))}
-            </HStack>
-          </>
-        )}
-      </VStack>
-    </Card>
-  );
-});
-
 // ============= SKELETON COMPONENT =============
 
 function DashboardSkeleton() {
@@ -279,26 +213,6 @@ function DashboardSkeleton() {
               <div className="skeleton" style={{ width: '60%', height: '20px' }}></div>
               <div className="skeleton" style={{ width: '80%', height: '32px' }}></div>
               <div className="skeleton" style={{ width: '40%', height: '16px' }}></div>
-            </VStack>
-          </Card>
-        ))}
-      </Grid>
-      
-      <Divider />
-      
-      <HStack hAlign="between" vAlign="center">
-        <div className="skeleton" style={{ width: '250px', height: '28px' }}></div>
-      </HStack>
-      <Grid columns={{minWidth: 320, repeat: 'fit'}} gap={4}>
-        {[1, 2].map((i) => (
-          <Card key={i} className="hover-card">
-            <VStack gap={4}>
-              <div className="skeleton" style={{ width: '40%', height: '20px' }}></div>
-              <div className="skeleton" style={{ width: '100%', height: '24px' }}></div>
-              <HStack gap={4}>
-                <div className="skeleton" style={{ width: '60px', height: '30px' }}></div>
-                <div className="skeleton" style={{ width: '60px', height: '30px' }}></div>
-              </HStack>
             </VStack>
           </Card>
         ))}
@@ -379,16 +293,6 @@ export default function DashboardTemplate() {
             ) : (
               <Text type="supporting" color="secondary">Memuat metrik...</Text>
             )}
-
-            <Divider />
-
-            {/* Demographics & Distribution */}
-            <HStack hAlign="between" vAlign="center">
-              <Heading level={3}>Distribusi Portofolio</Heading>
-            </HStack>
-            <Grid columns={{ minWidth: 320, repeat: 'fit' }} gap={4}>
-              <StackedBarCard title="Tujuan Pinjaman" data={dashboardData?.purposeData || []} />
-            </Grid>
           </VStack>
           </DataStateView>
         </LayoutContent>
