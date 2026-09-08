@@ -113,6 +113,152 @@ reports.get('/monthly-interest', requirePermission('read:reports'), async (c) =>
   }
 })
 
+reports.get('/revenue-projection', requirePermission('read:reports'), async (c) => {
+  try {
+    const year = c.req.query('year') || new Date().getFullYear().toString();
+
+    // 1. Realized interest income from journals in the specified year
+    const realizedRows = await db.query(`
+      SELECT 
+        TO_CHAR(je.transaction_date, 'YYYY-MM') as "monthKey",
+        SUM(CASE WHEN jl.credit > 0 THEN jl.credit ELSE -jl.debit END) as "interest"
+      FROM journal_lines jl
+      JOIN accounts a ON jl.account_id = a.id
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      WHERE a.code = '41101' AND TO_CHAR(je.transaction_date, 'YYYY') = ?
+      GROUP BY TO_CHAR(je.transaction_date, 'YYYY-MM')
+    `).all<{ monthKey: string; interest: number | string }>(year);
+
+    let totalRealizedInterest = 0;
+    const realizedMap: Record<string, number> = {};
+    for (const r of realizedRows) {
+      const val = Math.round(Number(r.interest || 0));
+      realizedMap[r.monthKey] = val;
+      totalRealizedInterest += val;
+    }
+
+    // 2. Projected pending installments for the remainder of the year (dueDate >= CURRENT_DATE and dueDate in year)
+    const projectedRows = await db.query(`
+      SELECT 
+        TO_CHAR(ls.dueDate, 'YYYY-MM') as "monthKey",
+        COUNT(*) as "installmentsCount",
+        SUM(ls.principalAmount) as "projectedPrincipal",
+        SUM(ls.interestAmount) as "projectedInterest",
+        SUM(ls.principalAmount + ls.interestAmount) as "projectedTotal"
+      FROM loan_schedules ls
+      JOIN loans l ON ls.loanId = l.id
+      WHERE l.status IN ('Disetujui', 'Macet') AND l.deletedAt IS NULL
+        AND ls.status = 'Pending'
+        AND ls.dueDate >= CURRENT_DATE
+        AND TO_CHAR(ls.dueDate, 'YYYY') = ?
+      GROUP BY TO_CHAR(ls.dueDate, 'YYYY-MM')
+      ORDER BY "monthKey" ASC
+    `).all<{
+      monthKey: string;
+      installmentsCount: number | string;
+      projectedPrincipal: number | string;
+      projectedInterest: number | string;
+      projectedTotal: number | string;
+    }>(year);
+
+    let totalProjectedInterest = 0;
+    let totalProjectedPrincipal = 0;
+    let totalProjectedCashInflow = 0;
+    let totalProjectedInstallments = 0;
+
+    const projectedMap: Record<string, {
+      installmentsCount: number;
+      projectedPrincipal: number;
+      projectedInterest: number;
+      projectedTotal: number;
+    }> = {};
+
+    for (const p of projectedRows) {
+      const count = Number(p.installmentsCount || 0);
+      const principal = Math.round(Number(p.projectedPrincipal || 0));
+      const interest = Math.round(Number(p.projectedInterest || 0));
+      const total = Math.round(Number(p.projectedTotal || 0));
+
+      projectedMap[p.monthKey] = {
+        installmentsCount: count,
+        projectedPrincipal: principal,
+        projectedInterest: interest,
+        projectedTotal: total,
+      };
+
+      totalProjectedInterest += interest;
+      totalProjectedPrincipal += principal;
+      totalProjectedCashInflow += total;
+      totalProjectedInstallments += count;
+    }
+
+    // 3. Monthly 12-month calendar breakdown (Jan - Dec)
+    const monthNames = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    const monthlyBreakdown = [];
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = String(m).padStart(2, '0');
+      const monthKey = `${year}-${monthStr}`;
+      const realizedInterest = realizedMap[monthKey] || 0;
+      const proj = projectedMap[monthKey];
+
+      monthlyBreakdown.push({
+        monthKey,
+        monthName: monthNames[m - 1],
+        realizedInterest,
+        projectedInterest: proj ? proj.projectedInterest : 0,
+        projectedPrincipal: proj ? proj.projectedPrincipal : 0,
+        projectedTotal: proj ? proj.projectedTotal : 0,
+        installmentsCount: proj ? proj.installmentsCount : 0,
+      });
+    }
+
+    // 4. Upcoming individual installments list (up to 100 next upcoming for detailed table)
+    const upcomingInstallments = await db.query(`
+      SELECT 
+        l.name as "borrowerName",
+        l.id as "loanId",
+        ls.installmentNo as "installmentNo",
+        l.tenor as "tenor",
+        TO_CHAR(ls.dueDate, 'YYYY-MM-DD') as "dueDate",
+        CAST(ls.principalAmount AS INT) as "principalAmount",
+        CAST(ls.interestAmount AS INT) as "interestAmount",
+        CAST(ls.principalAmount + ls.interestAmount AS INT) as "totalAmount",
+        ls.status as "status"
+      FROM loan_schedules ls
+      JOIN loans l ON ls.loanId = l.id
+      WHERE l.status IN ('Disetujui', 'Macet') AND l.deletedAt IS NULL
+        AND ls.status = 'Pending'
+        AND ls.dueDate >= CURRENT_DATE
+        AND TO_CHAR(ls.dueDate, 'YYYY') = ?
+      ORDER BY ls.dueDate ASC, l.name ASC
+      LIMIT 100
+    `).all(year);
+
+    return c.json({
+      success: true,
+      data: {
+        year,
+        summary: {
+          totalRealizedInterest,
+          totalProjectedInterest,
+          totalEstimatedFullYearInterest: totalRealizedInterest + totalProjectedInterest,
+          totalProjectedPrincipal,
+          totalProjectedCashInflow,
+          totalProjectedInstallments,
+        },
+        monthlyBreakdown,
+        upcomingInstallments,
+      }
+    });
+  } catch (error) {
+    throw error;
+  }
+});
+
 reports.get('/ar', requirePermission('read:reports'), async (c) => {
   const rows = await db.query(`
     SELECT 
