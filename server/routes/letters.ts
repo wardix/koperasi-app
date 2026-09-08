@@ -97,7 +97,7 @@ letters.post('/', requirePermission('create:loans'), async (c) => {
 });
 
 // 5. Update Letter Details
-letters.put('/:id', requirePermission('update:loans'), async (c) => {
+letters.put('/:id', requirePermission('approve:loans'), async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
 
@@ -109,13 +109,20 @@ letters.put('/:id', requirePermission('update:loans'), async (c) => {
     return c.json({ success: false, message: 'Surat tidak ditemukan' }, 404);
   }
 
-  const partyName = body.partyName ? String(body.partyName).trim() : existing.party_name;
-  const subject = body.subject ? String(body.subject).trim() : existing.subject;
-  const description = body.description !== undefined ? body.description : existing.description;
+  const partyName = body.partyName !== undefined ? String(body.partyName).trim() : existing.party_name;
+  const subject = body.subject !== undefined ? String(body.subject).trim() : existing.subject;
+  const description = body.description !== undefined ? (body.description ? String(body.description).trim() : null) : existing.description;
   const amount = body.amount !== undefined ? (body.amount ? Number(body.amount) : null) : existing.amount;
   const attachmentUrl = body.attachmentUrl !== undefined ? body.attachmentUrl : existing.attachment_url;
   const attachmentName = body.attachmentName !== undefined ? body.attachmentName : existing.attachment_name;
   const status = body.status ? String(body.status).trim() : existing.status;
+
+  if (!partyName) {
+    return c.json({ success: false, message: 'Nama pihak terkait wajib diisi' }, 400);
+  }
+  if (!subject) {
+    return c.json({ success: false, message: 'Perihal surat wajib diisi' }, 400);
+  }
 
   await db.run(
     `UPDATE official_letters SET
