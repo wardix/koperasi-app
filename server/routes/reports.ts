@@ -216,28 +216,6 @@ reports.get('/revenue-projection', requirePermission('read:reports'), async (c) 
       });
     }
 
-    // 4. Upcoming individual installments list (up to 100 next upcoming for detailed table)
-    const upcomingInstallments = await db.query(`
-      SELECT 
-        l.name as "borrowerName",
-        l.id as "loanId",
-        ls.installmentNo as "installmentNo",
-        l.tenor as "tenor",
-        TO_CHAR(ls.dueDate, 'YYYY-MM-DD') as "dueDate",
-        CAST(ls.principalAmount AS INT) as "principalAmount",
-        CAST(ls.interestAmount AS INT) as "interestAmount",
-        CAST(ls.principalAmount + ls.interestAmount AS INT) as "totalAmount",
-        ls.status as "status"
-      FROM loan_schedules ls
-      JOIN loans l ON ls.loanId = l.id
-      WHERE l.status IN ('Disetujui', 'Macet') AND l.deletedAt IS NULL
-        AND ls.status = 'Pending'
-        AND ls.dueDate >= CURRENT_DATE
-        AND TO_CHAR(ls.dueDate, 'YYYY') = ?
-      ORDER BY ls.dueDate ASC, l.name ASC
-      LIMIT 100
-    `).all(year);
-
     return c.json({
       success: true,
       data: {
@@ -251,7 +229,6 @@ reports.get('/revenue-projection', requirePermission('read:reports'), async (c) 
           totalProjectedInstallments,
         },
         monthlyBreakdown,
-        upcomingInstallments,
       }
     });
   } catch (error) {

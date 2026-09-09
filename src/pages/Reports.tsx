@@ -42,17 +42,6 @@ export interface RevenueProjectionData {
     projectedTotal: number;
     installmentsCount: number;
   }>;
-  upcomingInstallments: Array<{
-    borrowerName: string;
-    loanId: string;
-    installmentNo: number;
-    tenor: number;
-    dueDate: string;
-    principalAmount: number;
-    interestAmount: number;
-    totalAmount: number;
-    status: string;
-  }>;
 }
 
 export default function ReportsTemplate() {
@@ -156,11 +145,6 @@ export default function ReportsTemplate() {
         csvContent += "Bulan,Realisasi Bunga,Jml Angsuran,Proyeksi Bunga,Proyeksi Pokok,Total Proyeksi Masuk\r\n";
         for (const m of projectionRes.monthlyBreakdown) {
           csvContent += `"${m.monthName}",${m.realizedInterest},${m.installmentsCount},${m.projectedInterest},${m.projectedPrincipal},${m.projectedTotal}\r\n`;
-        }
-        csvContent += "\r\nDAFTAR ANGSURAN JATUH TEMPO SISA TAHUN\r\n";
-        csvContent += "Nama Anggota,Cicilan Ke,Tenor,Jatuh Tempo,Pokok,Bunga,Total Tagihan,Status\r\n";
-        for (const item of projectionRes.upcomingInstallments) {
-          csvContent += `"${item.borrowerName}",${item.installmentNo},${item.tenor},${item.dueDate},${item.principalAmount},${item.interestAmount},${item.totalAmount},"${item.status}"\r\n`;
         }
       } else if (selectedReport === 'ar_summary' && arRes) {
         filename = "laporan_piutang_pinjaman.csv";
@@ -823,67 +807,6 @@ export default function ReportsTemplate() {
                                     {formatRp(projectionRes.summary.totalProjectedCashInflow)}
                                   </td>
                                 </tr>
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {/* Tabel 2: Rincian Angsuran Jatuh Tempo Sisa Tahun */}
-                          <div style={{ marginTop: '16px' }}>
-                            <Heading level={4} style={{ marginBottom: '8px' }}>
-                              Daftar Angsuran Jatuh Tempo Sisa Tahun ({projectionRes.upcomingInstallments.length} Jadwal)
-                            </Heading>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600 }}>Nama Anggota</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'center' }}>Ke</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'center' }}>Tenor</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'center' }}>Jatuh Tempo</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Pokok</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Bunga</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Total Tagihan</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'center' }}>Status</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {projectionRes.upcomingInstallments.map((item, idx) => (
-                                  <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                    <td style={{ padding: '10px 8px', fontWeight: 500 }}>{item.borrowerName}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'center' }}>{item.installmentNo}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'center' }}>{item.tenor} bln</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'center' }}>{item.dueDate}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{formatRp(item.principalAmount)}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--color-primary-500)' }}>{formatRp(item.interestAmount)}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(item.totalAmount)}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                                      <StatusBadge status={item.status as any} />
-                                    </td>
-                                  </tr>
-                                ))}
-                                {projectionRes.upcomingInstallments.length === 0 && (
-                                  <tr>
-                                    <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                                      Tidak ada jadwal angsuran jatuh tempo untuk sisa tahun ini.
-                                    </td>
-                                  </tr>
-                                )}
-                                {projectionRes.upcomingInstallments.length > 0 && (
-                                  <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
-                                    <td colSpan={4} style={{ padding: '12px 8px' }}>
-                                      Total Jadwal Angsuran Mendatang
-                                    </td>
-                                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                      {formatRp(projectionRes.upcomingInstallments.reduce((sum, i) => sum + Number(i.principalAmount || 0), 0))}
-                                    </td>
-                                    <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-primary-500)' }}>
-                                      {formatRp(projectionRes.upcomingInstallments.reduce((sum, i) => sum + Number(i.interestAmount || 0), 0))}
-                                    </td>
-                                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                      {formatRp(projectionRes.upcomingInstallments.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0))}
-                                    </td>
-                                    <td></td>
-                                  </tr>
-                                )}
                               </tbody>
                             </table>
                           </div>
