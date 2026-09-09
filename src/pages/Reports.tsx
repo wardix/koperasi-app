@@ -12,7 +12,6 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
-import {Grid} from '@astryxdesign/core/Grid';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {formatRp} from '../utils/format';
@@ -48,6 +47,7 @@ export default function ReportsTemplate() {
   const { hasPermission } = useAuth();
   const canExportReports = hasPermission('export:reports');
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear().toString());
@@ -219,7 +219,30 @@ export default function ReportsTemplate() {
         <LayoutHeader hasDivider className="no-print">
           <HStack gap={2} vAlign="center" style={{ width: '100%' }}>
             <StackItem size="fill">
-              <Heading level={1}>Laporan Koperasi</Heading>
+              <HStack gap={3} vAlign="center">
+                <Heading level={1}>Laporan Koperasi</Heading>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: isSidebarCollapsed ? 'var(--color-primary-500)' : 'var(--color-background-primary)',
+                    color: isSidebarCollapsed ? '#ffffff' : 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={isSidebarCollapsed ? "Tampilkan panel menu laporan & filter" : "Sembunyikan panel untuk memperluas tampilan laporan"}
+                >
+                  <span>{isSidebarCollapsed ? '📑 Buka Menu Laporan' : '◀ Sembunyikan Menu'}</span>
+                </button>
+              </HStack>
             </StackItem>
             <StackItem>
               {canExportReports && (
@@ -318,12 +341,35 @@ export default function ReportsTemplate() {
             }
           `}</style>
 
-          <Grid columns={{minWidth: 260, repeat: 'fit'}} gap={4}>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', width: '100%' }}>
             {/* Sidebar selector card */}
-            <StackItem className="no-print" style={{ minWidth: '240px', flex: '0 0 280px' }}>
-              <Card style={{ padding: '16px' }}>
-                <VStack gap={3}>
-                  <Heading level={3}>Pilih Laporan</Heading>
+            {!isSidebarCollapsed && (
+              <div className="no-print" style={{ width: '280px', flexShrink: 0 }}>
+                <Card style={{ padding: '16px' }}>
+                  <VStack gap={3}>
+                    <HStack vAlign="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+                      <Heading level={3}>Pilih Laporan</Heading>
+                      <button
+                        type="button"
+                        onClick={() => setIsSidebarCollapsed(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          color: 'var(--color-text-secondary)',
+                          backgroundColor: 'transparent',
+                          border: '1px solid var(--color-border-primary)',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                        title="Sembunyikan panel ini"
+                      >
+                        ◀ Ciutkan
+                      </button>
+                    </HStack>
                   <VStack gap={2}>
                     {[
                       { id: 'cooperative_summary' as const, label: 'Laporan Ringkasan Koperasi', icon: '📊' },
@@ -485,11 +531,36 @@ export default function ReportsTemplate() {
                   )}
                 </VStack>
               </Card>
-            </StackItem>
+            </div>
+          )}
 
-            {/* Preview area card */}
-            <StackItem style={{ flex: '1 1 auto' }}>
-              <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
+          {/* Preview area card */}
+          <div style={{ flex: '1 1 0', minWidth: 0, width: '100%' }}>
+            {isSidebarCollapsed && (
+              <div className="no-print" style={{ marginBottom: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-background-primary)',
+                    color: 'var(--color-text-primary)',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>📑 Buka Pilihan Laporan & Filter</span>
+                </button>
+              </div>
+            )}
+            <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
                 {(() => {
                   // Only open the printable card when the *selected* report has data.
                   const summaryReady = !!(
@@ -1260,8 +1331,8 @@ export default function ReportsTemplate() {
                   );
                 })()}
               </DataStateView>
-            </StackItem>
-          </Grid>
+            </div>
+          </div>
         </LayoutContent>
       }
     />
