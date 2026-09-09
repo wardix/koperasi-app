@@ -329,8 +329,8 @@ accounting.delete('/journals/:id', requirePermission('delete:accounting'), async
 // ---------------------------------------------------------------------------
 
 accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
-  const startDate = c.req.query('startDate')
-  const endDate = c.req.query('endDate')
+  const startDate = c.req.query('startDate')?.trim()
+  const endDate = c.req.query('endDate')?.trim()
 
   let obFilter = '';
   let perFilter = '';
@@ -340,6 +340,8 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
     obFilter = 'AND j.transaction_date < ?';
     perFilter = 'AND j.transaction_date >= ?';
     params.push(startDate, startDate);
+  } else {
+    obFilter = 'AND 1=0';
   }
   if (endDate) {
     perFilter += ' AND j.transaction_date <= ?';
@@ -392,8 +394,8 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
 })
 accounting.get('/ledger/:accountId', requirePermission('read:accounting'), async (c) => {
   const accountId = c.req.param('accountId')
-  const startDate = c.req.query('startDate')
-  const endDate = c.req.query('endDate')
+  const startDate = c.req.query('startDate')?.trim()
+  const endDate = c.req.query('endDate')?.trim()
 
   const account = await db.query(`SELECT * FROM accounts WHERE id = ?`).get(accountId)
   if (!account) {
