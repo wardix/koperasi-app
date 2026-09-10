@@ -4,6 +4,7 @@ import { requirePermission } from '../middleware'
 import db from '../db'
 import type { ShuCloseRow } from '../db/entities'
 import { audit, getActor, getClientIp } from '../lib/audit'
+import { shuConfigSchema } from '../schemas'
 
 const shu = new Hono()
 
@@ -22,6 +23,50 @@ shu.get('/', requirePermission('read:shu'), async (c) => {
 shu.get('/config', requirePermission('read:settings'), async (c) => {
   const config = await getShuConfig();
   return c.json({ success: true, data: config });
+});
+
+// ---------------------------------------------------------------------------
+// PUT /api/v1/shu/config — Update SHU distribution configuration
+// ---------------------------------------------------------------------------
+shu.put('/config', requirePermission('update:settings'), async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = shuConfigSchema.safeParse(body);
+  if (!parsed.success) {
+    const errorMsg = parsed.error.issues?.[0]?.message || 'Konfigurasi tidak valid';
+    return c.json({ success: false, message: errorMsg, errors: parsed.error.format() }, 400);
+  }
+
+  const { cadanganPct, anggotaPct, pengurusPct, sosialPct, pembangunanPct, jasaSimpananPct, jasaPinjamanPct } = parsed.data;
+
+  const updates: Record<string, string> = {
+    shu_cadangan_pct: cadanganPct.toString(),
+    shu_anggota_pct: anggotaPct.toString(),
+    shu_pengurus_pct: pengurusPct.toString(),
+    shu_sosial_pct: sosialPct.toString(),
+    shu_pembangunan_pct: pembangunanPct.toString(),
+    shu_jasa_simpanan_pct: jasaSimpananPct.toString(),
+    shu_jasa_pinjaman_pct: jasaPinjamanPct.toString(),
+  };
+
+  await db.transaction(async () => {
+    for (const [k, v] of Object.entries(updates)) {
+      await db.run(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+        [k, v]
+      );
+    }
+  })();
+
+  await audit(db, {
+    actor: getActor(c),
+    action: 'update_settings',
+    entity: 'settings',
+    entityId: 'shu_config',
+    after: updates,
+    ip: getClientIp(c),
+  });
+
+  return c.json({ success: true, message: 'Konfigurasi alokasi SHU berhasil disimpan' });
 });
 
 // ---------------------------------------------------------------------------

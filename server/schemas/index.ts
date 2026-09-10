@@ -353,7 +353,30 @@ export const ALLOWED_SETTINGS_KEYS = [
   'waWebhookUrl',
   'waWebhookToken',
   'waNotificationTarget',
+  'shu_cadangan_pct',
+  'shu_anggota_pct',
+  'shu_pengurus_pct',
+  'shu_sosial_pct',
+  'shu_pembangunan_pct',
+  'shu_jasa_simpanan_pct',
+  'shu_jasa_pinjaman_pct',
 ];
+
+export const shuConfigSchema = z.object({
+  cadanganPct: z.number().min(0).max(100),
+  anggotaPct: z.number().min(0).max(100),
+  pengurusPct: z.number().min(0).max(100),
+  sosialPct: z.number().min(0).max(100),
+  pembangunanPct: z.number().min(0).max(100),
+  jasaSimpananPct: z.number().min(0).max(100),
+  jasaPinjamanPct: z.number().min(0).max(100),
+}).refine(
+  data => Math.abs((data.cadanganPct + data.anggotaPct + data.pengurusPct + data.sosialPct + data.pembangunanPct) - 100) < 0.01,
+  { message: "Total distribusi SHU (Anggota + Cadangan + Pengurus + Sosial + Pembangunan) harus tepat 100%" }
+).refine(
+  data => Math.abs((data.jasaSimpananPct + data.jasaPinjamanPct) - 100) < 0.01,
+  { message: "Total porsi jasa anggota (Simpanan + Pinjaman) harus tepat 100%" }
+);
 
 export const settingsSchema = z.record(
   z.string().refine(key => ALLOWED_SETTINGS_KEYS.includes(key), { message: "Invalid setting key" }),

@@ -185,6 +185,23 @@ export interface SettingsData {
   waWebhookUrl?: string;
   waWebhookToken?: string;
   waNotificationTarget?: string;
+  shu_cadangan_pct?: string;
+  shu_anggota_pct?: string;
+  shu_pengurus_pct?: string;
+  shu_sosial_pct?: string;
+  shu_pembangunan_pct?: string;
+  shu_jasa_simpanan_pct?: string;
+  shu_jasa_pinjaman_pct?: string;
+}
+
+export interface ShuConfig {
+  cadanganPct: number;
+  anggotaPct: number;
+  pengurusPct: number;
+  sosialPct: number;
+  pembangunanPct: number;
+  jasaSimpananPct: number;
+  jasaPinjamanPct: number;
 }
 
 export interface SavingsTransactionRow {

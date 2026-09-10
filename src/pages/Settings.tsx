@@ -38,10 +38,12 @@ import {ProfileSettings} from '../components/settings/ProfileSettings';
 import {ParameterSettings} from '../components/settings/ParameterSettings';
 import {TwoFactorSettings} from '../components/settings/TwoFactorSettings';
 import {WaNotificationSettings} from '../components/settings/WaNotificationSettings';
+import {ShuSettings, type ShuSettingsValues} from '../components/settings/ShuSettings';
 
 const NAV_ITEMS = [
   'Profil Koperasi',
   'Parameter Bunga',
+  'Alokasi SHU',
   'Notifikasi WhatsApp',
   'Hak Akses',
   'Keamanan',
@@ -59,6 +61,9 @@ const SETTINGS_ITEMS: SearchableItem[] = [
   {id: '9', label: 'Notifikasi WhatsApp'},
   {id: '10', label: 'URL Webhook Gateway'},
   {id: '11', label: 'Nomor WhatsApp Pengurus'},
+  {id: '12', label: 'Alokasi SHU (AD/ART)'},
+  {id: '13', label: 'Persentase Cadangan & Pengurus SHU'},
+  {id: '14', label: 'Porsi Jasa Simpanan & Pinjaman SHU'},
 ];
 
 const settingsSearchSource: SearchSource<SearchableItem> = {
@@ -164,6 +169,27 @@ export default function SettingsTemplate() {
           // Notify shell/header to refresh brand name without full reload
           window.dispatchEvent(new Event('app-settings-changed'));
         }
+      }
+    );
+  };
+
+  const handleSaveShu = (values: ShuSettingsValues) => {
+    apiAction.execute(
+      () => api.put('/api/v1/shu/config', {
+        anggotaPct: parseFloat(values.anggotaPct),
+        cadanganPct: parseFloat(values.cadanganPct),
+        pengurusPct: parseFloat(values.pengurusPct),
+        sosialPct: parseFloat(values.sosialPct),
+        pembangunanPct: parseFloat(values.pembangunanPct),
+        jasaSimpananPct: parseFloat(values.jasaSimpananPct),
+        jasaPinjamanPct: parseFloat(values.jasaPinjamanPct),
+      }),
+      {
+        successMsg: 'Alokasi SHU (AD/ART) berhasil disimpan!',
+        errorMsg: 'Terjadi kesalahan saat menyimpan alokasi SHU',
+        onSuccess: () => {
+          fetchSettings();
+        },
       }
     );
   };
@@ -304,6 +330,22 @@ export default function SettingsTemplate() {
               onBungaSimpananChange={setBungaSimpanan}
               onDendaChange={setDenda}
               onSave={saveSettings}
+            />
+
+            <Divider />
+
+            <ShuSettings
+              initialValues={{
+                anggotaPct: settingsData?.shu_anggota_pct,
+                cadanganPct: settingsData?.shu_cadangan_pct,
+                pengurusPct: settingsData?.shu_pengurus_pct,
+                sosialPct: settingsData?.shu_sosial_pct,
+                pembangunanPct: settingsData?.shu_pembangunan_pct,
+                jasaSimpananPct: settingsData?.shu_jasa_simpanan_pct,
+                jasaPinjamanPct: settingsData?.shu_jasa_pinjaman_pct,
+              }}
+              canUpdate={hasPermission('update:settings')}
+              onSave={handleSaveShu}
             />
 
             <Divider />

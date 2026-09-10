@@ -57,7 +57,8 @@ export async function calculateSHU(year: string) {
         savingsShare: a.savingsShare,
         loansShare: a.loansShare,
         shu: a.totalSHU
-      }))
+      })),
+      config: await getShuConfig()
     };
   }
 
@@ -142,6 +143,7 @@ export async function calculateSHU(year: string) {
     biayaOperasional,
     shuNetto,
     distribusi,
-    alokasiAnggota
+    alokasiAnggota,
+    config
   };
 }

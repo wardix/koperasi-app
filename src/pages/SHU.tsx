@@ -12,6 +12,8 @@ import { formatRp } from '../utils/format';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { getCategoricalColor, getThemedTooltipProps } from '../design/chartTheme';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ShuConfigDialog } from '../components/ShuConfigDialog';
+import type { ShuConfig } from '../shared/types';
 
 interface SHUData {
   year: string;
@@ -31,23 +33,32 @@ interface SHUData {
     totalSavings: number;
     shu: number;
   }[];
+  config?: ShuConfig;
 }
 
 export default function SHU() {
   const currentYear = new Date().getFullYear().toString();
   const [year, setYear] = useState(currentYear);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const { hasPermission } = useAuth();
   
   const { data, isLoading, error, refetch } = useApiQuery<SHUData>(`/api/shu?year=${year}`);
 
   const chartData = useMemo(() => {
     if (!data) return [];
+    const cfg = data.config || {
+      anggotaPct: 40,
+      cadanganPct: 25,
+      pengurusPct: 20,
+      sosialPct: 10,
+      pembangunanPct: 5,
+    };
     return [
-      { name: 'Anggota (40%)', value: data.distribusi.anggota },
-      { name: 'Cadangan (25%)', value: data.distribusi.cadangan },
-      { name: 'Pengurus (20%)', value: data.distribusi.pengurus },
-      { name: 'Sosial (10%)', value: data.distribusi.sosial },
-      { name: 'Pembangunan (5%)', value: data.distribusi.pembangunan },
+      { name: `Anggota (${cfg.anggotaPct}%)`, value: data.distribusi.anggota },
+      { name: `Cadangan (${cfg.cadanganPct}%)`, value: data.distribusi.cadangan },
+      { name: `Pengurus (${cfg.pengurusPct}%)`, value: data.distribusi.pengurus },
+      { name: `Sosial (${cfg.sosialPct}%)`, value: data.distribusi.sosial },
+      { name: `Pembangunan (${cfg.pembangunanPct}%)`, value: data.distribusi.pembangunan },
     ];
   }, [data]);
 
@@ -82,6 +93,13 @@ export default function SHU() {
             </StackItem>
             <StackItem>
               <HStack gap={3} vAlign="center">
+                {hasPermission('update:settings') && (
+                  <Button
+                    label="Atur Alokasi AD/ART"
+                    variant="secondary"
+                    onClick={() => setShowConfigModal(true)}
+                  />
+                )}
                 <Text type="supporting">Tahun Buku:</Text>
                 <select 
                   value={year}
@@ -166,23 +184,23 @@ export default function SHU() {
                     <Heading level={4}>Rincian Distribusi</Heading>
                     <div style={{ border: '1px solid var(--color-border-primary)', borderRadius: 'var(--radius-md, 6px)', overflow: 'hidden' }}>
                       <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Alokasi Anggota (40%)</Text>
+                        <Text>Alokasi Anggota ({data.config?.anggotaPct ?? 40}%)</Text>
                         <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.anggota)}</Text>
                       </div>
                       <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Dana Cadangan (25%)</Text>
+                        <Text>Dana Cadangan ({data.config?.cadanganPct ?? 25}%)</Text>
                         <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.cadangan)}</Text>
                       </div>
                       <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Jasa Pengurus (20%)</Text>
+                        <Text>Jasa Pengurus ({data.config?.pengurusPct ?? 20}%)</Text>
                         <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.pengurus)}</Text>
                       </div>
                       <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Dana Sosial (10%)</Text>
+                        <Text>Dana Sosial ({data.config?.sosialPct ?? 10}%)</Text>
                         <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.sosial)}</Text>
                       </div>
                       <div style={{ padding: 12, display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Dana Pembangunan (5%)</Text>
+                        <Text>Dana Pembangunan ({data.config?.pembangunanPct ?? 5}%)</Text>
                         <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.pembangunan)}</Text>
                       </div>
                     </div>
@@ -231,6 +249,14 @@ export default function SHU() {
           )}
         </DataStateView>
       </LayoutContent>
+
+      {showConfigModal && (
+        <ShuConfigDialog
+          currentConfig={data?.config}
+          onClose={() => setShowConfigModal(false)}
+          onSuccess={() => refetch()}
+        />
+      )}
     </Layout>
   );
 }
