@@ -360,6 +360,7 @@ export const ALLOWED_SETTINGS_KEYS = [
   'shu_pembangunan_pct',
   'shu_jasa_simpanan_pct',
   'shu_jasa_pinjaman_pct',
+  'shu_include_inactive_members',
 ];
 
 export const shuConfigSchema = z.object({
@@ -370,6 +371,7 @@ export const shuConfigSchema = z.object({
   pembangunanPct: z.number().min(0).max(100),
   jasaSimpananPct: z.number().min(0).max(100),
   jasaPinjamanPct: z.number().min(0).max(100),
+  includeInactiveMembers: z.boolean().optional().default(true),
 }).refine(
   data => Math.abs((data.cadanganPct + data.anggotaPct + data.pengurusPct + data.sosialPct + data.pembangunanPct) - 100) < 0.01,
   { message: "Total distribusi SHU (Anggota + Cadangan + Pengurus + Sosial + Pembangunan) harus tepat 100%" }

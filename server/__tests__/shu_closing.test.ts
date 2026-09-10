@@ -10,6 +10,7 @@ describe('SHU Closing', () => {
     await db.run("DELETE FROM shu_member_allocations WHERE year = ?", [TEST_YEAR])
     await db.run("DELETE FROM shu_closes WHERE year = ?", [TEST_YEAR])
     await db.run("DELETE FROM loan_payments WHERE loanId LIKE 'shu-loan-%'")
+    await db.run("DELETE FROM loan_schedules WHERE loanId LIKE 'shu-loan-%'")
     await db.run("DELETE FROM loans WHERE id LIKE 'shu-loan-%'")
     await db.run("DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE description LIKE 'SHU Test Expense%')")
     await db.run("DELETE FROM journal_entries WHERE description LIKE 'SHU Test Expense%'")
@@ -331,4 +332,182 @@ describe('SHU Closing', () => {
       expect(result.biayaOperasional).toBeDefined()
     })
   })
+
+  describe('projection mode', () => {
+    it('should calculate projection mode with scheduled pending interest until year-end', async () => {
+      const { calculateSHU } = await import('../services/shuService')
+
+      // Get realization baseline
+      const realResult = await calculateSHU(TEST_YEAR, { mode: 'realization' })
+      expect(realResult.mode).toBe('realization')
+      expect(realResult.projectedPendapatan).toBe(0)
+      expect(realResult.pendapatan).toBe(realResult.realizedPendapatan)
+
+      // Add a future pending loan schedule for shu-m1 in TEST_YEAR
+      const scheduleId = 'shu-sched-proj-1'
+      const projectedInterest = 450_000
+      await db.run(`
+        INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [scheduleId, 'shu-loan-0', 7, `${TEST_YEAR}-12-15`, 2_000_000, projectedInterest, 0, 'Pending'])
+
+      const projResult = await calculateSHU(TEST_YEAR, { mode: 'projection' })
+
+      expect(projResult.mode).toBe('projection')
+      expect(projResult.projectedPendapatan).toBeGreaterThanOrEqual(projectedInterest)
+      expect(projResult.pendapatan).toBe(projResult.realizedPendapatan + projResult.projectedPendapatan)
+      expect(projResult.pendapatan).toBeGreaterThan(realResult.pendapatan)
+
+      // Clean up
+      await db.run("DELETE FROM loan_schedules WHERE id = ?", [scheduleId])
+    })
+
+    it('should return realization mode if year is already closed even if projection requested', async () => {
+      const { calculateSHU } = await import('../services/shuService')
+
+      // Close the year manually
+      const preResult = await calculateSHU(TEST_YEAR)
+      await db.run(`
+        INSERT INTO shu_closes (year, pendapatan, biayaOperasional, shuNetto, distribusi, closedBy)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [TEST_YEAR, preResult.pendapatan, preResult.biayaOperasional, preResult.shuNetto, JSON.stringify(preResult.distribusi), 'admin'])
+
+      const closedResult = await calculateSHU(TEST_YEAR, { mode: 'projection' })
+      expect(closedResult.isClosed).toBe(true)
+      expect(closedResult.mode).toBe('realization')
+      expect(closedResult.projectedPendapatan).toBe(0)
+    })
+  })
+
+  describe('Average Daily Balance (ADB) and Inactive Members Policy', () => {
+    const SCEN_YEAR = '2025'
+
+    beforeEach(async () => {
+      // Clean up scenario members and transactions
+      await db.run("DELETE FROM shu_member_allocations WHERE year = ?", [SCEN_YEAR])
+      await db.run("DELETE FROM shu_closes WHERE year = ?", [SCEN_YEAR])
+      await db.run("DELETE FROM transactions WHERE memberId LIKE 'scen-%'")
+      await db.run("DELETE FROM loan_payments WHERE loanId LIKE 'scen-%'")
+      await db.run("DELETE FROM loans WHERE memberId LIKE 'scen-%'")
+      await db.run("DELETE FROM members WHERE id LIKE 'scen-%'")
+      await db.run("DELETE FROM settings WHERE key = 'shu_include_inactive_members'")
+    })
+
+    it('should calculate ADB accurately: 11-month depositor (Member B) gets ~11x larger average savings than 1-month depositor (Member C)', async () => {
+      const { calculateMemberAverageSavings, calculateSHU } = await import('../services/shuService')
+
+      // Member B: Joined in 2024, deposited 100M on 2025-01-01, withdrew 100M on 2025-11-30 (ending balance: 0)
+      await db.run(
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+         VALUES (?, ?, 'Anggota', 'Aktif', '2024-01-01', 0, 0, 0, 0)`,
+        ['scen-b', 'Anggota B']
+      )
+      // Transaction 1: Deposit 100M on Jan 1
+      await db.run(
+        `INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+         VALUES (?, ?, 'setor_sukarela', ?, ?, ?, ?, 'system')`,
+        ['tx-b-1', 'scen-b', 100_000_000, 0, 100_000_000, '2025-01-01T00:00:00.000Z']
+      )
+      // Transaction 2: Withdraw 100M on Nov 30 23:59:59
+      await db.run(
+        `INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+         VALUES (?, ?, 'tarik_sukarela', ?, ?, ?, ?, 'system')`,
+        ['tx-b-2', 'scen-b', 100_000_000, 100_000_000, 0, '2025-11-30T23:59:59.000Z']
+      )
+
+      // Member C: Joined in 2024, deposited 100M on 2025-12-01, kept until Dec 31 (ending balance: 100M)
+      await db.run(
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+         VALUES (?, ?, 'Anggota', 'Aktif', '2024-01-01', 0, 0, 100_000_000, 100_000_000)`,
+        ['scen-c', 'Anggota C']
+      )
+      // Transaction 1: Deposit 100M on Dec 1
+      await db.run(
+        `INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+         VALUES (?, ?, 'setor_sukarela', ?, ?, ?, ?, 'system')`,
+        ['tx-c-1', 'scen-c', 100_000_000, 0, 100_000_000, '2025-12-01T00:00:00.000Z']
+      )
+
+      const stats = await calculateMemberAverageSavings(SCEN_YEAR, true)
+      const bStats = stats['scen-b']
+      const cStats = stats['scen-c']
+
+      expect(bStats).toBeDefined()
+      expect(cStats).toBeDefined()
+
+      // Member B held 100M for ~334 days (~11 months)
+      expect(bStats.averageSavings).toBeGreaterThan(90_000_000)
+      expect(bStats.averageSavings).toBeLessThan(93_000_000)
+
+      // Member C held 100M for ~31 days (~1 month)
+      expect(cStats.averageSavings).toBeGreaterThan(7_500_000)
+      expect(cStats.averageSavings).toBeLessThan(9_500_000)
+
+      // The ratio b / c should be roughly 11x (between 10x and 12x)
+      const ratio = bStats.averageSavings / cStats.averageSavings
+      expect(ratio).toBeGreaterThan(10)
+      expect(ratio).toBeLessThan(12)
+
+      // Generate some interest income so SHU can be distributed
+      await db.run(
+        `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, 'Disetujui', ?)`,
+        ['scen-loan', 'scen-b', 'Loan Scen', 50_000_000, '12', 'Purpose', '2025-01-01T00:00:00.000Z']
+      )
+      await db.run(
+        `INSERT INTO loan_payments (id, loanId, amount, paymentDate, method) VALUES (?, ?, ?, ?, ?)`,
+        ['scen-pay-1', 'scen-loan', 10_000_000, '2025-06-01', 'transfer']
+      )
+
+      const shuResult = await calculateSHU(SCEN_YEAR)
+      const bAlloc = shuResult.alokasiAnggota.find(a => a.id === 'scen-b')
+      const cAlloc = shuResult.alokasiAnggota.find(a => a.id === 'scen-c')
+
+      expect(bAlloc).toBeDefined()
+      expect(cAlloc).toBeDefined()
+
+      // In old system, bAlloc.savingsShare would have been 0 because totalSavings is 0.
+      // In ADB system, bAlloc gets ~11x larger savings share than cAlloc!
+      expect(bAlloc!.savingsShare).toBeGreaterThan(cAlloc!.savingsShare * 9)
+    })
+
+    it('should respect includeInactiveMembers setting toggle', async () => {
+      const { calculateSHU } = await import('../services/shuService')
+
+      // Create an active member and a resigned member
+      await db.run(
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+         VALUES ('scen-active', 'Anggota Tetap', 'Anggota', 'Aktif', '2024-01-01', 1_000_000, 1_000_000, 0, 2_000_000)`
+      )
+      await db.run(
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+         VALUES ('scen-resigned', 'Mantan Anggota', 'Anggota', 'Keluar', '2024-01-01', 0, 0, 0, 0)`
+      )
+      // Resigned member had 50M for the first 6 months, then withdrew on July 1
+      await db.run(
+        `INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+         VALUES ('tx-res-1', 'scen-resigned', 'setor_sukarela', 50_000_000, 0, 50_000_000, '2025-01-01T00:00:00.000Z', 'system')`
+      )
+      await db.run(
+        `INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+         VALUES ('tx-res-2', 'scen-resigned', 'tarik_sukarela', 50_000_000, 50_000_000, 0, '2025-07-01T00:00:00.000Z', 'system')`
+      )
+
+      // Test with includeInactiveMembers: true (default)
+      await db.run("INSERT INTO settings (key, value) VALUES ('shu_include_inactive_members', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'")
+      const resultWithInactive = await calculateSHU(SCEN_YEAR)
+      const resignedAllocIncluded = resultWithInactive.alokasiAnggota.find(a => a.id === 'scen-resigned')
+      expect(resignedAllocIncluded).toBeDefined()
+      expect(resignedAllocIncluded?.status).toBe('Keluar')
+      expect(resignedAllocIncluded?.averageSavings).toBeGreaterThan(20_000_000)
+
+      // Test with includeInactiveMembers: false
+      await db.run("INSERT INTO settings (key, value) VALUES ('shu_include_inactive_members', 'false') ON CONFLICT (key) DO UPDATE SET value = 'false'")
+      const resultWithoutInactive = await calculateSHU(SCEN_YEAR)
+      const resignedAllocExcluded = resultWithoutInactive.alokasiAnggota.find(a => a.id === 'scen-resigned')
+      expect(resignedAllocExcluded).toBeUndefined()
+      const activeAlloc = resultWithoutInactive.alokasiAnggota.find(a => a.id === 'scen-active')
+      expect(activeAlloc).toBeDefined()
+    })
+  })
 })
+

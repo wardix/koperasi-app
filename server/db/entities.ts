@@ -221,6 +221,7 @@ export const shuAllocationRowSchema = z.object({
   totalSHU: num,
   name: strNull,
   totalSavings: numNull,
+  averageSavings: numNull,
 });
 export type ShuAllocationRow = z.infer<typeof shuAllocationRowSchema>;
 

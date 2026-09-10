@@ -7,6 +7,7 @@ import { TextInput } from '@astryxdesign/core/TextInput';
 import { Button } from '@astryxdesign/core/Button';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Badge } from '@astryxdesign/core/Badge';
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 
 export interface ShuSettingsValues {
   anggotaPct: string;
@@ -16,6 +17,7 @@ export interface ShuSettingsValues {
   pembangunanPct: string;
   jasaSimpananPct: string;
   jasaPinjamanPct: string;
+  includeInactiveMembers?: boolean;
 }
 
 interface ShuSettingsProps {
@@ -33,6 +35,7 @@ const DEFAULT_SHU_VALUES: ShuSettingsValues = {
   pembangunanPct: '5',
   jasaSimpananPct: '50',
   jasaPinjamanPct: '50',
+  includeInactiveMembers: true,
 };
 
 export function ShuSettings({
@@ -49,6 +52,7 @@ export function ShuSettings({
     pembangunanPct: initialValues?.pembangunanPct ?? DEFAULT_SHU_VALUES.pembangunanPct,
     jasaSimpananPct: initialValues?.jasaSimpananPct ?? DEFAULT_SHU_VALUES.jasaSimpananPct,
     jasaPinjamanPct: initialValues?.jasaPinjamanPct ?? DEFAULT_SHU_VALUES.jasaPinjamanPct,
+    includeInactiveMembers: initialValues?.includeInactiveMembers ?? DEFAULT_SHU_VALUES.includeInactiveMembers,
   });
 
   const handleChange = (field: keyof ShuSettingsValues, value: string) => {
@@ -180,6 +184,26 @@ export function ShuSettings({
               disabled={!canUpdate || isLoading}
             />
           </Grid>
+        </VStack>
+
+        {/* Seksi 3: Kebijakan Mantan Anggota */}
+        <VStack gap={3}>
+          <VStack gap={0}>
+            <Text type="body" weight="semibold">
+              3. Kebijakan Mantan Anggota
+            </Text>
+            <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
+              Kebijakan pembagian SHU bagi anggota yang mengundurkan diri sebelum tutup tahun buku.
+            </Text>
+          </VStack>
+
+          <CheckboxInput
+            label="Alokasikan SHU Pro-Rata untuk Mantan Anggota"
+            description="Jika aktif, anggota yang mengundurkan diri sebelum tutup tahun tetap berhak atas SHU jasa modal/usaha secara adil dan pro-rata berbasis Saldo Rata-Rata Harian (ADB) selama menjadi anggota di tahun berjalan."
+            value={formValues.includeInactiveMembers ?? true}
+            onChange={(checked) => setFormValues((prev) => ({ ...prev, includeInactiveMembers: checked }))}
+            disabled={!canUpdate || isLoading}
+          />
         </VStack>
 
         {/* Action Buttons */}

@@ -1,5 +1,5 @@
-import { describe, it, expect, mock } from 'bun:test';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, mock, afterEach } from 'bun:test';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import SHU from './SHU';
 
 // Mock useAuth
@@ -44,6 +44,9 @@ mock.module('../hooks/useApiQuery', () => ({
 }));
 
 describe('SHU Page', () => {
+  afterEach(() => {
+    cleanup();
+  });
   it('hides 0% distribution items in details list', () => {
     render(<SHU />);
 
@@ -66,5 +69,16 @@ describe('SHU Page', () => {
 
     expect(screen.getByText('Atur Alokasi SHU (AD/ART)')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Simpan & Terapkan' })).toBeTruthy();
+  });
+
+  it('renders mode switch buttons for realization and projection', () => {
+    render(<SHU />);
+
+    const realBtn = screen.getByRole('button', { name: 'Realisasi (YTD)' });
+    const projBtn = screen.getByRole('button', { name: 'Proyeksi Akhir Tahun' });
+    expect(realBtn).toBeTruthy();
+    expect(projBtn).toBeTruthy();
+
+    fireEvent.click(projBtn);
   });
 });

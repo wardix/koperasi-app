@@ -30,6 +30,7 @@ import { createMergeEwaAndMobileTablesMigration } from "./0032_merge_ewa_and_mob
 import { createAddSavingsWithdrawalsMigration } from "./0033_add_savings_withdrawals";
 import { createAddSavingsDepositsMigration } from "./0034_add_savings_deposits";
 import { createAddCoopBankSettingsMigration } from "./0035_add_coop_bank_settings";
+import { createAddShuAverageSavingsMigration } from "./0036_add_shu_average_savings";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -78,6 +79,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddSavingsWithdrawalsMigration(db),
     createAddSavingsDepositsMigration(db),
     createAddCoopBankSettingsMigration(db),
+    createAddShuAverageSavingsMigration(db),
   ];
 }
 

@@ -183,6 +183,7 @@ export default function SettingsTemplate() {
         pembangunanPct: parseFloat(values.pembangunanPct),
         jasaSimpananPct: parseFloat(values.jasaSimpananPct),
         jasaPinjamanPct: parseFloat(values.jasaPinjamanPct),
+        includeInactiveMembers: values.includeInactiveMembers ?? true,
       }),
       {
         successMsg: 'Alokasi SHU (AD/ART) berhasil disimpan!',
@@ -343,6 +344,9 @@ export default function SettingsTemplate() {
                 pembangunanPct: settingsData?.shu_pembangunan_pct,
                 jasaSimpananPct: settingsData?.shu_jasa_simpanan_pct,
                 jasaPinjamanPct: settingsData?.shu_jasa_pinjaman_pct,
+                includeInactiveMembers: settingsData?.shu_include_inactive_members !== undefined
+                  ? (settingsData.shu_include_inactive_members === 'true' || settingsData.shu_include_inactive_members === true)
+                  : true,
               }}
               canUpdate={hasPermission('update:settings')}
               onSave={handleSaveShu}

@@ -8,6 +8,7 @@ import { TextInput } from '@astryxdesign/core/TextInput';
 import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Grid } from '@astryxdesign/core/Grid';
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { api } from '../services/api';
 import type { ShuConfig } from '../shared/types';
 
@@ -25,6 +26,7 @@ const DEFAULT_SHU_CONFIG: ShuConfig = {
   pembangunanPct: 5,
   jasaSimpananPct: 50,
   jasaPinjamanPct: 50,
+  includeInactiveMembers: true,
 };
 
 export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfigDialogProps) {
@@ -36,6 +38,7 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
     pembangunanPct: (currentConfig?.pembangunanPct ?? DEFAULT_SHU_CONFIG.pembangunanPct).toString(),
     jasaSimpananPct: (currentConfig?.jasaSimpananPct ?? DEFAULT_SHU_CONFIG.jasaSimpananPct).toString(),
     jasaPinjamanPct: (currentConfig?.jasaPinjamanPct ?? DEFAULT_SHU_CONFIG.jasaPinjamanPct).toString(),
+    includeInactiveMembers: currentConfig?.includeInactiveMembers ?? true,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +72,7 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
       pembangunanPct: DEFAULT_SHU_CONFIG.pembangunanPct.toString(),
       jasaSimpananPct: DEFAULT_SHU_CONFIG.jasaSimpananPct.toString(),
       jasaPinjamanPct: DEFAULT_SHU_CONFIG.jasaPinjamanPct.toString(),
+      includeInactiveMembers: DEFAULT_SHU_CONFIG.includeInactiveMembers ?? true,
     });
     setErrorMessage(null);
   };
@@ -89,6 +93,7 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
         pembangunanPct: parseFloat(form.pembangunanPct),
         jasaSimpananPct: parseFloat(form.jasaSimpananPct),
         jasaPinjamanPct: parseFloat(form.jasaPinjamanPct),
+        includeInactiveMembers: form.includeInactiveMembers,
       });
 
       onSuccess();
@@ -218,6 +223,20 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
                   disabled={isSubmitting}
                 />
               </Grid>
+            </VStack>
+
+            {/* Bagian 3: Kebijakan Mantan Anggota */}
+            <VStack gap={2}>
+              <Text type="body" weight="semibold">
+                3. Kebijakan Mantan Anggota
+              </Text>
+              <CheckboxInput
+                label="Alokasikan SHU Pro-Rata untuk Mantan Anggota"
+                description="Anggota yang mengundurkan diri sebelum akhir tahun tetap berhak atas SHU pro-rata sesuai saldo rata-rata harian (ADB) saat masih aktif. Jika tidak dicentang, hak SHU hangus bagi anggota nonaktif."
+                value={form.includeInactiveMembers}
+                onChange={(v) => setForm((p) => ({ ...p, includeInactiveMembers: v }))}
+                disabled={isSubmitting}
+              />
             </VStack>
 
             {/* Tombol Aksi */}

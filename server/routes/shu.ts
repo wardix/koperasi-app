@@ -13,7 +13,8 @@ const shu = new Hono()
 // ---------------------------------------------------------------------------
 shu.get('/', requirePermission('read:shu'), async (c) => {
   const year = c.req.query('year') || new Date().getFullYear().toString();
-  const data = await calculateSHU(year);
+  const mode = c.req.query('mode') === 'projection' ? 'projection' : 'realization';
+  const data = await calculateSHU(year, { mode });
   return c.json({ success: true, data });
 });
 
@@ -36,7 +37,7 @@ shu.put('/config', requirePermission('update:settings'), async (c) => {
     return c.json({ success: false, message: errorMsg, errors: parsed.error.format() }, 400);
   }
 
-  const { cadanganPct, anggotaPct, pengurusPct, sosialPct, pembangunanPct, jasaSimpananPct, jasaPinjamanPct } = parsed.data;
+  const { cadanganPct, anggotaPct, pengurusPct, sosialPct, pembangunanPct, jasaSimpananPct, jasaPinjamanPct, includeInactiveMembers } = parsed.data;
 
   const updates: Record<string, string> = {
     shu_cadangan_pct: cadanganPct.toString(),
@@ -46,6 +47,7 @@ shu.put('/config', requirePermission('update:settings'), async (c) => {
     shu_pembangunan_pct: pembangunanPct.toString(),
     shu_jasa_simpanan_pct: jasaSimpananPct.toString(),
     shu_jasa_pinjaman_pct: jasaPinjamanPct.toString(),
+    shu_include_inactive_members: (includeInactiveMembers ?? true).toString(),
   };
 
   await db.transaction(async () => {
@@ -91,8 +93,8 @@ shu.post('/close', requirePermission('approve:loans'), async (c) => {
     );
   }
 
-  // Calculate SHU for the year
-  const result = await calculateSHU(year);
+  // Calculate SHU for the year (strictly realization mode for closing)
+  const result = await calculateSHU(year, { mode: 'realization' });
   const userEmail = getActor(c);
 
   // Persist everything inside a transaction
@@ -113,9 +115,9 @@ shu.post('/close', requirePermission('approve:loans'), async (c) => {
     // 2. Insert member allocations into shu_member_allocations
     for (const a of result.alokasiAnggota) {
       await db.run(`
-        INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU)
-        VALUES (?, ?, ?, ?, ?)
-      `, [year, a.id, a.savingsShare, a.loansShare, a.shu]);
+        INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, "averageSavings")
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [year, a.id, a.savingsShare, a.loansShare, a.shu, a.averageSavings ?? a.totalSavings]);
     }
   });
 

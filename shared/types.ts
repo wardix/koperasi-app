@@ -192,6 +192,7 @@ export interface SettingsData {
   shu_pembangunan_pct?: string;
   shu_jasa_simpanan_pct?: string;
   shu_jasa_pinjaman_pct?: string;
+  shu_include_inactive_members?: string | boolean;
 }
 
 export interface ShuConfig {
@@ -202,6 +203,7 @@ export interface ShuConfig {
   pembangunanPct: number;
   jasaSimpananPct: number;
   jasaPinjamanPct: number;
+  includeInactiveMembers?: boolean;
 }
 
 export interface SavingsTransactionRow {

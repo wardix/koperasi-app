@@ -1,8 +1,11 @@
-import { describe, it, expect, mock } from 'bun:test';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, mock, afterEach } from 'bun:test';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ShuSettings } from './ShuSettings';
 
 describe('ShuSettings Component', () => {
+  afterEach(() => {
+    cleanup();
+  });
   it('renders with default 100% distribution and valid status', () => {
     const onSave = mock(() => {});
     render(

@@ -18,6 +18,7 @@ export const CAMEL_CASE_FIELDS = [
   "simpananWajib",
   "simpananSukarela",
   "totalSavings",
+  "averageSavings",
   // transactions
   "memberId",
   "balanceBefore",
