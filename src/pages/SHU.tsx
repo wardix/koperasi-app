@@ -44,7 +44,7 @@ export default function SHU() {
   
   const { data, isLoading, error, refetch } = useApiQuery<SHUData>(`/api/shu?year=${year}`);
 
-  const chartData = useMemo(() => {
+  const distributionItems = useMemo(() => {
     if (!data) return [];
     const cfg = data.config || {
       anggotaPct: 40,
@@ -53,14 +53,24 @@ export default function SHU() {
       sosialPct: 10,
       pembangunanPct: 5,
     };
-    return [
-      { name: `Anggota (${cfg.anggotaPct}%)`, value: data.distribusi.anggota },
-      { name: `Cadangan (${cfg.cadanganPct}%)`, value: data.distribusi.cadangan },
-      { name: `Pengurus (${cfg.pengurusPct}%)`, value: data.distribusi.pengurus },
-      { name: `Sosial (${cfg.sosialPct}%)`, value: data.distribusi.sosial },
-      { name: `Pembangunan (${cfg.pembangunanPct}%)`, value: data.distribusi.pembangunan },
+
+    const all = [
+      { key: 'anggota', label: 'Alokasi Anggota', pct: cfg.anggotaPct, value: data.distribusi.anggota },
+      { key: 'cadangan', label: 'Dana Cadangan', pct: cfg.cadanganPct, value: data.distribusi.cadangan },
+      { key: 'pengurus', label: 'Jasa Pengurus & Pengawas', pct: cfg.pengurusPct, value: data.distribusi.pengurus },
+      { key: 'sosial', label: 'Dana Sosial', pct: cfg.sosialPct, value: data.distribusi.sosial },
+      { key: 'pembangunan', label: 'Dana Pembangunan Kerja', pct: cfg.pembangunanPct, value: data.distribusi.pembangunan },
     ];
+
+    return all.filter((item) => item.pct > 0);
   }, [data]);
+
+  const chartData = useMemo(() => {
+    return distributionItems.map((item) => ({
+      name: `${item.label} (${item.pct}%)`,
+      value: item.value,
+    }));
+  }, [distributionItems]);
 
   const columns: TableColumn<SHUData['alokasiAnggota'][0]>[] = useMemo(() => [
     {
@@ -183,26 +193,26 @@ export default function SHU() {
                   <VStack gap={4}>
                     <Heading level={4}>Rincian Distribusi</Heading>
                     <div style={{ border: '1px solid var(--color-border-primary)', borderRadius: 'var(--radius-md, 6px)', overflow: 'hidden' }}>
-                      <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Alokasi Anggota ({data.config?.anggotaPct ?? 40}%)</Text>
-                        <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.anggota)}</Text>
-                      </div>
-                      <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Dana Cadangan ({data.config?.cadanganPct ?? 25}%)</Text>
-                        <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.cadangan)}</Text>
-                      </div>
-                      <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Jasa Pengurus ({data.config?.pengurusPct ?? 20}%)</Text>
-                        <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.pengurus)}</Text>
-                      </div>
-                      <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Dana Sosial ({data.config?.sosialPct ?? 10}%)</Text>
-                        <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.sosial)}</Text>
-                      </div>
-                      <div style={{ padding: 12, display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Dana Pembangunan ({data.config?.pembangunanPct ?? 5}%)</Text>
-                        <Text style={{ fontWeight: 600 }}>{formatRp(data.distribusi.pembangunan)}</Text>
-                      </div>
+                      {distributionItems.length > 0 ? (
+                        distributionItems.map((item, index) => (
+                          <div
+                            key={item.key}
+                            style={{
+                              padding: 12,
+                              borderBottom: index < distributionItems.length - 1 ? '1px solid var(--color-border-primary)' : 'none',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <Text>{item.label} ({item.pct}%)</Text>
+                            <Text style={{ fontWeight: 600 }}>{formatRp(item.value)}</Text>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: 16, textAlign: 'center' }}>
+                          <Text type="supporting" color="secondary">Tidak ada alokasi aktif</Text>
+                        </div>
+                      )}
                     </div>
                   </VStack>
                 </Card>
