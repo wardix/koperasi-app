@@ -5,11 +5,14 @@ import { Layout, LayoutHeader, LayoutContent, VStack, HStack } from '@astryxdesi
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { Icon } from '@astryxdesign/core/Icon';
 import { Table, pixel, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from '@astryxdesign/core/Dialog';
+import { PaperClipIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { apiFetch } from '../config';
 import { formatRp, formatDate } from '../utils/format';
@@ -314,13 +317,13 @@ export default function LettersPage() {
     {
       key: 'letterNumber',
       header: 'Nomor Surat Resmi',
-      width: pixel(210),
+      width: pixel(280),
       renderCell: (item) => (
         <VStack gap={0}>
-          <Text type="body" weight="bold" color="primary">
+          <Text type="body" weight="bold" color="primary" style={{ whiteSpace: 'nowrap' }}>
             {item.letterNumber}
           </Text>
-          <Text type="supporting" size="sm" color="secondary">
+          <Text type="supporting" size="sm" color="secondary" style={{ whiteSpace: 'nowrap' }}>
             Tgl Terbit: {formatDate(item.letterDate)}
           </Text>
         </VStack>
@@ -329,7 +332,7 @@ export default function LettersPage() {
     {
       key: 'category',
       header: 'Jenis Surat',
-      width: pixel(180),
+      width: pixel(300),
       renderCell: (item) => {
         const cat = categories.find((c) => c.id === item.category);
         const isAnggota = item.category === 'PINJAMAN_ANGGOTA';
@@ -374,11 +377,13 @@ export default function LettersPage() {
     },
     {
       key: 'attachment',
-      header: 'Berkas Fisik',
-      width: pixel(120),
+      header: 'File',
+      width: pixel(70),
       renderCell: (item) => item.attachmentUrl ? (
-        <Button
-          label="📎 Buka File"
+        <IconButton
+          icon={<Icon icon={PaperClipIcon} />}
+          label="Buka File"
+          title={item.attachmentName ? `Buka ${item.attachmentName}` : 'Buka File'}
           size="sm"
           variant="secondary"
           onClick={() => window.open(item.attachmentUrl!, '_blank')}
@@ -390,17 +395,21 @@ export default function LettersPage() {
     {
       key: 'actions',
       header: 'Aksi',
-      width: pixel(150),
+      width: pixel(90),
       renderCell: (item) => (
-        <HStack gap={2}>
-          <Button
+        <HStack gap={1}>
+          <IconButton
+            icon={<Icon icon={PencilIcon} />}
             label="Edit"
+            title="Edit"
             size="sm"
-            variant="secondary"
+            variant="ghost"
             onClick={() => handleOpenEdit(item)}
           />
-          <Button
+          <IconButton
+            icon={<Icon icon={TrashIcon} />}
             label="Hapus"
+            title="Hapus"
             size="sm"
             variant="ghost"
             onClick={() => handleDeleteLetter(item)}
