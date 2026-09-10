@@ -253,6 +253,16 @@ export const loanStatusSchema = z.object({
    * Defaults to Bank Mandiri (11102) if omitted.
    */
   paymentSourceAccountId: z.string().uuid("Akun kas/bank tidak valid").optional(),
+  /**
+   * Optional first installment due date (YYYY-MM-DD).
+   * If this date falls on the last day of the month, all subsequent installments
+   * will automatically fall on the end of each subsequent month.
+   * Otherwise, subsequent installments will fall on the same day of each subsequent month.
+   */
+  firstInstallmentDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
+    .optional(),
 })
 
 export const paymentSchema = z.object({

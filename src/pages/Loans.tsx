@@ -110,7 +110,7 @@ export default function LoansTemplate() {
     (
       id: string,
       status: string,
-      options?: { approvedDate?: string; interestRate?: number; paymentSourceAccountId?: string }
+      options?: { approvedDate?: string; interestRate?: number; paymentSourceAccountId?: string; firstInstallmentDate?: string }
     ) => {
       apiAction.execute(
         () =>
@@ -119,6 +119,7 @@ export default function LoansTemplate() {
             ...(options?.approvedDate ? { approvedDate: options.approvedDate } : {}),
             ...(options?.interestRate != null ? { interestRate: options.interestRate } : {}),
             ...(options?.paymentSourceAccountId ? { paymentSourceAccountId: options.paymentSourceAccountId } : {}),
+            ...(options?.firstInstallmentDate ? { firstInstallmentDate: options.firstInstallmentDate } : {}),
           }),
         {
           successMsg: 'Status pinjaman berhasil diperbarui',
@@ -142,8 +143,8 @@ export default function LoansTemplate() {
           <ApproveLoanDialogContent
             loan={loan}
             onClose={() => dialog.hide()}
-            onConfirm={({ approvedDate, interestRate, paymentSourceAccountId }) => {
-              handleUpdateStatus(loan.id, 'Disetujui', { approvedDate, interestRate, paymentSourceAccountId });
+            onConfirm={({ approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate }) => {
+              handleUpdateStatus(loan.id, 'Disetujui', { approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate });
               dialog.hide();
             }}
           />

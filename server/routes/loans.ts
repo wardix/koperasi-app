@@ -175,8 +175,13 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
 
   try {
     const id = requireRouteParam(c, 'id')
-    const { status, approvedDate, interestRate, paymentSourceAccountId } = parsed.data
-    const { before } = await updateLoanStatus(db, id, status, { approvedDate, interestRate, paymentSourceAccountId })
+    const { status, approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate } = parsed.data
+    const { before } = await updateLoanStatus(db, id, status, {
+      approvedDate,
+      interestRate,
+      paymentSourceAccountId,
+      firstInstallmentDate,
+    })
 
     const action = status === 'Disetujui' ? 'approve_loan' : 'reject_loan'
     await audit(db, {
@@ -190,6 +195,7 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
         approvedDate: approvedDate ?? null,
         interestRate: interestRate ?? null,
         paymentSourceAccountId: paymentSourceAccountId ?? null,
+        firstInstallmentDate: firstInstallmentDate ?? null,
       },
       ip: getClientIp(c),
     })

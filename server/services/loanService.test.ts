@@ -688,4 +688,70 @@ describe("loanService", () => {
 
     await cleanupTestLoan(loanId, memberId);
   });
+
+  test("updateLoanStatus Disetujui with firstInstallmentDate at end of month generates end-of-month schedules", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `EOM Schedule ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2026", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 3000000, 3, "Test", "Menunggu", "2026-08-10T00:00:00.000Z"]
+    );
+
+    await updateLoanStatus(db, loanId, "Disetujui", {
+      approvedDate: "2026-08-10",
+      firstInstallmentDate: "2026-08-31",
+    });
+
+    const schedules = await db.query(
+      `SELECT installmentNo, TO_CHAR(dueDate, 'YYYY-MM-DD') as due_date FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC`
+    ).all<{ installmentNo: number; due_date: string }>(loanId);
+
+    expect(schedules.length).toBe(3);
+    expect(schedules[0].due_date).toBe("2026-08-31");
+    expect(schedules[1].due_date).toBe("2026-09-30");
+    expect(schedules[2].due_date).toBe("2026-10-31");
+
+    await cleanupTestLoan(loanId, memberId);
+  });
+
+  test("updateLoanStatus Disetujui with regular firstInstallmentDate generates same-day schedules", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Regular Day Schedule ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2026", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 3000000, 3, "Test", "Menunggu", "2026-08-10T00:00:00.000Z"]
+    );
+
+    await updateLoanStatus(db, loanId, "Disetujui", {
+      approvedDate: "2026-08-10",
+      firstInstallmentDate: "2026-09-15",
+    });
+
+    const schedules = await db.query(
+      `SELECT installmentNo, TO_CHAR(dueDate, 'YYYY-MM-DD') as due_date FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC`
+    ).all<{ installmentNo: number; due_date: string }>(loanId);
+
+    expect(schedules.length).toBe(3);
+    expect(schedules[0].due_date).toBe("2026-09-15");
+    expect(schedules[1].due_date).toBe("2026-10-15");
+    expect(schedules[2].due_date).toBe("2026-11-15");
+
+    await cleanupTestLoan(loanId, memberId);
+  });
 });

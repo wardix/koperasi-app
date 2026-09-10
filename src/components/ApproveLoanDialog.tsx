@@ -4,7 +4,7 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {DateInput} from '@astryxdesign/core/DateInput';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
-import {formatRp} from '../utils/format';
+import {formatRp, formatDate} from '../utils/format';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {CopyableAccountNumber} from './CopyableAccountNumber';
 import type {LoanRow, SettingsData} from '../shared/types';
@@ -15,6 +15,62 @@ function todayIsoDate(): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+export function getEndOfMonth(year: number, month1Indexed: number): string {
+  const d = new Date(year, month1Indexed, 0);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+export function isEndOfMonthStr(dateStr: string): boolean {
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3) return false;
+  const [year, month, day] = parts;
+  const maxDay = new Date(year, month, 0).getDate();
+  return day === maxDay;
+}
+
+export function getDefaultFirstDueDate(approvedDateStr: string): string {
+  const parts = approvedDateStr.split('-').map(Number);
+  if (parts.length !== 3) return todayIsoDate();
+  const [year, month, day] = parts;
+  if (day <= 20) {
+    return getEndOfMonth(year, month);
+  }
+  return getEndOfMonth(year, month + 1);
+}
+
+export function computeScheduleDueDates(firstDueDateStr: string, tenorMonths: number): string[] {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(firstDueDateStr);
+  if (!match) return [];
+  const startYear = Number(match[1]);
+  const startMonth = Number(match[2]);
+  const startDay = Number(match[3]);
+  const isEOM = isEndOfMonthStr(firstDueDateStr);
+
+  const dueDates: string[] = [];
+  for (let i = 0; i < tenorMonths; i++) {
+    const targetMonthIndex = (startMonth - 1) + i;
+    if (isEOM) {
+      const d = new Date(startYear, targetMonthIndex + 1, 0);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dueDates.push(`${yyyy}-${mm}-${dd}`);
+    } else {
+      const maxDay = new Date(startYear, targetMonthIndex + 1, 0).getDate();
+      const actualDay = Math.min(startDay, maxDay);
+      const d = new Date(startYear, targetMonthIndex, actualDay);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dueDates.push(`${yyyy}-${mm}-${dd}`);
+    }
+  }
+  return dueDates;
 }
 
 function simulateAnnuity(amount: number, tenorMonths: number, annualRatePercent: number) {
@@ -49,7 +105,12 @@ function parseRateInput(raw: string): number | null {
 interface Props {
   loan: LoanRow;
   onClose: () => void;
-  onConfirm: (payload: {approvedDate: string; interestRate: number; paymentSourceAccountId?: string}) => void;
+  onConfirm: (payload: {
+    approvedDate: string;
+    interestRate: number;
+    paymentSourceAccountId?: string;
+    firstInstallmentDate?: string;
+  }) => void;
 }
 
 export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
@@ -69,8 +130,15 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
   }, [paymentSources, selectedAccountId]);
 
   const [approvedDate, setApprovedDate] = useState(() => todayIsoDate());
+  const [firstInstallmentDate, setFirstInstallmentDate] = useState(() => getDefaultFirstDueDate(todayIsoDate()));
   const [rateInput, setRateInput] = useState<string | null>(null);
   const [rateError, setRateError] = useState('');
+
+  const handleApprovedDateChange = (val: string | null) => {
+    const nextApproved = val ?? todayIsoDate();
+    setApprovedDate(nextApproved);
+    setFirstInstallmentDate(getDefaultFirstDueDate(nextApproved));
+  };
 
   // Once settings load, seed the input if user has not typed yet
   const rateStr =
@@ -134,10 +202,93 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
         label="Tanggal Pencairan / Persetujuan"
         description="Tanggal ini dipakai di Arus Kas (pencairan) dan jadwal angsuran"
         value={approvedDate}
-        onChange={(val) => setApprovedDate(val ?? todayIsoDate())}
+        onChange={handleApprovedDateChange}
         max={todayIsoDate()}
         isRequired
       />
+
+      <VStack gap={2}>
+        <DateInput
+          label="Tanggal Angsuran Pertama"
+          description="Pilih tanggal jatuh tempo angsuran ke-1. Jika memilih akhir bulan, angsuran berikutnya otomatis jatuh di setiap akhir bulan."
+          value={firstInstallmentDate}
+          onChange={(val) => setFirstInstallmentDate(val ?? todayIsoDate())}
+          isRequired
+        />
+
+        {/* Shortcut buttons */}
+        {(() => {
+          const parts = approvedDate.split('-').map(Number);
+          const y = parts[0] || new Date().getFullYear();
+          const m = parts[1] || (new Date().getMonth() + 1);
+          const endOfThisMonth = getEndOfMonth(y, m);
+          const endOfNextMonth = getEndOfMonth(y, m + 1);
+
+          return (
+            <HStack gap={2} wrap="wrap">
+              <button
+                type="button"
+                onClick={() => setFirstInstallmentDate(endOfThisMonth)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  border: firstInstallmentDate === endOfThisMonth ? '1px solid var(--color-primary-500, #0171E3)' : '1px solid var(--color-border-primary, #e5e7eb)',
+                  backgroundColor: firstInstallmentDate === endOfThisMonth ? 'rgba(1, 113, 227, 0.1)' : 'transparent',
+                  color: firstInstallmentDate === endOfThisMonth ? 'var(--color-primary-500, #0171E3)' : 'var(--color-text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Akhir Bulan Ini ({formatDate(endOfThisMonth)})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFirstInstallmentDate(endOfNextMonth)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  border: firstInstallmentDate === endOfNextMonth ? '1px solid var(--color-primary-500, #0171E3)' : '1px solid var(--color-border-primary, #e5e7eb)',
+                  backgroundColor: firstInstallmentDate === endOfNextMonth ? 'rgba(1, 113, 227, 0.1)' : 'transparent',
+                  color: firstInstallmentDate === endOfNextMonth ? 'var(--color-primary-500, #0171E3)' : 'var(--color-text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Akhir Bulan Depan ({formatDate(endOfNextMonth)})
+              </button>
+            </HStack>
+          );
+        })()}
+
+        {/* Pattern Explanation Callout */}
+        {isEndOfMonthStr(firstInstallmentDate) ? (
+          <div style={{
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid var(--color-success-500, #10B981)',
+            fontSize: '12px',
+            color: 'var(--color-success-500, #10B981)',
+            lineHeight: 1.4,
+          }}>
+            ✨ <strong>Pola Akhir Bulan Terdeteksi:</strong> Tanggal yang dipilih adalah akhir bulan. Seluruh angsuran berikutnya akan otomatis jatuh pada <strong>setiap akhir bulan</strong> (30/31 atau 28/29).
+          </div>
+        ) : (
+          <div style={{
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
+            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            fontSize: '12px',
+            color: 'var(--color-text-secondary)',
+            lineHeight: 1.4,
+          }}>
+            ℹ️ <strong>Pola Tanggal Tetap:</strong> Angsuran berikutnya akan otomatis jatuh pada <strong>tanggal {Number(firstInstallmentDate.split('-')[2]) || 1}</strong> setiap bulannya.
+          </div>
+        )}
+      </VStack>
 
       <VStack gap={1}>
         <TextInput
@@ -236,6 +387,42 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
               {formatRp(simulation.monthlyInstallment)}
             </Text>
           </HStack>
+
+          {/* Pratinjau Jadwal Jatuh Tempo */}
+          {(() => {
+            const previewDueDates = computeScheduleDueDates(firstInstallmentDate, tenorMonths);
+            if (previewDueDates.length === 0) return null;
+            return (
+              <div style={{
+                marginTop: '6px',
+                paddingTop: '8px',
+                borderTop: '1px solid var(--color-border-primary, #e5e7eb)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}>
+                <Text type="supporting" color="secondary" weight="semibold">
+                  Jadwal Jatuh Tempo ({tenorMonths} bulan):
+                </Text>
+                <HStack hAlign="space-between" style={{ width: '100%' }}>
+                  <Text type="supporting" color="secondary">Angsuran #1 (Pertama):</Text>
+                  <Text type="body" weight="semibold">{formatDate(previewDueDates[0])}</Text>
+                </HStack>
+                {previewDueDates.length > 1 && (
+                  <HStack hAlign="space-between" style={{ width: '100%' }}>
+                    <Text type="supporting" color="secondary">Angsuran #2:</Text>
+                    <Text type="body">{formatDate(previewDueDates[1])}</Text>
+                  </HStack>
+                )}
+                {previewDueDates.length > 2 && (
+                  <HStack hAlign="space-between" style={{ width: '100%' }}>
+                    <Text type="supporting" color="secondary">Angsuran #{tenorMonths} (Terakhir):</Text>
+                    <Text type="body" weight="semibold">{formatDate(previewDueDates[previewDueDates.length - 1])}</Text>
+                  </HStack>
+                )}
+              </div>
+            );
+          })()}
         </VStack>
       ) : null}
 
@@ -255,6 +442,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
               approvedDate,
               interestRate: rate,
               paymentSourceAccountId: selectedAccountId || undefined,
+              firstInstallmentDate: firstInstallmentDate || undefined,
             });
           }}
         />

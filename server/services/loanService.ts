@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 import type { LoanRow, LoanScheduleRow } from "../db/entities";
-import { addMonthsYmd, resolveCalendarDateIso } from "../lib/dates";
+import { addMonthsYmd, resolveCalendarDateIso, generateLoanDueDates } from "../lib/dates";
 import { ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
 
@@ -185,7 +185,7 @@ async function writeInstallmentSchedule(
   database: Db,
   loan: { id: string; amount: number; tenor: string | number; createdAt?: string | null },
   bungaRatePercent: number,
-  options?: { replaceExisting?: boolean }
+  options?: { firstInstallmentDate?: string; replaceExisting?: boolean }
 ): Promise<ReturnType<typeof buildAmortizationSchedule>> {
   const schedule = buildAmortizationSchedule(loan.amount, loan.tenor, bungaRatePercent);
   const tenorMonths = schedule.rows.length;
@@ -199,14 +199,24 @@ async function writeInstallmentSchedule(
     await database.run(`DELETE FROM loan_schedules WHERE loanId = ?`, [loan.id]);
   }
 
-  // Base schedule on loan createdAt so backdated loans get historical due dates
-  let baseDate = loan.createdAt ? new Date(loan.createdAt) : new Date();
-  if (Number.isNaN(baseDate.getTime())) {
-    baseDate = new Date();
+  // Determine installment due dates
+  let dueDates: string[] = [];
+  if (options?.firstInstallmentDate) {
+    dueDates = generateLoanDueDates(options.firstInstallmentDate, tenorMonths);
+  } else {
+    // Base schedule on loan createdAt so backdated loans get historical due dates
+    let baseDate = loan.createdAt ? new Date(loan.createdAt) : new Date();
+    if (Number.isNaN(baseDate.getTime())) {
+      baseDate = new Date();
+    }
+    for (const row of schedule.rows) {
+      dueDates.push(addMonthsYmd(baseDate, row.installmentNo));
+    }
   }
 
-  for (const row of schedule.rows) {
-    const dueDate = addMonthsYmd(baseDate, row.installmentNo);
+  for (let i = 0; i < schedule.rows.length; i++) {
+    const row = schedule.rows[i];
+    const dueDate = dueDates[i];
 
     await database.run(
       `
@@ -238,9 +248,10 @@ async function generateInstallmentSchedule(
   loan: { id: string; amount: number; tenor: string | number; createdAt?: string | null },
   bungaRatePercent: number,
   _interestAmount: number,
-  _totalAmount: number
+  _totalAmount: number,
+  options?: { firstInstallmentDate?: string; replaceExisting?: boolean }
 ): Promise<void> {
-  await writeInstallmentSchedule(database, loan, bungaRatePercent);
+  await writeInstallmentSchedule(database, loan, bungaRatePercent, options);
 }
 
 export type ScheduleRowInput = {
@@ -443,6 +454,11 @@ export type UpdateLoanStatusOptions = {
    * Defaults to Bank Mandiri (11102) if omitted.
    */
   paymentSourceAccountId?: string;
+  /**
+   * Optional first installment due date (YYYY-MM-DD).
+   * When set, used as the starting point for generating installment due dates.
+   */
+  firstInstallmentDate?: string;
 };
 
 export async function updateLoanStatus(
@@ -500,7 +516,14 @@ export async function updateLoanStatus(
           loan.tenor,
           bungaRatePercent
         );
-        await generateInstallmentSchedule(database, loanForSchedule, bungaRatePercent, interestAmount, totalAmount);
+        await generateInstallmentSchedule(
+          database,
+          loanForSchedule,
+          bungaRatePercent,
+          interestAmount,
+          totalAmount,
+          { firstInstallmentDate: options?.firstInstallmentDate }
+        );
       }
 
       if (loan) {
