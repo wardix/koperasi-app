@@ -182,9 +182,9 @@ export default function EWA() {
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPaymentSources(data.data);
-        const mandiri = data.data.find((a: any) => a.code === '11102');
-        if (mandiri) {
-          setSelectedPaymentSourceId(mandiri.id);
+        const kasKecil = data.data.find((a: any) => a.code === '11101');
+        if (kasKecil) {
+          setSelectedPaymentSourceId(kasKecil.id);
         } else if (data.data.length > 0) {
           setSelectedPaymentSourceId(data.data[0].id);
         }
@@ -201,10 +201,10 @@ export default function EWA() {
   // Open Disburse Modal
   const openDisburseModal = (req: EWARequest) => {
     setSelectedDisburseReq(req);
-    // Prioritize Bank Mandiri (11102) if available
-    const mandiri = paymentSources.find((a) => a.code === '11102');
-    if (mandiri) {
-      setSelectedPaymentSourceId(mandiri.id);
+    // Prioritize Kas Kecil (11101) if available
+    const kasKecil = paymentSources.find((a) => a.code === '11101');
+    if (kasKecil) {
+      setSelectedPaymentSourceId(kasKecil.id);
     } else if (paymentSources.length > 0) {
       setSelectedPaymentSourceId(paymentSources[0].id);
     }
@@ -1397,8 +1397,8 @@ export default function EWA() {
                         ))}
                         {paymentSources.length === 0 && (
                           <>
-                            <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
                             <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
+                            <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
                           </>
                         )}
                       </select>
