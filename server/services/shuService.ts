@@ -91,9 +91,34 @@ export async function calculateSHU(year: string) {
     memberInterestPaid[mId] = (memberInterestPaid[mId] || 0) + interestPaid;
   }
 
-  // Get annual operating cost input if exists, otherwise use default 20%
+  // Calculate operating cost:
+  // 1. Manual override from settings if set (e.g. from closing or manual input)
+  // 2. Otherwise query actual recorded expenses from general ledger (accounts of type 'EXPENSE')
+  // 3. Fallback to default 20% of interest income if no expense journals exist
   const biayaOpsSetting = await db.query("SELECT value FROM settings WHERE key = ?").get<{ value: string }>(`biaya_operasional_${year}`);
-  const biayaOperasional = biayaOpsSetting ? Math.round(parseFloat(biayaOpsSetting.value)) : Math.round(totalPendapatanBunga * 0.2);
+
+  let biayaOperasional: number;
+  if (biayaOpsSetting) {
+    biayaOperasional = Math.round(parseFloat(biayaOpsSetting.value));
+  } else {
+    const expenseRow = await db.query(`
+      SELECT 
+        COALESCE(SUM(jl.debit - jl.credit), 0) as total,
+        COUNT(jl.id) as count
+      FROM journal_lines jl
+      JOIN accounts a ON jl.account_id = a.id
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      WHERE a.type = 'EXPENSE' AND TO_CHAR(je.transaction_date, 'YYYY') = ?
+    `).get<{ total: number | string; count: number | string }>(year);
+
+    const hasJournalExpenses = Number(expenseRow?.count || 0) > 0;
+    if (hasJournalExpenses) {
+      biayaOperasional = Math.max(0, Math.round(Number(expenseRow?.total || 0)));
+    } else {
+      biayaOperasional = Math.round(totalPendapatanBunga * 0.2);
+    }
+  }
+
   const shuNetto = Math.max(0, totalPendapatanBunga - biayaOperasional);
 
   // Calculate distribution based on configurable percentages

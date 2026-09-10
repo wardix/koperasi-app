@@ -11,6 +11,8 @@ describe('SHU Closing', () => {
     await db.run("DELETE FROM shu_closes WHERE year = ?", [TEST_YEAR])
     await db.run("DELETE FROM loan_payments WHERE loanId LIKE 'shu-loan-%'")
     await db.run("DELETE FROM loans WHERE id LIKE 'shu-loan-%'")
+    await db.run("DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE description LIKE 'SHU Test Expense%')")
+    await db.run("DELETE FROM journal_entries WHERE description LIKE 'SHU Test Expense%'")
 
     // Remove any manual biaya_operasional override for test year
     await db.run("DELETE FROM settings WHERE key = ?", [`biaya_operasional_${TEST_YEAR}`])
@@ -235,7 +237,7 @@ describe('SHU Closing', () => {
     })
   })
 
-  describe('operating cost override', () => {
+  describe('operating cost synchronization & override', () => {
     it('should use manual biaya_operasional if set for the year', async () => {
       // Set a specific operating cost for test year
       const customCost = 5_000_000
@@ -250,7 +252,75 @@ describe('SHU Closing', () => {
       expect(result.biayaOperasional).toBe(customCost)
     })
 
-    it('should fall back to 20% of total interest income when no override', async () => {
+    it('should use actual accounting journal expenses when recorded for the year', async () => {
+      // Ensure no override exists
+      await db.run("DELETE FROM settings WHERE key = ?", [`biaya_operasional_${TEST_YEAR}`])
+
+      // Get an expense account ID
+      const expenseAcc = await db.query("SELECT id FROM accounts WHERE type = 'EXPENSE' LIMIT 1").get<{ id: string }>()
+      expect(expenseAcc).not.toBeNull()
+
+      const entryId = '00000000-0000-4000-8000-000000000001'
+      const lineId = '00000000-0000-4000-8000-000000000002'
+      const journalExpenseAmount = 1_500_000
+
+      await db.run(`
+        INSERT INTO journal_entries (id, transaction_date, description, reference_type)
+        VALUES ($1, $2, $3, $4)
+      `, [entryId, `${TEST_YEAR}-04-10`, 'SHU Test Expense Entry', 'test'])
+
+      await db.run(`
+        INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [lineId, entryId, expenseAcc!.id, journalExpenseAmount, 0, 'Test expense line'])
+
+      const { calculateSHU } = await import('../services/shuService')
+      const result = await calculateSHU(TEST_YEAR)
+
+      expect(result.biayaOperasional).toBe(journalExpenseAmount)
+
+      // Clean up journal entry
+      await db.run("DELETE FROM journal_lines WHERE journal_entry_id = $1", [entryId])
+      await db.run("DELETE FROM journal_entries WHERE id = $1", [entryId])
+    })
+
+    it('should prefer manual override over journal expenses if override is set', async () => {
+      // Get an expense account ID
+      const expenseAcc = await db.query("SELECT id FROM accounts WHERE type = 'EXPENSE' LIMIT 1").get<{ id: string }>()
+      expect(expenseAcc).not.toBeNull()
+
+      const entryId = '00000000-0000-4000-8000-000000000003'
+      const lineId = '00000000-0000-4000-8000-000000000004'
+      const journalExpenseAmount = 1_500_000
+      const customOverride = 7_000_000
+
+      await db.run(`
+        INSERT INTO journal_entries (id, transaction_date, description, reference_type)
+        VALUES ($1, $2, $3, $4)
+      `, [entryId, `${TEST_YEAR}-04-10`, 'SHU Test Expense Entry', 'test'])
+
+      await db.run(`
+        INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [lineId, entryId, expenseAcc!.id, journalExpenseAmount, 0, 'Test expense line'])
+
+      await db.run(
+        "INSERT INTO settings (key, value) VALUES ('biaya_operasional_2026', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+        [customOverride.toString()]
+      )
+
+      const { calculateSHU } = await import('../services/shuService')
+      const result = await calculateSHU(TEST_YEAR)
+
+      expect(result.biayaOperasional).toBe(customOverride)
+
+      // Clean up
+      await db.run("DELETE FROM settings WHERE key = ?", [`biaya_operasional_${TEST_YEAR}`])
+      await db.run("DELETE FROM journal_lines WHERE journal_entry_id = $1", [entryId])
+      await db.run("DELETE FROM journal_entries WHERE id = $1", [entryId])
+    })
+
+    it('should fall back to 20% of total interest income when no override and no journal expenses', async () => {
       // Ensure no override exists
       await db.run("DELETE FROM settings WHERE key = ?", [`biaya_operasional_${TEST_YEAR}`])
 
