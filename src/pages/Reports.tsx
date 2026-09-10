@@ -26,12 +26,20 @@ export interface RevenueProjectionData {
   year: string;
   summary: {
     totalRealizedInterest: number;
+    totalRealizedOtherRevenue?: number;
+    totalRealizedRevenue?: number;
     totalProjectedInterest: number;
     totalEstimatedFullYearInterest: number;
+    totalProjectedRevenue?: number;
+    totalRealizedExpense?: number;
+    projectedNetIncome?: number;
+    profitStatus?: 'profit' | 'loss' | 'even';
     totalProjectedPrincipal: number;
     totalProjectedCashInflow: number;
     totalProjectedInstallments: number;
   };
+  revenueBreakdown?: Array<{ code: string; name: string; total: number }>;
+  expenseBreakdown?: Array<{ code: string; name: string; total: number }>;
   monthlyBreakdown: Array<{
     monthKey: string;
     monthName: string;
@@ -134,9 +142,12 @@ export default function ReportsTemplate() {
         filename = `laporan_proyeksi_pendapatan_${projectionRes.year}.csv`;
         csvContent += `Laporan Proyeksi Pendapatan & Kas Masuk Tahun ${projectionRes.year}\r\n\r\n`;
         csvContent += "RINGKASAN TAHUNAN,NOMINAL\r\n";
-        csvContent += `Realisasi Pendapatan Bunga (s/d Saat Ini),${projectionRes.summary.totalRealizedInterest}\r\n`;
+        csvContent += `Realisasi Pendapatan Masuk (s/d Saat Ini),${projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest}\r\n`;
         csvContent += `Proyeksi Pendapatan Bunga (Sisa Tahun),${projectionRes.summary.totalProjectedInterest}\r\n`;
-        csvContent += `Estimasi Total Pendapatan Bunga 1 Tahun,${projectionRes.summary.totalEstimatedFullYearInterest}\r\n`;
+        csvContent += `Estimasi Total Pendapatan 1 Tahun,${projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest}\r\n`;
+        csvContent += `Pengeluaran / Beban Tercatat (s/d Saat Ini),${projectionRes.summary.totalRealizedExpense ?? 0}\r\n`;
+        csvContent += `Estimasi Laba / Rugi Akhir Tahun,${projectionRes.summary.projectedNetIncome ?? 0}\r\n`;
+        csvContent += `Status Proyeksi Akhir Tahun,"${(projectionRes.summary.projectedNetIncome ?? 0) > 0 ? 'UNTUNG (Surplus)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? 'RUGI (Defisit)' : 'IMPAS'}"\r\n`;
         csvContent += `Proyeksi Pengembalian Pokok (Sisa Tahun),${projectionRes.summary.totalProjectedPrincipal}\r\n`;
         csvContent += `Total Proyeksi Kas Masuk Angsuran (Sisa Tahun),${projectionRes.summary.totalProjectedCashInflow}\r\n`;
         csvContent += `Jumlah Tagihan Angsuran Terjadwal,${projectionRes.summary.totalProjectedInstallments}\r\n\r\n`;
@@ -740,8 +751,79 @@ export default function ReportsTemplate() {
                       {selectedReport === 'revenue_projection' && projectionRes && (
                         <VStack gap={4}>
                           <Text type="body">
-                            Laporan ini menyajikan realisasi pendapatan bunga berjalan yang telah dibukukan serta estimasi proyeksi pendapatan bunga dan arus kas masuk dari jadwal pengembalian pokok pinjaman hingga akhir tahun {projectionRes.year}.
+                            Laporan ini menyajikan analisis komprehensif proyeksi keuangan akhir tahun {projectionRes.year}, memperhitungkan pendapatan yang telah masuk, proyeksi bunga pinjaman sisa tahun, dan seluruh beban operasional/pengeluaran yang telah dicatat di jurnal.
                           </Text>
+
+                          {/* Banner Estimasi Laba/Rugi Akhir Tahun */}
+                          {(() => {
+                            const netIncome = projectionRes.summary.projectedNetIncome ?? 0;
+                            const isProfit = netIncome > 0;
+                            const isLoss = netIncome < 0;
+                            const totalRev = projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest;
+                            const totalExp = projectionRes.summary.totalRealizedExpense ?? 0;
+
+                            const statusBg = isProfit
+                              ? 'rgba(16, 185, 129, 0.08)'
+                              : isLoss
+                              ? 'rgba(239, 68, 68, 0.08)'
+                              : 'var(--color-background-subtle)';
+                            const statusBorder = isProfit
+                              ? 'var(--color-success-500, #10B981)'
+                              : isLoss
+                              ? 'var(--color-error-500, #EF4444)'
+                              : 'var(--color-border-primary)';
+                            const statusTextColor = isProfit
+                              ? 'var(--color-success-500, #10B981)'
+                              : isLoss
+                              ? 'var(--color-error-500, #EF4444)'
+                              : 'var(--color-text-secondary)';
+                            const statusLabel = isProfit
+                              ? '🟢 ESTIMASI UNTUNG (SURPLUS SHU)'
+                              : isLoss
+                              ? '🔴 ESTIMASI RUGI (DEFISIT)'
+                              : '⚪ ESTIMASI IMPAS (BREAK-EVEN)';
+
+                            return (
+                              <div
+                                style={{
+                                  padding: '20px',
+                                  borderRadius: '10px',
+                                  border: `2px solid ${statusBorder}`,
+                                  backgroundColor: statusBg,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '10px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                  <div>
+                                    <Text type="supporting" color="secondary" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                      Proyeksi Hasil Akhir Tahun Buku {projectionRes.year}
+                                    </Text>
+                                    <div style={{ fontSize: '26px', fontWeight: 800, color: statusTextColor, marginTop: '2px' }}>
+                                      {isProfit ? `+${formatRp(netIncome)}` : isLoss ? `-${formatRp(Math.abs(netIncome))}` : formatRp(0)}
+                                    </div>
+                                  </div>
+                                  <div
+                                    style={{
+                                      padding: '6px 14px',
+                                      borderRadius: '20px',
+                                      backgroundColor: isProfit ? '#10B981' : isLoss ? '#EF4444' : '#6B7280',
+                                      color: '#ffffff',
+                                      fontWeight: 700,
+                                      fontSize: '13px',
+                                      letterSpacing: '0.3px',
+                                    }}
+                                  >
+                                    {statusLabel}
+                                  </div>
+                                </div>
+                                <Text type="supporting" color="secondary" style={{ fontSize: '13px', lineHeight: 1.5 }}>
+                                  Berdasarkan estimasi total pendapatan <strong>{formatRp(totalRev)}</strong> (Realisasi: {formatRp(projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest)} + Proyeksi Bunga: {formatRp(projectionRes.summary.totalProjectedInterest)}) dikurangi seluruh pengeluaran/beban tercatat senilai <strong>{formatRp(totalExp)}</strong>.
+                                </Text>
+                              </div>
+                            );
+                          })()}
 
                           {/* KPI Highlight Summary Cards */}
                           <div style={{
@@ -750,7 +832,7 @@ export default function ReportsTemplate() {
                             gap: '14px',
                             marginTop: '8px',
                           }}>
-                            {/* Card 1: Realisasi Bunga */}
+                            {/* Card 1: Realisasi Pendapatan Masuk */}
                             <div style={{
                               padding: '16px',
                               borderRadius: '8px',
@@ -758,13 +840,14 @@ export default function ReportsTemplate() {
                               backgroundColor: 'var(--color-background-subtle)',
                             }}>
                               <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Realisasi Pendapatan Bunga
+                                Pendapatan Masuk (Realisasi)
                               </Text>
                               <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success-500)', marginTop: '4px' }}>
-                                {formatRp(projectionRes.summary.totalRealizedInterest)}
+                                {formatRp(projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest)}
                               </div>
                               <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Telah dibukukan di Akun 41101
+                                Bunga: {formatRp(projectionRes.summary.totalRealizedInterest)}
+                                {(projectionRes.summary.totalRealizedOtherRevenue ?? 0) > 0 && ` + Lain: ${formatRp(projectionRes.summary.totalRealizedOtherRevenue!)}`}
                               </Text>
                             </div>
 
@@ -786,7 +869,7 @@ export default function ReportsTemplate() {
                               </Text>
                             </div>
 
-                            {/* Card 3: Estimasi Total Bunga 1 Tahun */}
+                            {/* Card 3: Total Estimasi Pendapatan 1 Tahun */}
                             <div style={{
                               padding: '16px',
                               borderRadius: '8px',
@@ -794,17 +877,40 @@ export default function ReportsTemplate() {
                               backgroundColor: 'var(--color-background-subtle)',
                             }}>
                               <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Estimasi Bunga 1 Tahun Penuh
+                                Total Estimasi Pendapatan
                               </Text>
                               <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-                                {formatRp(projectionRes.summary.totalEstimatedFullYearInterest)}
+                                {formatRp(projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest)}
                               </div>
                               <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Realisasi + Proyeksi Bunga
+                                Realisasi Masuk + Proyeksi Bunga
                               </Text>
                             </div>
 
-                            {/* Card 4: Total Kas Masuk Sisa Tahun */}
+                            {/* Card 4: Pengeluaran / Beban Tercatat */}
+                            <div style={{
+                              padding: '16px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--color-border-primary)',
+                              backgroundColor: 'var(--color-background-subtle)',
+                            }}>
+                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Pengeluaran Tercatat (Beban)
+                              </Text>
+                              <div style={{
+                                fontSize: '20px',
+                                fontWeight: 700,
+                                color: (projectionRes.summary.totalRealizedExpense ?? 0) > 0 ? 'var(--color-error-500)' : 'var(--color-text-primary)',
+                                marginTop: '4px'
+                              }}>
+                                {formatRp(projectionRes.summary.totalRealizedExpense ?? 0)}
+                              </div>
+                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                Beban operasional di jurnal {projectionRes.year}
+                              </Text>
+                            </div>
+
+                            {/* Card 5: Total Kas Masuk Sisa Tahun */}
                             <div style={{
                               padding: '16px',
                               borderRadius: '8px',
@@ -823,7 +929,103 @@ export default function ReportsTemplate() {
                             </div>
                           </div>
 
-                          {/* Tabel 1: Rekapitulasi Bulanan */}
+                          {/* Tabel 1: Simulasi Perhitungan Laba / Rugi Akhir Tahun */}
+                          <div style={{ marginTop: '12px' }}>
+                            <Heading level={4} style={{ marginBottom: '8px' }}>
+                              Simulasi Perhitungan Laba / Rugi Akhir Tahun ({projectionRes.year})
+                            </Heading>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', backgroundColor: 'var(--color-background-secondary)' }}>
+                                  <th style={{ padding: '10px 8px', fontWeight: 600 }}>Komponen Keuangan</th>
+                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right', width: '220px' }}>Nominal</th>
+                                  <th style={{ padding: '10px 8px', fontWeight: 600, width: '42%' }}>Keterangan / Sumber</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '10px 8px', fontWeight: 500 }}>1. Pendapatan yang Sudah Masuk (Realisasi)</td>
+                                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success-500)' }}>
+                                    {formatRp(projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest)}
+                                  </td>
+                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                    Pendapatan bunga pinjaman ({formatRp(projectionRes.summary.totalRealizedInterest)}) dan pos pendapatan lain yang telah tercatat
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '10px 8px', fontWeight: 500 }}>2. Proyeksi Pendapatan Bunga Sisa Tahun</td>
+                                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-primary-500)' }}>
+                                    +{formatRp(projectionRes.summary.totalProjectedInterest)}
+                                  </td>
+                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                    Dari {projectionRes.summary.totalProjectedInstallments} tagihan angsuran pending s.d 31 Desember
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
+                                  <td style={{ padding: '10px 8px' }}>Subtotal Total Estimasi Pendapatan (1 + 2)</td>
+                                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                    {formatRp(projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest)}
+                                  </td>
+                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                    Asumsi tidak ada pendapatan baru selain sisa bunga pinjaman berjalan
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <td style={{ padding: '10px 8px', fontWeight: 500 }}>3. Pengeluaran yang Sudah Tercatat (Beban)</td>
+                                  <td style={{
+                                    padding: '10px 8px',
+                                    textAlign: 'right',
+                                    fontWeight: 600,
+                                    color: (projectionRes.summary.totalRealizedExpense ?? 0) > 0 ? 'var(--color-error-500)' : 'inherit'
+                                  }}>
+                                    -{formatRp(projectionRes.summary.totalRealizedExpense ?? 0)}
+                                  </td>
+                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                    Beban operasional, gaji, dan biaya lain yang telah dibukukan di jurnal tahun berjalan
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 700, fontSize: '14px' }}>
+                                  <td style={{ padding: '12px 8px' }}>Estimasi Laba / Rugi Akhir Tahun (Proyeksi Bersih)</td>
+                                  <td style={{
+                                    padding: '12px 8px',
+                                    textAlign: 'right',
+                                    fontWeight: 700,
+                                    color: (projectionRes.summary.projectedNetIncome ?? 0) >= 0 ? 'var(--color-success-500)' : 'var(--color-error-500)'
+                                  }}>
+                                    {(projectionRes.summary.projectedNetIncome ?? 0) >= 0 ? '+' : ''}
+                                    {formatRp(projectionRes.summary.projectedNetIncome ?? 0)}
+                                  </td>
+                                  <td style={{ padding: '12px 8px' }}>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '3px 10px',
+                                      borderRadius: '12px',
+                                      backgroundColor: (projectionRes.summary.projectedNetIncome ?? 0) > 0 ? 'rgba(16, 185, 129, 0.15)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(107, 114, 128, 0.15)',
+                                      color: (projectionRes.summary.projectedNetIncome ?? 0) > 0 ? 'var(--color-success-500)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? 'var(--color-error-500)' : 'inherit',
+                                      fontWeight: 600,
+                                      fontSize: '12px'
+                                    }}>
+                                      {(projectionRes.summary.projectedNetIncome ?? 0) > 0 ? '🟢 UNTUNG (Laba Bersih)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? '🔴 RUGI (Defisit Bersih)' : '⚪ IMPAS'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                            <div style={{
+                              marginTop: '8px',
+                              padding: '10px 14px',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--color-background-subtle)',
+                              border: '1px solid var(--color-border-primary)',
+                              fontSize: '12px',
+                              color: 'var(--color-text-secondary)',
+                              lineHeight: 1.5,
+                            }}>
+                              ℹ️ <strong>Catatan Asumsi:</strong> Perhitungan mengasumsikan seluruh jadwal cicilan pinjaman sisa tahun terbayar tepat waktu, tidak ada pendapatan lain selain bunga pinjaman terjadwal, dan tidak ada pengeluaran/beban baru selain yang telah tercatat.
+                            </div>
+                          </div>
+
+                          {/* Tabel 2: Rekapitulasi Bulanan */}
                           <div style={{ marginTop: '12px' }}>
                             <Heading level={4} style={{ marginBottom: '8px' }}>
                               Rekapitulasi Bulanan Pendapatan & Kas Masuk ({projectionRes.year})

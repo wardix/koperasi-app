@@ -117,7 +117,29 @@ reports.get('/revenue-projection', requirePermission('read:reports'), async (c) 
   try {
     const year = c.req.query('year') || new Date().getFullYear().toString();
 
-    // 1. Realized interest income from journals in the specified year
+    // 1. All realized revenues from journals in the specified year (accounts of type 'REVENUE')
+    const realizedRevenueRows = await db.query(`
+      SELECT 
+        a.code,
+        a.name,
+        SUM(jl.credit - jl.debit) as "total"
+      FROM journal_lines jl
+      JOIN accounts a ON jl.account_id = a.id
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      WHERE a.type = 'REVENUE' AND TO_CHAR(je.transaction_date, 'YYYY') = ?
+      GROUP BY a.code, a.name
+      ORDER BY a.code ASC
+    `).all<{ code: string; name: string; total: number | string }>(year);
+
+    let totalRealizedRevenue = 0;
+    const revenueBreakdown: Array<{ code: string; name: string; total: number }> = [];
+    for (const r of realizedRevenueRows) {
+      const val = Math.round(Number(r.total || 0));
+      totalRealizedRevenue += val;
+      revenueBreakdown.push({ code: r.code, name: r.name, total: val });
+    }
+
+    // 2. Realized interest breakdown per month (Akun 41101)
     const realizedRows = await db.query(`
       SELECT 
         TO_CHAR(je.transaction_date, 'YYYY-MM') as "monthKey",
@@ -136,8 +158,34 @@ reports.get('/revenue-projection', requirePermission('read:reports'), async (c) 
       realizedMap[r.monthKey] = val;
       totalRealizedInterest += val;
     }
+    if (totalRealizedInterest > totalRealizedRevenue) {
+      totalRealizedRevenue = totalRealizedInterest;
+    }
+    const totalRealizedOtherRevenue = Math.max(0, totalRealizedRevenue - totalRealizedInterest);
 
-    // 2. Projected pending installments for the remainder of the year (dueDate >= CURRENT_DATE and dueDate in year)
+    // 3. All realized expenses from journals in the specified year (accounts of type 'EXPENSE')
+    const realizedExpenseRows = await db.query(`
+      SELECT 
+        a.code,
+        a.name,
+        SUM(jl.debit - jl.credit) as "total"
+      FROM journal_lines jl
+      JOIN accounts a ON jl.account_id = a.id
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      WHERE a.type = 'EXPENSE' AND TO_CHAR(je.transaction_date, 'YYYY') = ?
+      GROUP BY a.code, a.name
+      ORDER BY a.code ASC
+    `).all<{ code: string; name: string; total: number | string }>(year);
+
+    let totalRealizedExpense = 0;
+    const expenseBreakdown: Array<{ code: string; name: string; total: number }> = [];
+    for (const r of realizedExpenseRows) {
+      const val = Math.round(Number(r.total || 0));
+      totalRealizedExpense += val;
+      expenseBreakdown.push({ code: r.code, name: r.name, total: val });
+    }
+
+    // 4. Projected pending installments for the remainder of the year (dueDate >= CURRENT_DATE and dueDate in year)
     const projectedRows = await db.query(`
       SELECT 
         TO_CHAR(ls.dueDate, 'YYYY-MM') as "monthKey",
@@ -192,7 +240,7 @@ reports.get('/revenue-projection', requirePermission('read:reports'), async (c) 
       totalProjectedInstallments += count;
     }
 
-    // 3. Monthly 12-month calendar breakdown (Jan - Dec)
+    // 5. Monthly 12-month calendar breakdown (Jan - Dec)
     const monthNames = [
       "Januari", "Februari", "Maret", "April", "Mei", "Juni",
       "Juli", "Agustus", "September", "Oktober", "November", "Desember"
@@ -216,18 +264,32 @@ reports.get('/revenue-projection', requirePermission('read:reports'), async (c) 
       });
     }
 
+    // 6. Year-end Profit / Loss Projection
+    const totalProjectedRevenue = totalRealizedRevenue + totalProjectedInterest;
+    const projectedNetIncome = totalProjectedRevenue - totalRealizedExpense;
+    const profitStatus: 'profit' | 'loss' | 'even' =
+      projectedNetIncome > 0 ? 'profit' : projectedNetIncome < 0 ? 'loss' : 'even';
+
     return c.json({
       success: true,
       data: {
         year,
         summary: {
           totalRealizedInterest,
+          totalRealizedOtherRevenue,
+          totalRealizedRevenue,
           totalProjectedInterest,
           totalEstimatedFullYearInterest: totalRealizedInterest + totalProjectedInterest,
+          totalProjectedRevenue,
+          totalRealizedExpense,
+          projectedNetIncome,
+          profitStatus,
           totalProjectedPrincipal,
           totalProjectedCashInflow,
           totalProjectedInstallments,
         },
+        revenueBreakdown,
+        expenseBreakdown,
         monthlyBreakdown,
       }
     });

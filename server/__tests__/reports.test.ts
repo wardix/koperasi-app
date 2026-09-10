@@ -69,4 +69,25 @@ describe("Reports API", () => {
     expect(json.success).toBe(true);
     expect(Array.isArray(json.data)).toBe(true);
   });
+
+  test("GET /api/v1/reports/revenue-projection returns projection and profit/loss summary", async () => {
+    const req = new Request("http://localhost/api/v1/reports/revenue-projection?year=2026", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    const res = await server.fetch(req);
+    expect(res.status).toBe(200);
+    
+    const json = await res.json() as any;
+    expect(json.success).toBe(true);
+    expect(json.data.year).toBe("2026");
+    expect(json.data.summary).toBeDefined();
+    expect(typeof json.data.summary.totalRealizedRevenue).toBe("number");
+    expect(typeof json.data.summary.totalProjectedInterest).toBe("number");
+    expect(typeof json.data.summary.totalRealizedExpense).toBe("number");
+    expect(typeof json.data.summary.projectedNetIncome).toBe("number");
+    expect(["profit", "loss", "even"]).toContain(json.data.summary.profitStatus);
+    expect(Array.isArray(json.data.monthlyBreakdown)).toBe(true);
+    expect(json.data.monthlyBreakdown.length).toBe(12);
+  });
 });
