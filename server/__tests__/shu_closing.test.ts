@@ -12,8 +12,8 @@ describe('SHU Closing', () => {
     await db.run("DELETE FROM loan_payments WHERE loanId LIKE 'shu-loan-%'")
     await db.run("DELETE FROM loan_schedules WHERE loanId LIKE 'shu-loan-%'")
     await db.run("DELETE FROM loans WHERE id LIKE 'shu-loan-%'")
-    await db.run("DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE description LIKE 'SHU Test Expense%')")
-    await db.run("DELETE FROM journal_entries WHERE description LIKE 'SHU Test Expense%'")
+    await db.run("DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE description LIKE 'SHU Test Expense%' OR description LIKE 'SHU Test Revenue%')")
+    await db.run("DELETE FROM journal_entries WHERE description LIKE 'SHU Test Expense%' OR description LIKE 'SHU Test Revenue%'")
 
     // Remove any manual biaya_operasional override for test year
     await db.run("DELETE FROM settings WHERE key = ?", [`biaya_operasional_${TEST_YEAR}`])
@@ -328,8 +328,40 @@ describe('SHU Closing', () => {
       const { calculateSHU } = await import('../services/shuService')
       const result = await calculateSHU(TEST_YEAR)
 
-      // Should have a default operating cost (20% of interest income or 0 if no loans)
+      // Should have a default operating cost (20% of revenue or 0 if no loans)
       expect(result.biayaOperasional).toBeDefined()
+    })
+  })
+
+  describe('revenue synchronization with accounting journals', () => {
+    it('should use actual accounting journal revenue when recorded for the year', async () => {
+      const revAcc = await db.query("SELECT id FROM accounts WHERE type = 'REVENUE' LIMIT 1").get<{ id: string }>()
+      expect(revAcc).not.toBeNull()
+
+      const entryId = '00000000-0000-4000-8000-000000000010'
+      const lineId = '00000000-0000-4000-8000-000000000011'
+      const journalRevenueAmount = 2_500_000
+
+      const { calculateSHU } = await import('../services/shuService')
+      const baseline = await calculateSHU(TEST_YEAR)
+
+      await db.run(`
+        INSERT INTO journal_entries (id, transaction_date, description, reference_type)
+        VALUES ($1, $2, $3, $4)
+      `, [entryId, `${TEST_YEAR}-05-10`, 'SHU Test Revenue Entry', 'test'])
+
+      await db.run(`
+        INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [lineId, entryId, revAcc!.id, 0, journalRevenueAmount, 'Test revenue line'])
+
+      const result = await calculateSHU(TEST_YEAR)
+
+      expect(result.realizedPendapatan).toBe(baseline.realizedPendapatan + journalRevenueAmount)
+
+      // Clean up
+      await db.run("DELETE FROM journal_lines WHERE journal_entry_id = $1", [entryId])
+      await db.run("DELETE FROM journal_entries WHERE id = $1", [entryId])
     })
   })
 

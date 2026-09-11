@@ -241,31 +241,94 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
   }
 
   // 2. If not closed, calculate dynamically
-  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
-  const bungaRate = parseFloat(bungaSetting?.value || '1.5');
-
-  // Get all payments for the given year
-  const payments = await db.query(`
-    SELECT lp.amount as paymentAmount, l.amount as principalAmount, l.tenor, l.memberId
-    FROM loan_payments lp
-    JOIN loans l ON lp.loanId = l.id
-    WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
-  `).all<InterestPaymentRow>(year);
-
-  let totalRealizedInterest = 0;
+  let totalRealizedPendapatan = 0;
   const memberInterestPaid: Record<string, number> = {};
 
-  for (const p of payments) {
-    const pAmt = Number(p.paymentAmount || 0);
-    const princAmt = Number(p.principalAmount || 0);
-    const mId = p.memberId || '';
+  // Query actual realized revenue from general ledger (accounts of type 'REVENUE')
+  const revenueRow = await db.query(`
+    SELECT 
+      COALESCE(SUM(jl.credit - jl.debit), 0) as total,
+      COUNT(jl.id) as count
+    FROM journal_lines jl
+    JOIN accounts a ON jl.account_id = a.id
+    JOIN journal_entries je ON jl.journal_entry_id = je.id
+    WHERE a.type = 'REVENUE' AND TO_CHAR(je.transaction_date, 'YYYY') = ?
+  `).get<{ total: number | string; count: number | string }>(year);
 
-    // Calculate interest portion for this payment
-    const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor ?? 0, bungaRate);
-    const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
+  const hasJournalRevenue = Number(revenueRow?.count || 0) > 0;
 
-    totalRealizedInterest += interestPaid;
-    memberInterestPaid[mId] = (memberInterestPaid[mId] || 0) + interestPaid;
+  if (hasJournalRevenue) {
+    totalRealizedPendapatan = Math.max(0, Math.round(Number(revenueRow?.total || 0)));
+
+    // Realized interest per member from journal entries (Akun 41101)
+    const memberInterestRows = await db.query(`
+      SELECT 
+        l.memberId,
+        SUM(jl.credit - jl.debit) as "interestPaid"
+      FROM journal_lines jl
+      JOIN accounts a ON jl.account_id = a.id
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      JOIN loan_payments lp ON je.reference_id = lp.id AND je.reference_type = 'loan_payment'
+      JOIN loans l ON lp.loanId = l.id
+      WHERE a.code = '41101' AND TO_CHAR(je.transaction_date, 'YYYY') = ?
+      GROUP BY l.memberId
+    `).all<{ memberId: string; interestPaid: number | string }>(year);
+
+    let journalInterestTotal = 0;
+    for (const r of memberInterestRows) {
+      const amt = Math.round(Number(r.interestPaid || 0));
+      const mId = r.memberId || '';
+      memberInterestPaid[mId] = (memberInterestPaid[mId] || 0) + amt;
+      journalInterestTotal += amt;
+    }
+
+    if (journalInterestTotal > totalRealizedPendapatan) {
+      totalRealizedPendapatan = journalInterestTotal;
+    }
+
+    // Safety fallback: if no member-specific interest journals exist, estimate from loan payments
+    if (journalInterestTotal === 0) {
+      const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
+      const bungaRate = parseFloat(bungaSetting?.value || '1.5');
+      const payments = await db.query(`
+        SELECT lp.amount as paymentAmount, l.amount as principalAmount, l.tenor, l.memberId
+        FROM loan_payments lp
+        JOIN loans l ON lp.loanId = l.id
+        WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
+      `).all<InterestPaymentRow>(year);
+
+      for (const p of payments) {
+        const pAmt = Number(p.paymentAmount || 0);
+        const princAmt = Number(p.principalAmount || 0);
+        const mId = p.memberId || '';
+        const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor ?? 0, bungaRate);
+        const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
+        memberInterestPaid[mId] = (memberInterestPaid[mId] || 0) + interestPaid;
+      }
+    }
+  } else {
+    // Fallback: calculate dynamically from loan payments and settings if no revenue journals exist
+    const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
+    const bungaRate = parseFloat(bungaSetting?.value || '1.5');
+
+    const payments = await db.query(`
+      SELECT lp.amount as paymentAmount, l.amount as principalAmount, l.tenor, l.memberId
+      FROM loan_payments lp
+      JOIN loans l ON lp.loanId = l.id
+      WHERE TO_CHAR(lp.paymentDate::timestamp, 'YYYY') = ?
+    `).all<InterestPaymentRow>(year);
+
+    for (const p of payments) {
+      const pAmt = Number(p.paymentAmount || 0);
+      const princAmt = Number(p.principalAmount || 0);
+      const mId = p.memberId || '';
+
+      const { interestAmount, totalAmount } = calculateLoanInterest(princAmt, p.tenor ?? 0, bungaRate);
+      const interestPaid = totalAmount > 0 ? Math.round(pAmt * (interestAmount / totalAmount)) : 0;
+
+      totalRealizedPendapatan += interestPaid;
+      memberInterestPaid[mId] = (memberInterestPaid[mId] || 0) + interestPaid;
+    }
   }
 
   let totalProjectedInterest = 0;
@@ -293,12 +356,12 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
     }
   }
 
-  const totalPendapatanBunga = totalRealizedInterest + totalProjectedInterest;
+  const totalPendapatan = totalRealizedPendapatan + totalProjectedInterest;
 
   // Calculate operating cost:
   // 1. Manual override from settings if set (e.g. from closing or manual input)
   // 2. Otherwise query actual recorded expenses from general ledger (accounts of type 'EXPENSE')
-  // 3. Fallback to default 20% of interest income if no expense journals exist
+  // 3. Fallback to default 20% of revenue if no expense journals exist
   const biayaOpsSetting = await db.query("SELECT value FROM settings WHERE key = ?").get<{ value: string }>(`biaya_operasional_${year}`);
 
   let biayaOperasional: number;
@@ -319,11 +382,11 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
     if (hasJournalExpenses) {
       biayaOperasional = Math.max(0, Math.round(Number(expenseRow?.total || 0)));
     } else {
-      biayaOperasional = Math.round(totalPendapatanBunga * 0.2);
+      biayaOperasional = Math.round(totalPendapatan * 0.2);
     }
   }
 
-  const shuNetto = Math.max(0, totalPendapatanBunga - biayaOperasional);
+  const shuNetto = Math.max(0, totalPendapatan - biayaOperasional);
 
   // Calculate distribution based on configurable percentages
   const distribusi = {
@@ -374,8 +437,8 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
     year,
     mode,
     isClosed: false,
-    pendapatan: totalPendapatanBunga,
-    realizedPendapatan: totalRealizedInterest,
+    pendapatan: totalPendapatan,
+    realizedPendapatan: totalRealizedPendapatan,
     projectedPendapatan: totalProjectedInterest,
     biayaOperasional,
     shuNetto,
