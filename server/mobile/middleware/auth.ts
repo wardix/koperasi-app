@@ -25,7 +25,7 @@ export async function authMiddleware(c: Context, next: Next) {
   if (mockReviewStore.isReviewToken(rawToken)) {
     const mockEmployee = mockReviewStore.getEmployee();
     c.set("employee", mockEmployee);
-    c.set("token", { id: 999999, tokenable_id: 999999, name: "play-store-reviewer" });
+    c.set("token", { id: 999999, tokenable_id: 999999, name: "app-reviewer" });
     c.set("isReviewMock", true);
     return await next();
   }

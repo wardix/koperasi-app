@@ -30,6 +30,7 @@ loanRouter.get("/settings", authMiddleware, async (c) => {
 // GET /api/loans/membership
 loanRouter.get("/membership", authMiddleware, async (c) => {
   if (c.get("isReviewMock")) {
+    const reviewerName = (process.env.NUSANET_SSO_REVIEW_NAME || "App Reviewer").trim();
     return c.json({
       data: {
         isMember: true,
@@ -37,7 +38,7 @@ loanRouter.get("/membership", authMiddleware, async (c) => {
         memberNumber: "REV-KOP-001",
         member_number: "REV-KOP-001",
         status: "active",
-        name: "Google Play Reviewer",
+        name: reviewerName,
         joinedAt: "2024-01-01T00:00:00.000Z",
         joined_at: "2024-01-01T00:00:00.000Z",
       },

@@ -64,6 +64,8 @@ export function formatEmployee(employee: any, employer?: any) {
       account_holder: employee.bank_account_holder || null,
       is_complete: hasBankDetails,
     },
+    cutoff_day: emp ? Number(emp.cutoff_day) : 25,
+    fee_tiers: formattedFeeTiers,
     employer: emp
       ? {
           id: Number(emp.id),

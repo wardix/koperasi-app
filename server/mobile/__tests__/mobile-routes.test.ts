@@ -137,6 +137,7 @@ describe("Mobile API Routes mounting under /api", () => {
     expect(body.data.period_start).toBeDefined();
     expect(body.data.period_end).toBeDefined();
     expect(body.data.fee_tiers).toBeArray();
+    expect(body.data.cutoff_day).toBeDefined();
   });
 
   it("GET /api/wallet/balance deducts active cooperative loan installments", async () => {

@@ -44,7 +44,7 @@ describe("Play Store Review Account (In-Memory Mock)", () => {
       }
       if (urlStr.includes("/user")) {
         return new Response(
-          JSON.stringify({ id: 999, email: REVIEW_EMAIL, name: "Google Play Reviewer" }),
+          JSON.stringify({ id: 999, email: REVIEW_EMAIL, name: "App Reviewer" }),
           { status: 200 }
         );
       }
@@ -69,7 +69,7 @@ describe("Play Store Review Account (In-Memory Mock)", () => {
       const verifyData = await verifyRes.json();
       expect(verifyData.token).toBeDefined();
       expect(verifyData.employee.email).toBe(REVIEW_EMAIL);
-      expect(verifyData.employee.name).toBe("Google Play Reviewer");
+      expect(verifyData.employee.name).toBe("App Reviewer");
 
       token = verifyData.token;
 
@@ -91,6 +91,11 @@ describe("Play Store Review Account (In-Memory Mock)", () => {
       expect(balanceData.data.can_request).toBe(true);
       expect(balanceData.data.max_withdrawable).toBe(5000000);
       expect(balanceData.data.already_withdrawn).toBe(0);
+      expect(balanceData.data.cutoff_day).toBe(25);
+      expect(balanceData.data.fee_tiers).toBeArray();
+      expect(balanceData.data.fee_tiers.length).toBeGreaterThan(0);
+      expect(balanceData.data.period_start).toBeDefined();
+      expect(balanceData.data.period_end).toBeDefined();
 
       // 5. POST /api/withdrawals (Request withdrawal)
       const withdrawRes = await app.request("/api/withdrawals", {

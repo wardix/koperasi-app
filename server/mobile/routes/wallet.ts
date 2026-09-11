@@ -134,6 +134,10 @@ export async function resolveWalletBalance(employee: any, asOf: Date = new Date(
 
 walletRouter.get("/balance", authMiddleware, async (c) => {
   if (c.get("isReviewMock")) {
+    const mockEmployee = mockReviewStore.getEmployee();
+    const cutoffDay = Number(mockEmployee.employer?.cutoff_day || 25);
+    const period = calculator.getPayPeriod(new Date(), cutoffDay);
+    const feeSchedule = FeeSchedule.fromArray(mockEmployee.employer?.fee_tiers || defaultFeeSchedule);
     const minimumAmount = parseInt(process.env.MINIMUM_WITHDRAWAL_AMOUNT || "50000", 10);
     const monthlySalary = 10000000;
     const accessCapAmount = 5000000;
@@ -145,25 +149,34 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
 
     return c.json({
       data: {
-        pay_period_start: new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10),
-        pay_period_end: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
-        days_in_period: 30,
-        days_elapsed: 15,
-        days_remaining: 15,
+        withdrawal_limit: accessCapAmount,
+        max_withdrawal_amount: accessCapAmount,
+        effective_limit: accessCapAmount,
+        capped_by_employer: false,
+        daily_rate: Math.floor(accessCapAmount / period.totalDays),
+        unlocked: accessCapAmount,
+        already_withdrawn: alreadyWithdrawn,
+        max_withdrawable: maxWithdrawable,
+        fee_tiers: feeSchedule.toArray(),
+        cutoff_day: cutoffDay,
+        period_start: period.start,
+        period_end: period.end,
+        pay_period_start: period.start,
+        pay_period_end: period.end,
+        payday: period.payday(),
+        total_days: period.totalDays,
+        days_in_period: period.totalDays,
+        days_elapsed: period.daysElapsed,
+        days_remaining: period.daysRemaining(),
         monthly_salary: monthlySalary,
         coop_loan_deduction: 0,
         effective_salary: monthlySalary,
-        daily_rate: 333333,
-        gross_earned: 5000000,
-        unlocked: 5000000,
+        gross_earned: accessCapAmount,
         access_cap_percent: 50,
         access_cap_amount: accessCapAmount,
-        already_withdrawn: alreadyWithdrawn,
-        max_withdrawable: maxWithdrawable,
         fee_percent: 5,
         minimum_amount: minimumAmount,
         can_request: true,
-        effective_limit: accessCapAmount,
       },
     });
   }
@@ -173,7 +186,8 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
     ? JSON.parse(employee.employer) 
     : (employee.employer || {});
 
-  const { balance, coopLoanDeduction, effectiveSalary } = await resolveWalletBalance(employee);
+  const cutoffDay = Number(employer?.cutoff_day || 25);
+  const { balance, coopLoanDeduction, effectiveSalary, period } = await resolveWalletBalance(employee);
 
   const hasBankDetails = Boolean(
     employee.bank_name &&
@@ -199,6 +213,9 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
   return c.json({
     data: {
       ...balance.toArray(),
+      cutoff_day: cutoffDay,
+      pay_period_start: period.start,
+      pay_period_end: period.end,
       monthly_salary: monthlySalary,
       coop_loan_deduction: coopLoanDeduction,
       effective_salary: effectiveSalary,

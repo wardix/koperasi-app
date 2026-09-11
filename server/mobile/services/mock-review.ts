@@ -80,10 +80,11 @@ class MockReviewStore {
 
   getEmployee() {
     const configuredEmail = (process.env.NUSANET_SSO_REVIEW_EMAIL || "reviewer@example.com").trim().toLowerCase();
+    const reviewerName = (process.env.NUSANET_SSO_REVIEW_NAME || "App Reviewer").trim();
     return {
       id: 999999,
       employer_id: 1,
-      name: "Google Play Reviewer",
+      name: reviewerName,
       email: configuredEmail,
       sso_subject_id: "demo-reviewer-subject-999",
       nik: "0000000000000000",
@@ -93,7 +94,7 @@ class MockReviewStore {
       join_date: "2024-01-01",
       bank_name: "Bank Mandiri",
       bank_account_number: "1234567890",
-      bank_account_holder: "Google Play Reviewer",
+      bank_account_holder: reviewerName,
       status: "active",
       is_member: true,
       kyc_status: "verified",
