@@ -83,57 +83,103 @@ export default function SHU() {
   }, [distributionItems]);
 
   const isProjection = data?.mode === 'projection' && !data?.isClosed;
+  const hasPinjamanShare = Number(data?.config?.jasaPinjamanPct ?? 50) > 0;
+  const hasSimpananShare = Number(data?.config?.jasaSimpananPct ?? 50) > 0;
 
-  const columns: TableColumn<SHUData['alokasiAnggota'][0]>[] = useMemo(() => [
-    {
-      key: 'name',
-      header: 'Nama Anggota',
-      width: proportional(2),
-      renderCell: (item) => (
-        <HStack gap={2} vAlign="center">
-          <Text type="body">{item.name}</Text>
-          {item.status && item.status.toLowerCase() !== 'aktif' && (
-            <Badge variant="neutral" label={item.status} size="sm" />
-          )}
-        </HStack>
-      ),
-    },
-    {
-      key: 'averageSavings',
-      header: 'Saldo Rata-Rata (ADB)',
-      width: proportional(1.5),
-      renderCell: (item) => (
-        <VStack gap={0}>
-          <Text type="body">{formatRp(item.averageSavings ?? item.totalSavings)}</Text>
-          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-            Saldo Akhir: {formatRp(item.totalSavings)}
-          </Text>
-        </VStack>
-      ),
-    },
-    {
-      key: 'savingsShare',
-      header: 'Jasa Simpanan',
-      width: proportional(1),
-      renderCell: (item) => (
-        <Text type="body">{formatRp(item.savingsShare ?? 0)}</Text>
-      ),
-    },
-    {
-      key: 'loansShare',
-      header: 'Jasa Pinjaman',
-      width: proportional(1),
-      renderCell: (item) => (
-        <Text type="body">{formatRp(item.loansShare ?? 0)}</Text>
-      ),
-    },
-    {
+  const columns: TableColumn<SHUData['alokasiAnggota'][0]>[] = useMemo(() => {
+    const cols: TableColumn<SHUData['alokasiAnggota'][0]>[] = [
+      {
+        key: 'name',
+        header: 'Nama Anggota',
+        width: proportional(2),
+        renderCell: (item) => (
+          <HStack gap={2} vAlign="center">
+            <Text type="body">{item.name}</Text>
+            {item.status && item.status.toLowerCase() !== 'aktif' && (
+              <Badge variant="neutral" label={item.status} size="sm" />
+            )}
+          </HStack>
+        ),
+      },
+      {
+        key: 'averageSavings',
+        header: 'Saldo Rata-Rata (ADB)',
+        width: proportional(1.5),
+        renderCell: (item) => (
+          <VStack gap={0}>
+            <Text type="body">{formatRp(item.averageSavings ?? item.totalSavings)}</Text>
+            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+              Saldo Akhir: {formatRp(item.totalSavings)}
+            </Text>
+          </VStack>
+        ),
+      },
+    ];
+
+    if (hasSimpananShare) {
+      cols.push({
+        key: 'savingsShare',
+        header: 'Jasa Simpanan',
+        width: proportional(1),
+        renderCell: (item) => (
+          <Text type="body">{formatRp(item.savingsShare ?? 0)}</Text>
+        ),
+      });
+    }
+
+    if (hasPinjamanShare) {
+      cols.push({
+        key: 'loansShare',
+        header: 'Jasa Pinjaman',
+        width: proportional(1),
+        renderCell: (item) => (
+          <Text type="body">{formatRp(item.loansShare ?? 0)}</Text>
+        ),
+      });
+    }
+
+    cols.push({
       key: 'shu',
       header: isProjection ? 'Estimasi SHU Akhir Tahun' : 'Alokasi SHU',
       width: proportional(1.2),
       renderCell: (item) => <Text type="body" color="success">+{formatRp(item.shu)}</Text>,
-    },
-  ], [isProjection]);
+    });
+
+    return cols;
+  }, [isProjection, hasSimpananShare, hasPinjamanShare]);
+
+  const exportCols = useMemo(() => {
+    const cols = [
+      { header: 'Nama Anggota', key: 'name' },
+      { header: 'Status', key: 'status', render: (item: any) => item.status || 'Aktif' },
+      { header: 'Saldo Rata-Rata (ADB)', key: 'averageSavings', render: (item: any) => formatRp(item.averageSavings ?? item.totalSavings) },
+      { header: 'Saldo Akhir Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) },
+    ];
+
+    if (hasSimpananShare) {
+      cols.push({
+        header: 'Jasa Simpanan',
+        key: 'savingsShare',
+        render: (item: any) => formatRp(item.savingsShare ?? 0),
+      });
+    }
+
+    if (hasPinjamanShare) {
+      cols.push({
+        header: 'Jasa Pinjaman',
+        key: 'loansShare',
+        render: (item: any) => formatRp(item.loansShare ?? 0),
+      });
+    }
+
+    cols.push({
+      header: isProjection ? 'Estimasi SHU Akhir Tahun' : 'Alokasi SHU',
+      key: 'shu',
+      render: (item: any) => formatRp(item.shu),
+    });
+
+    return cols;
+  }, [hasSimpananShare, hasPinjamanShare, isProjection]);
 
   return (
     <Layout
@@ -353,28 +399,10 @@ export default function SHU() {
                     <HStack gap={2}>
                       <Button label="Ekspor Excel" variant="ghost" onClick={() => {
                         if (!data || data.alokasiAnggota.length === 0) return;
-                        const exportCols = [
-                          { header: 'Nama Anggota', key: 'name' },
-                          { header: 'Status', key: 'status', render: (item: any) => item.status || 'Aktif' },
-                          { header: 'Saldo Rata-Rata (ADB)', key: 'averageSavings', render: (item: any) => formatRp(item.averageSavings ?? item.totalSavings) },
-                          { header: 'Saldo Akhir Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) },
-                          { header: 'Jasa Simpanan', key: 'savingsShare', render: (item: any) => formatRp(item.savingsShare ?? 0) },
-                          { header: 'Jasa Pinjaman', key: 'loansShare', render: (item: any) => formatRp(item.loansShare ?? 0) },
-                          { header: isProjection ? 'Estimasi SHU Akhir Tahun' : 'Alokasi SHU', key: 'shu', render: (item: any) => formatRp(item.shu) }
-                        ];
                         exportToExcel(data.alokasiAnggota, exportCols, isProjection ? `Proyeksi_SHU_${year}` : `Alokasi_SHU_${year}`);
                       }} />
                       <Button label="Ekspor PDF" variant="secondary" onClick={() => {
                         if (!data || data.alokasiAnggota.length === 0) return;
-                        const exportCols = [
-                          { header: 'Nama Anggota', key: 'name' },
-                          { header: 'Status', key: 'status', render: (item: any) => item.status || 'Aktif' },
-                          { header: 'Saldo Rata-Rata (ADB)', key: 'averageSavings', render: (item: any) => formatRp(item.averageSavings ?? item.totalSavings) },
-                          { header: 'Saldo Akhir Simpanan', key: 'totalSavings', render: (item: any) => formatRp(item.totalSavings) },
-                          { header: 'Jasa Simpanan', key: 'savingsShare', render: (item: any) => formatRp(item.savingsShare ?? 0) },
-                          { header: 'Jasa Pinjaman', key: 'loansShare', render: (item: any) => formatRp(item.loansShare ?? 0) },
-                          { header: isProjection ? 'Estimasi SHU Akhir Tahun' : 'Alokasi SHU', key: 'shu', render: (item: any) => formatRp(item.shu) }
-                        ];
                         const title = isProjection ? `PROYEKSI SISA HASIL USAHA (SHU) TAHUN ${year}` : `ALOKASI SISA HASIL USAHA (SHU) TAHUN ${year}`;
                         exportToPDF(data.alokasiAnggota, exportCols, isProjection ? `Proyeksi_SHU_${year}` : `Laporan_SHU_${year}`, title);
                       }} />
