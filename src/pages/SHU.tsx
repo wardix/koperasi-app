@@ -52,7 +52,9 @@ export default function SHU() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const { hasPermission } = useAuth();
   
-  const { data, isLoading, error, refetch } = useApiQuery<SHUData>(`/api/shu?year=${year}&mode=${mode}`);
+  const isPastYear = Number(year) < Number(currentYear);
+  const activeMode = !isPastYear ? mode : 'realization';
+  const { data, isLoading, error, refetch } = useApiQuery<SHUData>(`/api/shu?year=${year}&mode=${activeMode}`);
 
   const distributionItems = useMemo(() => {
     if (!data) return [];
@@ -82,7 +84,8 @@ export default function SHU() {
     }));
   }, [distributionItems]);
 
-  const isProjection = data?.mode === 'projection' && !data?.isClosed;
+  const canShowProjection = !data?.isClosed && !isPastYear;
+  const isProjection = canShowProjection && data?.mode === 'projection';
   const hasPinjamanShare = Number(data?.config?.jasaPinjamanPct ?? 50) > 0;
   const hasSimpananShare = Number(data?.config?.jasaSimpananPct ?? 50) > 0;
 
@@ -198,7 +201,7 @@ export default function SHU() {
             </StackItem>
             <StackItem>
               <HStack gap={3} vAlign="center">
-                {!data?.isClosed && (
+                {canShowProjection && (
                   <div
                     style={{
                       display: 'inline-flex',
@@ -257,7 +260,13 @@ export default function SHU() {
                 <select 
                   value={year}
                   aria-label="Pilih tahun" 
-                  onChange={(e) => setYear(e.target.value)}
+                  onChange={(e) => {
+                    const selectedYear = e.target.value;
+                    setYear(selectedYear);
+                    if (Number(selectedYear) < Number(currentYear)) {
+                      setMode('realization');
+                    }
+                  }}
                   style={{
                     padding: '6px 12px',
                     borderRadius: 'var(--radius-md, 6px)',

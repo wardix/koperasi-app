@@ -196,7 +196,9 @@ export interface CalculateSHUOptions {
  *   - mode 'projection': adds projected interest from active loan schedules due until year-end
  */
 export async function calculateSHU(year: string, options?: CalculateSHUOptions) {
-  const mode = options?.mode || 'realization';
+  const currentCalendarYear = new Date().getFullYear();
+  const isPastYear = parseInt(year, 10) < currentCalendarYear;
+  const mode = isPastYear ? 'realization' : (options?.mode || 'realization');
   const config = await getShuConfig();
 
   // 1. Check if this year is already closed (locked)

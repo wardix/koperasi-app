@@ -103,7 +103,7 @@ describe('SHU Page', () => {
     expect(screen.getByRole('button', { name: 'Simpan & Terapkan' })).toBeTruthy();
   });
 
-  it('renders mode switch buttons for realization and projection', () => {
+  it('renders mode switch buttons for realization and projection on current year', () => {
     render(<SHU />);
 
     const realBtn = screen.getByRole('button', { name: 'Realisasi (YTD)' });
@@ -112,5 +112,18 @@ describe('SHU Page', () => {
     expect(projBtn).toBeTruthy();
 
     fireEvent.click(projBtn);
+  });
+
+  it('does not render mode switch buttons when a past year is selected', () => {
+    render(<SHU />);
+
+    const select = screen.getByRole('combobox', { name: 'Pilih tahun' });
+    expect(select).toBeTruthy();
+
+    const pastYear = (new Date().getFullYear() - 1).toString();
+    fireEvent.change(select, { target: { value: pastYear } });
+
+    expect(screen.queryByRole('button', { name: 'Proyeksi Akhir Tahun' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Realisasi (YTD)' })).toBeNull();
   });
 });
