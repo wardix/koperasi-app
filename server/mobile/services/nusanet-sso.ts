@@ -20,7 +20,7 @@ export class NusanetSsoClient {
   private timeout: number;
 
   constructor() {
-    this.baseUrl = (process.env.NUSANET_SSO_BASE_URL || "https://nusanet.app.dev.nusa.work").replace(/\/+$/, "");
+    this.baseUrl = (process.env.NUSANET_SSO_BASE_URL || "https://sso.example.com").replace(/\/+$/, "");
     this.tokenPath = process.env.NUSANET_SSO_TOKEN_PATH || "/auth/api/oauth/token";
     this.userPath = process.env.NUSANET_SSO_USER_PATH || "/api/user";
     this.emailOtpPath = process.env.NUSANET_SSO_EMAIL_OTP_PATH || "/auth/api/oauth/email";
