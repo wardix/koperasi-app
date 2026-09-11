@@ -18,6 +18,8 @@ export class NusanetSsoClient {
   private clientId: string;
   private clientSecret: string;
   private timeout: number;
+  private reviewEmail: string;
+  private reviewBaseUrl: string;
 
   constructor() {
     this.baseUrl = (process.env.NUSANET_SSO_BASE_URL || "https://sso.example.com").replace(/\/+$/, "");
@@ -27,30 +29,42 @@ export class NusanetSsoClient {
     this.clientId = process.env.NUSANET_SSO_CLIENT_ID || "";
     this.clientSecret = process.env.NUSANET_SSO_CLIENT_SECRET || "";
     this.timeout = parseInt(process.env.NUSANET_SSO_TIMEOUT || "10000", 10);
+    this.reviewEmail = (process.env.NUSANET_SSO_REVIEW_EMAIL || "").trim().toLowerCase();
+    this.reviewBaseUrl = (process.env.NUSANET_SSO_REVIEW_BASE_URL || "").replace(/\/+$/, "");
   }
 
-  async verify(providerAccessToken: string, provider: string = "google"): Promise<SsoIdentity> {
+  getBaseUrl(email?: string): string {
+    const reviewEmail = (process.env.NUSANET_SSO_REVIEW_EMAIL ?? this.reviewEmail).trim().toLowerCase();
+    const reviewBaseUrl = (process.env.NUSANET_SSO_REVIEW_BASE_URL ?? this.reviewBaseUrl).replace(/\/+$/, "");
+    if (email && reviewEmail && reviewBaseUrl && email.trim().toLowerCase() === reviewEmail) {
+      return reviewBaseUrl;
+    }
+    return (process.env.NUSANET_SSO_BASE_URL || this.baseUrl).replace(/\/+$/, "");
+  }
+
+  async verify(providerAccessToken: string, provider: string = "google", baseUrlOverride?: string): Promise<SsoIdentity> {
     const token = await this.requestToken({
       grant_type: "social",
       provider,
       access_token: providerAccessToken,
-    });
+    }, baseUrlOverride);
 
-    return this.identityFrom(token);
+    return this.identityFrom(token, baseUrlOverride);
   }
 
-  async refresh(refreshToken: string): Promise<SsoIdentity> {
+  async refresh(refreshToken: string, baseUrlOverride?: string): Promise<SsoIdentity> {
     const token = await this.requestToken({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-    });
+    }, baseUrlOverride);
 
-    return this.identityFrom(token);
+    return this.identityFrom(token, baseUrlOverride);
   }
 
   async requestEmailOtp(email: string): Promise<void> {
     const cleanOtpPath = this.emailOtpPath.startsWith("/") ? this.emailOtpPath : `/${this.emailOtpPath}`;
-    const url = `${this.baseUrl}${cleanOtpPath}/${encodeURIComponent(email)}`;
+    const baseUrl = this.getBaseUrl(email);
+    const url = `${baseUrl}${cleanOtpPath}/${encodeURIComponent(email)}`;
     try {
       const res = await fetch(url, {
         method: "GET",
@@ -74,7 +88,8 @@ export class NusanetSsoClient {
 
   async verifyEmailOtp(email: string, otp: string): Promise<SsoIdentity> {
     const cleanOtpPath = this.emailOtpPath.startsWith("/") ? this.emailOtpPath : `/${this.emailOtpPath}`;
-    const url = `${this.baseUrl}${cleanOtpPath}/${encodeURIComponent(email)}`;
+    const baseUrl = this.getBaseUrl(email);
+    const url = `${baseUrl}${cleanOtpPath}/${encodeURIComponent(email)}`;
     let tmpToken: string;
 
     try {
@@ -105,16 +120,17 @@ export class NusanetSsoClient {
       throw new SsoException(`Nusanet OTP service unreachable: ${err.message}`, "sso_unreachable", 503);
     }
 
-    return this.verify(tmpToken, "nusawork");
+    return this.verify(tmpToken, "nusawork", baseUrl);
   }
 
-  private async requestToken(grantPayload: Record<string, string>): Promise<Record<string, any>> {
+  private async requestToken(grantPayload: Record<string, string>, baseUrlOverride?: string): Promise<Record<string, any>> {
     if (!this.clientId || !this.clientSecret) {
       throw new SsoException("SSO client is not configured.", "sso_not_configured", 500);
     }
 
     const cleanTokenPath = this.tokenPath.startsWith("/") ? this.tokenPath : `/${this.tokenPath}`;
-    const url = `${this.baseUrl}${cleanTokenPath}`;
+    const baseUrl = baseUrlOverride || this.getBaseUrl();
+    const url = `${baseUrl}${cleanTokenPath}`;
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -148,8 +164,8 @@ export class NusanetSsoClient {
     }
   }
 
-  private async identityFrom(token: Record<string, any>): Promise<SsoIdentity> {
-    const profile = await this.fetchProfile(token.access_token);
+  private async identityFrom(token: Record<string, any>, baseUrlOverride?: string): Promise<SsoIdentity> {
+    const profile = await this.fetchProfile(token.access_token, baseUrlOverride);
     return {
       subjectId: String(profile.id),
       email: String(profile.email),
@@ -161,9 +177,10 @@ export class NusanetSsoClient {
     };
   }
 
-  private async fetchProfile(accessToken: string): Promise<Record<string, any>> {
+  private async fetchProfile(accessToken: string, baseUrlOverride?: string): Promise<Record<string, any>> {
     const cleanUserPath = this.userPath.startsWith("/") ? this.userPath : `/${this.userPath}`;
-    const url = `${this.baseUrl}${cleanUserPath}`;
+    const baseUrl = baseUrlOverride || this.getBaseUrl();
+    const url = `${baseUrl}${cleanUserPath}`;
     try {
       const res = await fetch(url, {
         method: "GET",

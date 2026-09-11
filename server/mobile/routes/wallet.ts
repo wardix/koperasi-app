@@ -3,6 +3,7 @@ import { sql } from "../db/index.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { WalletCalculator } from "../domain/rules/wallet-calculator.js";
 import { FeeSchedule } from "../domain/value-objects/fee-schedule.js";
+import { mockReviewStore } from "../services/mock-review.js";
 
 const walletRouter = new Hono();
 const calculator = new WalletCalculator();
@@ -73,6 +74,39 @@ export async function resolveWalletBalance(employee: any, asOf: Date = new Date(
 }
 
 walletRouter.get("/balance", authMiddleware, async (c) => {
+  if (c.get("isReviewMock")) {
+    const minimumAmount = parseInt(process.env.MINIMUM_WITHDRAWAL_AMOUNT || "50000", 10);
+    const monthlySalary = 10000000;
+    const accessCapAmount = 5000000;
+    const withdrawals = mockReviewStore.getWithdrawals();
+    const alreadyWithdrawn = withdrawals
+      .filter((w) => w.status === "pending_transfer" || w.status === "transferred")
+      .reduce((sum, w) => sum + w.amount, 0);
+    const maxWithdrawable = Math.max(0, accessCapAmount - alreadyWithdrawn);
+
+    return c.json({
+      data: {
+        pay_period_start: new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10),
+        pay_period_end: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
+        days_in_period: 30,
+        days_elapsed: 15,
+        days_remaining: 15,
+        monthly_salary: monthlySalary,
+        daily_rate: 333333,
+        gross_earned: 5000000,
+        unlocked: 5000000,
+        access_cap_percent: 50,
+        access_cap_amount: accessCapAmount,
+        already_withdrawn: alreadyWithdrawn,
+        max_withdrawable: maxWithdrawable,
+        fee_percent: 5,
+        minimum_amount: minimumAmount,
+        can_request: true,
+        effective_limit: accessCapAmount,
+      },
+    });
+  }
+
   const employee = c.get("employee");
   const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
 

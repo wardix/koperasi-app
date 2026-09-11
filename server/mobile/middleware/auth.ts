@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Context, Next } from "hono";
 import { sql } from "../db/index.js";
+import { mockReviewStore } from "../services/mock-review.js";
 
 export async function authMiddleware(c: Context, next: Next) {
   const authHeader = c.req.header("Authorization");
@@ -18,6 +19,15 @@ export async function authMiddleware(c: Context, next: Next) {
   if (rawToken.includes("|")) {
     const parts = rawToken.split("|");
     tokenPart = parts[1] || rawToken;
+  }
+
+  // Play Store Review Account: In-memory mock bypass (no database queries)
+  if (mockReviewStore.isReviewToken(rawToken)) {
+    const mockEmployee = mockReviewStore.getEmployee();
+    c.set("employee", mockEmployee);
+    c.set("token", { id: 999999, tokenable_id: 999999, name: "play-store-reviewer" });
+    c.set("isReviewMock", true);
+    return await next();
   }
 
   const tokenHash = createHash("sha256").update(tokenPart).digest("hex");

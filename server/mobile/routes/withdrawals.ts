@@ -7,14 +7,29 @@ import { resolveWalletBalance } from "./wallet.js";
 import { WithdrawalException, FeeScheduleException } from "../domain/exceptions.js";
 import { formatWithdrawal } from "../support/resources.js";
 import { notifyEwaRequest } from "../../services/waNotificationService";
+import { mockReviewStore } from "../services/mock-review.js";
 
 const withdrawalRouter = new Hono();
 
 // GET /api/withdrawals
 withdrawalRouter.get("/", authMiddleware, async (c) => {
+  const perPage = Math.min(100, Math.max(1, parseInt(c.req.query("per_page") || "20", 10) || 20));
+
+  if (c.get("isReviewMock")) {
+    const list = mockReviewStore.getWithdrawals();
+    return c.json({
+      data: list.map(formatWithdrawal),
+      meta: {
+        current_page: 1,
+        per_page: perPage,
+        total: list.length,
+        last_page: Math.ceil(list.length / perPage) || 1,
+      },
+    });
+  }
+
   const employee = c.get("employee") as any;
   const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
-  const perPage = Math.min(100, Math.max(1, parseInt(c.req.query("per_page") || "20", 10) || 20));
   const offset = (page - 1) * perPage;
 
   const rows = await sql`
@@ -42,12 +57,21 @@ withdrawalRouter.get("/", authMiddleware, async (c) => {
 
 // GET /api/withdrawals/:id
 withdrawalRouter.get("/:id", authMiddleware, async (c) => {
-  const employee = c.get("employee") as any;
   const id = parseInt(c.req.param("id"), 10);
 
   if (isNaN(id)) {
     return c.json({ message: "Not found." }, 404);
   }
+
+  if (c.get("isReviewMock")) {
+    const found = mockReviewStore.getWithdrawalById(id);
+    if (!found) {
+      return c.json({ message: "Not found." }, 404);
+    }
+    return c.json({ data: formatWithdrawal(found) });
+  }
+
+  const employee = c.get("employee") as any;
 
   const rows = await sql`
     SELECT * FROM withdrawal_requests
@@ -69,9 +93,19 @@ const storeWithdrawalSchema = z.object({
 });
 
 withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSchema), async (c) => {
+  const { amount, idempotency_key } = c.req.valid("json" as never) as any;
+
+  if (c.get("isReviewMock")) {
+    const minimumAmount = parseInt(process.env.MINIMUM_WITHDRAWAL_AMOUNT || "50000", 10);
+    if (amount < minimumAmount) {
+      throw WithdrawalException.belowMinimum(amount, minimumAmount);
+    }
+    const item = mockReviewStore.createWithdrawal(amount);
+    return c.json({ data: formatWithdrawal(item) }, 201);
+  }
+
   const employee = c.get("employee") as any;
   const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
-  const { amount, idempotency_key } = c.req.valid("json" as never) as any;
 
   // Eligibility check
   if (employer.status !== "active") {

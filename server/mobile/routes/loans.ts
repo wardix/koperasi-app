@@ -9,6 +9,7 @@ import { LoanCalculator } from "../domain/rules/loan-calculator.js";
 import { LoanException } from "../domain/exceptions.js";
 import { formatLoanApplication } from "../support/resources.js";
 import { notifyLoanApplication } from "../../services/waNotificationService";
+import { mockReviewStore } from "../services/mock-review.js";
 
 const loanRouter = new Hono();
 const provider = new LoanProviderClient();
@@ -28,6 +29,21 @@ loanRouter.get("/settings", authMiddleware, async (c) => {
 
 // GET /api/loans/membership
 loanRouter.get("/membership", authMiddleware, async (c) => {
+  if (c.get("isReviewMock")) {
+    return c.json({
+      data: {
+        isMember: true,
+        is_member: true,
+        memberNumber: "REV-KOP-001",
+        member_number: "REV-KOP-001",
+        status: "active",
+        name: "Google Play Reviewer",
+        joinedAt: "2024-01-01T00:00:00.000Z",
+        joined_at: "2024-01-01T00:00:00.000Z",
+      },
+    });
+  }
+
   const employee = c.get("employee");
   const membership = await provider.membership(employee.email, employee.nik);
 
@@ -56,9 +72,23 @@ loanRouter.post("/simulate", authMiddleware, zValidator("json", simulateSchema),
 
 // GET /api/loans
 loanRouter.get("/", authMiddleware, async (c) => {
-  const employee = c.get("employee");
   const page = Math.max(1, parseInt(c.req.query("page") || "1", 10));
   const perPage = Math.min(100, Math.max(1, parseInt(c.req.query("per_page") || "20", 10)));
+
+  if (c.get("isReviewMock")) {
+    const loans = mockReviewStore.getLoans();
+    return c.json({
+      data: loans.map((r) => formatLoanApplication(r, false)),
+      meta: {
+        current_page: page,
+        per_page: perPage,
+        total: loans.length,
+        last_page: Math.ceil(loans.length / perPage) || 1,
+      },
+    });
+  }
+
+  const employee = c.get("employee");
   const offset = (page - 1) * perPage;
 
   const rows = await sql`
@@ -96,6 +126,35 @@ const storeLoanSchema = z.object({
 loanRouter.post("/", authMiddleware, zValidator("json", storeLoanSchema), async (c) => {
   const employee = c.get("employee");
   const { amount, tenor_months, purpose, idempotency_key, first_due_date } = c.req.valid("json");
+
+  if (c.get("isReviewMock")) {
+    const terms = await provider.terms();
+    const quote = calculator.quote(amount, tenor_months, terms, first_due_date);
+    const reference = `LN-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`;
+    const submittedAt = new Date().toISOString();
+
+    const mockLoan = mockReviewStore.createLoan({
+      employee_id: employee.id,
+      reference,
+      external_id: `demo-loan-${Date.now()}`,
+      amount: quote.principal,
+      tenor_months: quote.tenorMonths,
+      purpose: purpose || null,
+      status: "pending_approval",
+      annual_interest_rate: Number(quote.annualInterestRate),
+      monthly_installment: quote.monthlyInstallment,
+      total_interest: quote.totalInterest,
+      total_repayment: quote.totalRepayment,
+      terms_snapshot: quote.toSummaryArray(),
+      schedule_snapshot: quote.schedule.map((s) => s.toArray()),
+      first_due_date: first_due_date || null,
+      submitted_at: submittedAt,
+      created_at: submittedAt,
+      updated_at: submittedAt,
+    });
+
+    return c.json({ data: formatLoanApplication(mockLoan, true) }, 201);
+  }
 
   // Verify membership
   const membership = await provider.membership(employee.email, employee.nik);
@@ -157,12 +216,21 @@ loanRouter.post("/", authMiddleware, zValidator("json", storeLoanSchema), async 
 
 // GET /api/loans/:id
 loanRouter.get("/:id", authMiddleware, async (c) => {
-  const employee = c.get("employee");
   const id = parseInt(c.req.param("id"), 10);
 
   if (isNaN(id)) {
     return c.json({ message: "Not found." }, 404);
   }
+
+  if (c.get("isReviewMock")) {
+    const loan = mockReviewStore.getLoanById(id);
+    if (!loan) {
+      return c.json({ message: "Not found." }, 404);
+    }
+    return c.json({ data: formatLoanApplication(loan, true) });
+  }
+
+  const employee = c.get("employee");
 
   const rows = await sql`
     SELECT * FROM loan_applications

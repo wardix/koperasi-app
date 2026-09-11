@@ -7,6 +7,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { NusanetSsoClient, type SsoIdentity } from "../services/nusanet-sso.js";
 import { SsoException } from "../domain/exceptions.js";
 import { formatEmployee } from "../support/resources.js";
+import { mockReviewStore } from "../services/mock-review.js";
 
 const authRouter = new Hono();
 const sso = new NusanetSsoClient();
@@ -40,6 +41,21 @@ async function issueToken(employeeId: number, deviceName: string): Promise<strin
 }
 
 async function authenticateIdentity(identity: SsoIdentity, deviceName?: string) {
+  // Play Store Review Account: In-memory mock bypass (never touches the database)
+  if (mockReviewStore.isReviewEmail(identity.email)) {
+    const plainToken = `mock_review_${randomBytes(24).toString("hex")}`;
+    const token = `999999|${plainToken}`;
+    mockReviewStore.registerToken(plainToken);
+
+    const mockEmp = mockReviewStore.getEmployee();
+    return {
+      token,
+      refresh_token: `mock_refresh_${randomBytes(24).toString("hex")}`,
+      expires_in: 1728000,
+      employee: formatEmployee(mockEmp),
+    };
+  }
+
   // Query employees joined with employers
   let employees: any[] = [];
   if (identity.subjectId) {
@@ -226,6 +242,12 @@ authRouter.post("/refresh", zValidator("json", refreshSchema), handleRefresh);
 authRouter.post("/refresh/", zValidator("json", refreshSchema), handleRefresh);
 
 const handleLogout = async (c: any) => {
+  if (c.get("isReviewMock")) {
+    const authHeader = c.req.header("Authorization") || "";
+    const rawToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    mockReviewStore.revokeToken(rawToken);
+    return c.json({ message: "Signed out." });
+  }
   const token = c.get("token");
   if (token?.id) {
     await sql`

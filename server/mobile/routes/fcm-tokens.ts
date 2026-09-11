@@ -13,8 +13,24 @@ const storeFcmTokenSchema = z.object({
 });
 
 fcmRouter.post("/", authMiddleware, zValidator("json", storeFcmTokenSchema), async (c) => {
-  const employee = c.get("employee");
   const { fcm_token, platform, device_name } = c.req.valid("json");
+
+  if (c.get("isReviewMock")) {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+    return c.json({
+      data: {
+        id: 999999,
+        platform,
+        device_name: device_name || null,
+        is_active: true,
+        last_registered_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      },
+    });
+  }
+
+  const employee = c.get("employee");
 
   const [row] = await sql`
     INSERT INTO employee_fcm_tokens (
