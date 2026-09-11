@@ -139,6 +139,48 @@ describe("Mobile API Routes mounting under /api", () => {
     expect(body.data.fee_tiers).toBeArray();
   });
 
+  it("GET /api/wallet/balance deducts active cooperative loan installments", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const schedId = crypto.randomUUID();
+
+    try {
+      await sql`
+        INSERT INTO members (id, name, email, nik, role, status, joindate, simpananpokok, simpananwajib, simpanansukarela, totalsavings)
+        VALUES (${memberId}, 'Budi Mobile', 'budi.mobile@testtech.com', '1234567890123456', 'Anggota', 'Aktif', '2024-01-01', 0, 0, 0, 0)
+      `;
+
+      await sql`
+        UPDATE employees SET member_id = ${memberId} WHERE id = ${testEmployeeId}
+      `;
+
+      await sql`
+        INSERT INTO loans (id, memberid, name, amount, tenor, purpose, status, interestrate, monthlypayment, totalamount, createdat)
+        VALUES (${loanId}, ${memberId}, 'Pinjaman Renovasi', 10000000, 10, 'Renovasi Rumah', 'Disetujui', 9.1, 1000000, 10000000, NOW()::text)
+      `;
+
+      // Schedule due in current period month (e.g. 2026-09)
+      const periodMonth = new Date().toISOString().slice(0, 7);
+      await sql`
+        INSERT INTO loan_schedules (id, loanid, installmentno, duedate, principalamount, interestamount, paidamount, status, createdat, updatedat)
+        VALUES (${schedId}, ${loanId}, 1, ${periodMonth + '-15'}::date, 900000, 100000, 0, 'Pending', NOW(), NOW())
+      `;
+
+      const res = await app.request("/api/wallet/balance", {
+        headers: { Authorization: `Bearer ${testToken}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.data.coop_loan_deduction).toBe(1000000);
+      expect(body.data.withdrawal_limit).toBe(4000000); // 5.000.000 - 1.000.000
+    } finally {
+      await sql`DELETE FROM loan_schedules WHERE loanid = ${loanId}`.catch(() => {});
+      await sql`DELETE FROM loans WHERE id = ${loanId}`.catch(() => {});
+      await sql`UPDATE employees SET member_id = NULL WHERE id = ${testEmployeeId}`.catch(() => {});
+      await sql`DELETE FROM members WHERE id = ${memberId}`.catch(() => {});
+    }
+  });
+
   it("GET /api/withdrawals returns 200 with paginated list", async () => {
     const res = await app.request("/api/withdrawals", {
       headers: { Authorization: `Bearer ${testToken}` },

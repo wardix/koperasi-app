@@ -23,9 +23,9 @@ export const defaultFeeSchedule = [
 export async function resolveWalletBalance(employee: any, asOf: Date = new Date()) {
   const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
   const cutoffDay = Number(employer.cutoff_day || 25);
-  const joinDate = employee.join_date;
 
-  const period = calculator.getPayPeriod(asOf, cutoffDay, joinDate);
+  // Abaikan employee.join_date (data historis tidak akurat), hitung siklus penuh dari awal cutoff
+  const period = calculator.getPayPeriod(asOf, cutoffDay);
 
   const [row] = await sql`
     SELECT COALESCE(SUM(amount), 0)::BIGINT AS total
@@ -35,6 +35,54 @@ export async function resolveWalletBalance(employee: any, asOf: Date = new Date(
       AND status IN ('pending_transfer', 'transferred')
   `;
   const alreadyWithdrawn = Number(row.total);
+
+  // Cek cicilan pinjaman koperasi aktif bulan berjalan (jika terhubung sebagai anggota)
+  let coopLoanDeduction = 0;
+  let memberId = employee.member_id;
+  if (!memberId && (employee.email || employee.nik)) {
+    const memRows = await sql`
+      SELECT id FROM members
+      WHERE deletedat IS NULL
+        AND (
+          (LOWER(email) = LOWER(${employee.email || ""}) AND ${employee.email || ""} != '')
+          OR (nik = ${employee.nik || ""} AND ${employee.nik || ""} != '')
+        )
+      LIMIT 1
+    `;
+    if (memRows.length > 0) {
+      memberId = memRows[0].id;
+    }
+  }
+
+  if (memberId) {
+    const periodMonth = period.end.slice(0, 7);
+    const schedRes = await sql`
+      SELECT COALESCE(SUM(ls.principalamount + ls.interestamount - ls.paidamount), 0)::BIGINT as total
+      FROM loan_schedules ls
+      JOIN loans l ON ls.loanid = l.id
+      WHERE l.memberid = ${memberId}
+        AND l.status = 'Disetujui'
+        AND ls.status IN ('Pending', 'Late')
+        AND TO_CHAR(ls.duedate, 'YYYY-MM') = ${periodMonth}
+    `;
+    coopLoanDeduction = Number(schedRes[0]?.total || 0);
+
+    if (coopLoanDeduction === 0) {
+      const fallbackLoans = await sql`
+        SELECT id, amount, tenor, interestrate, monthlypayment
+        FROM loans
+        WHERE memberid = ${memberId} AND status = 'Disetujui'
+      `;
+      for (const l of fallbackLoans) {
+        const countRes = await sql`
+          SELECT COUNT(*)::INT as count FROM loan_schedules WHERE loanid = ${l.id}
+        `;
+        if (Number(countRes[0]?.count || 0) === 0) {
+          coopLoanDeduction += Number(l.monthlypayment || 0);
+        }
+      }
+    }
+  }
 
   const dbFeeTiers = await sql`
     SELECT min_amount, max_amount, member_fee, non_member_fee 
@@ -60,10 +108,17 @@ export async function resolveWalletBalance(employee: any, asOf: Date = new Date(
     ? Number(employer.max_withdrawal_amount)
     : null;
 
+  // Kurangi limit dasar dengan cicilan pinjaman koperasi aktif
+  const baseLimit = Number(employee.withdrawal_limit || employee.base_salary || 0);
+  const adjustedLimit = Math.max(0, baseLimit - coopLoanDeduction);
+  const effectiveSalary = Math.max(0, Number(employee.base_salary || baseLimit) - coopLoanDeduction);
+
   return {
     period,
+    coopLoanDeduction,
+    effectiveSalary,
     balance: calculator.buildBalance(
-      Number(employee.withdrawal_limit),
+      adjustedLimit,
       period,
       alreadyWithdrawn,
       feeSchedule,
@@ -92,6 +147,8 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
         days_elapsed: 15,
         days_remaining: 15,
         monthly_salary: monthlySalary,
+        coop_loan_deduction: 0,
+        effective_salary: monthlySalary,
         daily_rate: 333333,
         gross_earned: 5000000,
         unlocked: 5000000,
@@ -110,7 +167,7 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
   const employee = c.get("employee");
   const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
 
-  const { balance } = await resolveWalletBalance(employee);
+  const { balance, coopLoanDeduction, effectiveSalary } = await resolveWalletBalance(employee);
 
   const hasBankDetails = Boolean(
     employee.bank_name &&
@@ -135,6 +192,8 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
     data: {
       ...balance.toArray(),
       monthly_salary: monthlySalary,
+      coop_loan_deduction: coopLoanDeduction,
+      effective_salary: effectiveSalary,
       daily_rate: balance.dailyRate,
       gross_earned: balance.unlocked,
       access_cap_percent: accessCapPercent,
