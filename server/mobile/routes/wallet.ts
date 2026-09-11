@@ -21,8 +21,10 @@ export const defaultFeeSchedule = [
 ];
 
 export async function resolveWalletBalance(employee: any, asOf: Date = new Date()) {
-  const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
-  const cutoffDay = Number(employer.cutoff_day || 25);
+  const employer = typeof employee.employer === "string" 
+    ? JSON.parse(employee.employer) 
+    : (employee.employer || {});
+  const cutoffDay = Number(employer?.cutoff_day || 25);
 
   // Abaikan employee.join_date (data historis tidak akurat), hitung siklus penuh dari awal cutoff
   const period = calculator.getPayPeriod(asOf, cutoffDay);
@@ -108,17 +110,19 @@ export async function resolveWalletBalance(employee: any, asOf: Date = new Date(
     ? Number(employer.max_withdrawal_amount)
     : null;
 
-  // Kurangi limit dasar dengan cicilan pinjaman koperasi aktif
-  const baseLimit = Number(employee.withdrawal_limit || employee.base_salary || 0);
-  const adjustedLimit = Math.max(0, baseLimit - coopLoanDeduction);
-  const effectiveSalary = Math.max(0, Number(employee.base_salary || baseLimit) - coopLoanDeduction);
+  // Kurangi gaji pokok dengan cicilan pinjaman koperasi dan terapkan batas maksimal 50% gaji efektif
+  const rawSalary = Number(employee.base_salary || 0);
+  const rawLimit = Number(employee.withdrawal_limit || 0);
+  const baseSalary = rawSalary > 0 ? rawSalary : rawLimit;
+  const effectiveSalary = Math.max(0, baseSalary - coopLoanDeduction);
+  const maxMonthlyLimit = Math.floor(effectiveSalary * 0.5);
 
   return {
     period,
     coopLoanDeduction,
     effectiveSalary,
     balance: calculator.buildBalance(
-      adjustedLimit,
+      maxMonthlyLimit,
       period,
       alreadyWithdrawn,
       feeSchedule,
@@ -165,7 +169,9 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
   }
 
   const employee = c.get("employee");
-  const employer = typeof employee.employer === "string" ? JSON.parse(employee.employer) : employee.employer;
+  const employer = typeof employee.employer === "string" 
+    ? JSON.parse(employee.employer) 
+    : (employee.employer || {});
 
   const { balance, coopLoanDeduction, effectiveSalary } = await resolveWalletBalance(employee);
 
@@ -177,15 +183,17 @@ walletRouter.get("/balance", authMiddleware, async (c) => {
 
   const canRequest =
     employee.status === "active" &&
-    employer.status === "active" &&
+    employer?.status === "active" &&
     hasBankDetails;
 
   const minimumAmount = parseInt(process.env.MINIMUM_WITHDRAWAL_AMOUNT || "50000", 10);
-  const monthlySalary = Math.round(Number(employee.base_salary || employee.withdrawal_limit || 0));
+  const rawSalary = Number(employee.base_salary || 0);
+  const rawLimit = Number(employee.withdrawal_limit || 0);
+  const monthlySalary = Math.round(rawSalary > 0 ? rawSalary : rawLimit);
   const accessCapAmount = balance.effectiveLimit;
   const accessCapPercent = monthlySalary > 0 
     ? Number(((accessCapAmount / monthlySalary) * 100).toFixed(2)) 
-    : 100;
+    : 50;
   const feePercent = Number(employer.fee_percent ?? 5);
 
   return c.json({

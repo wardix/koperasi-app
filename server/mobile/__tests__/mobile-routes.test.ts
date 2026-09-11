@@ -133,7 +133,7 @@ describe("Mobile API Routes mounting under /api", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toBeDefined();
-    expect(body.data.withdrawal_limit).toBe(5000000);
+    expect(body.data.withdrawal_limit).toBe(2500000); // 50% of 5.000.000
     expect(body.data.period_start).toBeDefined();
     expect(body.data.period_end).toBeDefined();
     expect(body.data.fee_tiers).toBeArray();
@@ -172,7 +172,8 @@ describe("Mobile API Routes mounting under /api", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.data.coop_loan_deduction).toBe(1000000);
-      expect(body.data.withdrawal_limit).toBe(4000000); // 5.000.000 - 1.000.000
+      expect(body.data.effective_salary).toBe(4000000); // 5.000.000 - 1.000.000
+      expect(body.data.withdrawal_limit).toBe(2000000); // 50% of 4.000.000
     } finally {
       await sql`DELETE FROM loan_schedules WHERE loanid = ${loanId}`.catch(() => {});
       await sql`DELETE FROM loans WHERE id = ${loanId}`.catch(() => {});
