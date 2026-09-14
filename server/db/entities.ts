@@ -97,6 +97,8 @@ export const loanRowSchema = z.object({
   destinationBank: strNull.optional(),
   destinationAccount: strNull.optional(),
   destinationName: strNull.optional(),
+  rejectionReason: strNull.optional(),
+  rejection_reason: strNull.optional(),
 });
 export type LoanRow = z.infer<typeof loanRowSchema>;
 

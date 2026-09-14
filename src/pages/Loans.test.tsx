@@ -1,4 +1,4 @@
-import { expect, test, describe, afterEach, spyOn } from "bun:test";
+import { expect, test, describe, beforeEach, afterEach, spyOn } from "bun:test";
 import { render, cleanup, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Loans from "./Loans";
@@ -16,12 +16,20 @@ function renderLoans() {
 }
 
 describe("Loans Component", () => {
+  let getSpy: any;
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   afterEach(() => {
     cleanup();
+    localStorage.clear();
+    getSpy?.mockRestore?.();
   });
 
   test("renders Rekening Tujuan column and displays member bank details", async () => {
-    spyOn(apiModule.api, "get").mockImplementation((url: string) => {
+    getSpy = spyOn(apiModule.api, "get").mockImplementation((url: string) => {
       if (url.includes('/api/loans')) {
         return Promise.resolve({
           data: [
@@ -67,6 +75,39 @@ describe("Loans Component", () => {
       expect(screen.getByText("Rekening Tujuan")).toBeDefined();
       expect(screen.getByText("Bank Mandiri — 1060012345678")).toBeDefined();
       expect(screen.getByText("a.n. Budi Santoso")).toBeDefined();
+    });
+  });
+
+  test("renders rejection reason when loan status is Ditolak", async () => {
+    getSpy = spyOn(apiModule.api, "get").mockImplementation((url: string) => {
+      if (url.includes('/api/loans')) {
+        return Promise.resolve({
+          data: [
+            {
+              id: "loan-rejected-1",
+              memberId: "m-3",
+              name: "Joko Susilo",
+              amount: 10000000,
+              tenor: 12,
+              purpose: "Modal usaha",
+              status: "Ditolak",
+              rejectionReason: "Plafon melebihi batas kemampuan angsuran",
+              createdAt: "2026-09-02T10:00:00.000Z",
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 20,
+        });
+      }
+      return Promise.resolve({ data: [], total: 0, page: 1, limit: 20 });
+    });
+
+    renderLoans();
+
+    await waitFor(() => {
+      expect(screen.getByText("Joko Susilo")).toBeDefined();
+      expect(screen.getByText(/Plafon melebihi batas kemampuan angsuran/)).toBeDefined();
     });
   });
 });

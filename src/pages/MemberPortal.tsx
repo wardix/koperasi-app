@@ -65,6 +65,7 @@ type PortalLoan = {
   tenor?: number;
   attachmentUrl?: string | null;
   attachmentName?: string | null;
+  rejectionReason?: string | null;
 };
 
 type ScheduleRow = {
@@ -1207,7 +1208,7 @@ export default function MemberPortal() {
     {
       key: 'status',
       header: 'Status',
-      width: pixel(100),
+      width: pixel(140),
       renderCell: (i) => {
         const statusMap: Record<string, { variant: 'success' | 'warning' | 'critical' | 'neutral'; label: string }> = {
           Disetujui: { variant: 'success', label: 'Disetujui' },
@@ -1217,7 +1218,21 @@ export default function MemberPortal() {
           Macet: { variant: 'critical', label: 'Macet' },
         };
         const s = statusMap[i.status] || { variant: 'neutral', label: i.status };
-        return <Badge variant={s.variant} label={s.label} />;
+        return (
+          <VStack gap={1}>
+            <Badge variant={s.variant} label={s.label} />
+            {i.status === 'Ditolak' && i.rejectionReason && (
+              <Text
+                type="supporting"
+                color="critical"
+                style={{ fontSize: 11, wordBreak: 'break-word', maxWidth: 160 }}
+                title={i.rejectionReason}
+              >
+                Alasan: {i.rejectionReason}
+              </Text>
+            )}
+          </VStack>
+        );
       },
     },
     {
@@ -1240,19 +1255,23 @@ export default function MemberPortal() {
       header: 'Aksi',
       width: pixel(120),
       renderCell: (i) => (
-        <Button
-          label={selectedLoan?.id === i.id ? 'Tutup' : 'Jadwal'}
-          size="sm"
-          variant={selectedLoan?.id === i.id ? 'secondary' : 'primary'}
-          onClick={() => {
-            if (selectedLoan?.id === i.id) {
-              setSelectedLoan(null);
-              setSchedule([]);
-            } else {
-              loadSchedule(i);
-            }
-          }}
-        />
+        i.status === 'Disetujui' || i.status === 'Lunas' ? (
+          <Button
+            label={selectedLoan?.id === i.id ? 'Tutup' : 'Jadwal'}
+            size="sm"
+            variant={selectedLoan?.id === i.id ? 'secondary' : 'primary'}
+            onClick={() => {
+              if (selectedLoan?.id === i.id) {
+                setSelectedLoan(null);
+                setSchedule([]);
+              } else {
+                loadSchedule(i);
+              }
+            }}
+          />
+        ) : (
+          <Text type="supporting" color="secondary">—</Text>
+        )
       ),
     },
   ];

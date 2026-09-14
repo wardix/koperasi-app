@@ -73,7 +73,8 @@ loans.get('/', requirePermission('read:loans'), async (c) => {
       COALESCE(SUM(p.amount), 0) as paidAmount,
       e.bank_name as "destinationBank",
       e.bank_account_number as "destinationAccount",
-      COALESCE(e.bank_account_holder, e.name, m.name) as "destinationName"
+      COALESCE(e.bank_account_holder, e.name, m.name) as "destinationName",
+      l.rejection_reason as "rejectionReason"
     FROM loans l
     LEFT JOIN members m ON m.id = l.memberId
     LEFT JOIN loan_payments p ON l.id = p.loanId
@@ -175,12 +176,13 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
 
   try {
     const id = requireRouteParam(c, 'id')
-    const { status, approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate } = parsed.data
+    const { status, approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate, rejectionReason } = parsed.data
     const { before } = await updateLoanStatus(db, id, status, {
       approvedDate,
       interestRate,
       paymentSourceAccountId,
       firstInstallmentDate,
+      rejectionReason: rejectionReason ?? undefined,
     })
 
     const action = status === 'Disetujui' ? 'approve_loan' : 'reject_loan'
@@ -196,6 +198,7 @@ loans.put('/:id/status', requirePermission('approve:loans'), async (c) => {
         interestRate: interestRate ?? null,
         paymentSourceAccountId: paymentSourceAccountId ?? null,
         firstInstallmentDate: firstInstallmentDate ?? null,
+        rejectionReason: rejectionReason ?? null,
       },
       ip: getClientIp(c),
     })

@@ -166,6 +166,9 @@ components:
           type: string
           format: date
           description: Tanggal pencairan/persetujuan (YYYY-MM-DD) untuk data historis
+        rejectionReason:
+          type: string
+          description: Alasan penolakan pengajuan pinjaman jika status Ditolak
     LoanDisbursementDateInput:
       type: object
       required: [disbursementDate]

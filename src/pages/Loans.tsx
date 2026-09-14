@@ -48,6 +48,7 @@ import { lazy, Suspense } from 'react';
 
 const AddLoanDialogContent = lazy(() => import('../components/AddLoanDialog').then(m => ({ default: m.AddLoanDialogContent })));
 const ApproveLoanDialogContent = lazy(() => import('../components/ApproveLoanDialog').then(m => ({ default: m.ApproveLoanDialogContent })));
+const RejectLoanDialogContent = lazy(() => import('../components/RejectLoanDialog').then(m => ({ default: m.RejectLoanDialogContent })));
 const LoanDetailDialogContent = lazy(() => import('../components/LoanDetailDialog').then(m => ({ default: m.LoanDetailDialogContent })));
 const ImportLoansDialogContent = lazy(() => import('../components/ImportLoansDialog').then(m => ({ default: m.ImportLoansDialogContent })));
 const ImportSchedulesDialogContent = lazy(() => import('../components/ImportSchedulesDialog').then(m => ({ default: m.ImportSchedulesDialogContent })));
@@ -110,7 +111,13 @@ export default function LoansTemplate() {
     (
       id: string,
       status: string,
-      options?: { approvedDate?: string; interestRate?: number; paymentSourceAccountId?: string; firstInstallmentDate?: string }
+      options?: {
+        approvedDate?: string;
+        interestRate?: number;
+        paymentSourceAccountId?: string;
+        firstInstallmentDate?: string;
+        rejectionReason?: string;
+      }
     ) => {
       apiAction.execute(
         () =>
@@ -120,13 +127,14 @@ export default function LoansTemplate() {
             ...(options?.interestRate != null ? { interestRate: options.interestRate } : {}),
             ...(options?.paymentSourceAccountId ? { paymentSourceAccountId: options.paymentSourceAccountId } : {}),
             ...(options?.firstInstallmentDate ? { firstInstallmentDate: options.firstInstallmentDate } : {}),
+            ...(options?.rejectionReason ? { rejectionReason: options.rejectionReason } : {}),
           }),
         {
-          successMsg: 'Status pinjaman berhasil diperbarui',
+          successMsg: status === 'Ditolak' ? 'Pengajuan pinjaman berhasil ditolak' : 'Status pinjaman berhasil diperbarui',
           errorMsg: 'Terjadi kesalahan sistem',
           onSuccess: () => {
             setLocalLoans((loans) =>
-              loans.map((loan) => (loan.id === id ? { ...loan, status } : loan))
+              loans.map((loan) => (loan.id === id ? { ...loan, status, rejectionReason: options?.rejectionReason } : loan))
             );
             fetchLoans();
           },
@@ -145,6 +153,24 @@ export default function LoansTemplate() {
             onClose={() => dialog.hide()}
             onConfirm={({ approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate }) => {
               handleUpdateStatus(loan.id, 'Disetujui', { approvedDate, interestRate, paymentSourceAccountId, firstInstallmentDate });
+              dialog.hide();
+            }}
+          />
+        </Suspense>
+      );
+    },
+    [dialog, handleUpdateStatus]
+  );
+
+  const handleRejectLoan = useCallback(
+    (loan: LoanRow) => {
+      dialog.show(
+        <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+          <RejectLoanDialogContent
+            loan={loan}
+            onClose={() => dialog.hide()}
+            onConfirm={(rejectionReason) => {
+              handleUpdateStatus(loan.id, 'Ditolak', { rejectionReason });
               dialog.hide();
             }}
           />
@@ -305,13 +331,27 @@ export default function LoansTemplate() {
     {
       key: 'status',
       header: 'Status',
-      width: pixel(120),
+      width: pixel(140),
       renderCell: (item: LoanRow) => {
         let variant: 'neutral' | 'success' | 'error' | 'warning' = 'neutral';
         if (item.status === 'Disetujui') variant = 'success';
         if (item.status === 'Ditolak') variant = 'error';
         if (item.status === 'Menunggu') variant = 'warning';
-        return <Badge variant={variant} label={item.status} />;
+        return (
+          <VStack gap={1}>
+            <Badge variant={variant} label={item.status} />
+            {item.status === 'Ditolak' && (item.rejectionReason || (item as any).rejection_reason) && (
+              <Text
+                type="caption"
+                color="critical"
+                style={{ fontSize: 11, wordBreak: 'break-word', maxWidth: 160 }}
+                title={item.rejectionReason || (item as any).rejection_reason}
+              >
+                Alasan: {item.rejectionReason || (item as any).rejection_reason}
+              </Text>
+            )}
+          </VStack>
+        );
       },
     },
     {
@@ -324,10 +364,10 @@ export default function LoansTemplate() {
             {hasPermission('approve:loans') && item.status === 'Menunggu' && (
               <>
                 <IconButton icon={<Icon icon={CheckIcon} />} label="Setujui" variant="primary" size="sm" onClick={() => handleApproveLoan(item)} />
-                <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleUpdateStatus(item.id, 'Ditolak')} />
+                <IconButton icon={<Icon icon={XMarkIcon} />} label="Tolak" variant="secondary" size="sm" onClick={() => handleRejectLoan(item)} />
               </>
             )}
-            {(item.status === 'Disetujui' || item.status === 'Lunas') && (
+            {(item.status === 'Disetujui' || item.status === 'Lunas' || item.status === 'Ditolak') && (
               <IconButton 
                 icon={<Icon icon={EyeIcon} />} 
                 label="Detail" 
@@ -360,7 +400,7 @@ export default function LoansTemplate() {
         );
       },
     },
-  ], [hasPermission, handleUpdateStatus, handleApproveLoan, dialog, fetchLoans, handleDeleteLoan]);
+  ], [hasPermission, handleUpdateStatus, handleApproveLoan, handleRejectLoan, dialog, fetchLoans, handleDeleteLoan]);
 
   return (
     <>

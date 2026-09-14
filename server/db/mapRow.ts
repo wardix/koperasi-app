@@ -41,6 +41,7 @@ export const CAMEL_CASE_FIELDS = [
   "destinationBank",
   "destinationAccount",
   "destinationName",
+  "rejectionReason",
   // loan_payments / cashflow aliases
   "loanId",
   "paymentDate",
@@ -102,6 +103,9 @@ export function mapRow<T = Record<string, unknown>>(
   const mapped: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) {
     mapped[COLUMN_KEY_MAP[k] ?? k] = v;
+    if (k === 'rejection_reason' && mapped.rejectionReason === undefined) {
+      mapped.rejectionReason = v;
+    }
   }
   return mapped as T;
 }

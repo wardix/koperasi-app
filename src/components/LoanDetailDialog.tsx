@@ -123,6 +123,26 @@ export function LoanDetailDialogContent({
       content={
         <LayoutContent padding={4}>
           <VStack gap={6}>
+            {/* Rejection notice */}
+            {loan.status === 'Ditolak' && (loan.rejectionReason || (loan as any).rejection_reason) && (
+              <VStack
+                gap={1}
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  border: '1px solid var(--color-critical-200, #fecaca)',
+                  backgroundColor: 'var(--color-critical-50, #fef2f2)',
+                }}
+              >
+                <Text type="body" weight="semibold" color="critical">
+                  Pengajuan Pinjaman Ditolak
+                </Text>
+                <Text type="supporting" color="critical">
+                  Alasan: {loan.rejectionReason || (loan as any).rejection_reason}
+                </Text>
+              </VStack>
+            )}
+
             {/* Summary cards */}
             <LoanInfoSection
               pokok={pokok}

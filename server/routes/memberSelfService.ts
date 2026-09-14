@@ -354,6 +354,7 @@ memberSelfService.get('/loans', async (c) => {
             l.interestRate, l.monthlyPayment, l.interestAmount, l.totalAmount,
             l.approvedAt, l.totalInstallments, l.paidInstallments,
             l."attachmentUrl", l."attachmentName",
+            l.rejection_reason AS "rejectionReason",
             COALESCE(SUM(p.amount), 0) AS paidAmount
      FROM loans l
      LEFT JOIN members m ON m.id = l.memberId

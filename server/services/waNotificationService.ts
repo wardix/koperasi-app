@@ -272,3 +272,22 @@ export async function notifyLoanApplication(params: {
 
   sendWaNotification(msg, { db: params.db }).catch(() => {});
 }
+
+export async function notifyLoanRejection(params: {
+  memberName: string;
+  memberPhone?: string;
+  amount: number;
+  reason: string;
+  db?: Db;
+}) {
+  const msg =
+    `ℹ️ *[Koperasi] Pemberitahuan Pengajuan Pinjaman*\n\n` +
+    `Halo *${params.memberName}*,\n` +
+    `Mohon maaf, pengajuan pinjaman Anda sebesar *${formatRupiah(params.amount)}* belum dapat disetujui.\n\n` +
+    `*Alasan Penolakan:*\n${params.reason}\n\n` +
+    `Untuk informasi lebih lanjut, silakan menghubungi pengurus koperasi.`;
+
+  if (params.memberPhone) {
+    sendWaNotification(msg, { db: params.db, overrideTarget: params.memberPhone }).catch(() => {});
+  }
+}

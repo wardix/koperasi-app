@@ -3,6 +3,7 @@ import type { LoanRow, LoanScheduleRow } from "../db/entities";
 import { addMonthsYmd, resolveCalendarDateIso, generateLoanDueDates } from "../lib/dates";
 import { ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
+import { notifyLoanRejection } from "./waNotificationService";
 
 export function calculateLoanInterest(amount: number, tenor: string | number, bungaRate: number) {
   const tenorMonths = Math.max(1, parseInt(String(tenor)) || 1);
@@ -459,6 +460,10 @@ export type UpdateLoanStatusOptions = {
    * When set, used as the starting point for generating installment due dates.
    */
   firstInstallmentDate?: string;
+  /**
+   * Optional rejection reason when status is 'Ditolak'.
+   */
+  rejectionReason?: string | null;
 };
 
 export async function updateLoanStatus(
@@ -499,7 +504,7 @@ export async function updateLoanStatus(
       }
 
       const stmt = database.prepare(
-        `UPDATE loans SET status = ?, approvedAt = ?, createdAt = ? WHERE id = ?`
+        `UPDATE loans SET status = ?, approvedAt = ?, createdAt = ?, rejection_reason = NULL WHERE id = ?`
       );
       await stmt.run(status, approvedAt, approvedAt, loanId);
 
@@ -553,6 +558,46 @@ export async function updateLoanStatus(
         }
       }
     })();
+  } else if (status === "Ditolak") {
+    const reason = options?.rejectionReason?.trim() || null;
+    const stmt = database.prepare(`UPDATE loans SET status = ?, rejection_reason = ? WHERE id = ?`);
+    await stmt.run(status, reason, loanId);
+
+    // Sync to mobile loan_applications if linked
+    try {
+      await database.run(
+        `UPDATE loan_applications
+         SET status = 'rejected', rejection_reason = ?, decided_at = NOW(), updated_at = NOW()
+         WHERE (external_id = ? OR reference = ?) AND status = 'pending_approval'`,
+        [reason, loanId, loanId]
+      );
+    } catch {
+      // Mobile table might not be present or no match
+    }
+
+    // Send WhatsApp notification if member has phone number
+    try {
+      const loanInfo = (await database
+        .query(`
+          SELECT l.id, l.amount, COALESCE(m.name, l.name) as borrower_name, m.phone
+          FROM loans l
+          LEFT JOIN members m ON l.memberId = m.id
+          WHERE l.id = ?
+        `)
+        .get(loanId)) as { id: string; amount: number; borrower_name: string; phone?: string | null } | null;
+
+      if (loanInfo) {
+        await notifyLoanRejection({
+          memberName: loanInfo.borrower_name,
+          memberPhone: loanInfo.phone || undefined,
+          amount: Number(loanInfo.amount),
+          reason: reason || 'Kriteria belum memenuhi persyaratan koperasi.',
+          db: database,
+        });
+      }
+    } catch (notifErr) {
+      console.warn("Gagal mengirim notifikasi penolakan pinjaman:", notifErr);
+    }
   } else {
     const stmt = database.prepare(`UPDATE loans SET status = ? WHERE id = ?`);
     await stmt.run(status, loanId);

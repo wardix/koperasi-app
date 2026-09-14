@@ -263,6 +263,10 @@ export const loanStatusSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
     .optional(),
+  /**
+   * Optional rejection reason when status is 'Ditolak'.
+   */
+  rejectionReason: z.string().max(1000).optional().nullable(),
 })
 
 export const paymentSchema = z.object({

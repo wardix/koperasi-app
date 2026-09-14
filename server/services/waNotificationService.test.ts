@@ -9,6 +9,7 @@ import {
   notifySavingsWithdrawal,
   notifySavingsDeposit,
   notifyLoanApplication,
+  notifyLoanRejection,
 } from './waNotificationService';
 
 describe('WhatsApp Notification Service', () => {
@@ -352,5 +353,42 @@ describe('WhatsApp Notification Service', () => {
       expect(sentText).toContain('12 bulan');
       expect(sentText).toContain('https://portal.example.com/loans');
     });
+
+    it('notifyLoanRejection builds message with reason and sends to member phone', async () => {
+      let sentText = '';
+      let targetRecipient = '';
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body);
+        sentText = body.text;
+        targetRecipient = body.to;
+        return new Response('ok');
+      }) as any;
+
+      const mockDb: any = {
+        query: () => ({
+          all: async () => [
+            { key: 'waNotificationEnabled', value: 'true' },
+            { key: 'waWebhookUrl', value: 'https://gateway.mock' },
+            { key: 'waNotificationTarget', value: '628123456789' },
+          ],
+        }),
+      };
+
+      await notifyLoanRejection({
+        memberName: 'Siti',
+        memberPhone: '628123999999',
+        amount: 3000000,
+        reason: 'Dokumen pendukung belum lengkap',
+        db: mockDb,
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(sentText).toContain('Siti');
+      expect(sentText).toContain('Rp 3.000.000');
+      expect(sentText).toContain('Dokumen pendukung belum lengkap');
+      expect(targetRecipient).toBe('628123999999');
+    });
   });
 });
+

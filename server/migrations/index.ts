@@ -31,6 +31,7 @@ import { createAddSavingsWithdrawalsMigration } from "./0033_add_savings_withdra
 import { createAddSavingsDepositsMigration } from "./0034_add_savings_deposits";
 import { createAddCoopBankSettingsMigration } from "./0035_add_coop_bank_settings";
 import { createAddShuAverageSavingsMigration } from "./0036_add_shu_average_savings";
+import { createAddLoanRejectionReasonMigration } from "./0037_add_loan_rejection_reason";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -80,6 +81,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddSavingsDepositsMigration(db),
     createAddCoopBankSettingsMigration(db),
     createAddShuAverageSavingsMigration(db),
+    createAddLoanRejectionReasonMigration(db),
   ];
 }
 

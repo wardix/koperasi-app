@@ -158,6 +158,8 @@ export interface LoanRow {
   destinationAccount?: string | null;
   /** Destination bank account holder name */
   destinationName?: string | null;
+  /** Alasan penolakan pengajuan pinjaman jika status Ditolak */
+  rejectionReason?: string | null;
 }
 
 export interface PaginatedResponse<T> {

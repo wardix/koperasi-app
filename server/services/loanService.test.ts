@@ -754,4 +754,42 @@ describe("loanService", () => {
 
     await cleanupTestLoan(loanId, memberId);
   });
+
+  test("updateLoanStatus Ditolak stores rejectionReason in loans table and updates status", async () => {
+    const memberId = crypto.randomUUID();
+    const loanId = crypto.randomUUID();
+    const loanName = `Reject Test ${memberId}`;
+
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2026", 1000, 0, 0, 1000]
+    );
+    await db.run(
+      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [loanId, memberId, loanName, 5000000, 6, "Renovasi Rumah", "Menunggu", "2026-09-01T00:00:00.000Z"]
+    );
+
+    const reason = "Kapasitas cicilan / rasio penghasilan belum mencukupi";
+    await updateLoanStatus(db, loanId, "Ditolak", { rejectionReason: reason });
+
+    const loan = await db
+      .query("SELECT status, rejection_reason FROM loans WHERE id = ?")
+      .get<{ status: string; rejection_reason: string }>(loanId);
+
+    expect(loan?.status).toBe("Ditolak");
+    expect(loan?.rejection_reason).toBe(reason);
+
+    // If approved later, rejection_reason should be cleared
+    await updateLoanStatus(db, loanId, "Disetujui", { approvedDate: "2026-09-02" });
+    const approvedLoan = await db
+      .query("SELECT status, rejection_reason FROM loans WHERE id = ?")
+      .get<{ status: string; rejection_reason: string | null }>(loanId);
+
+    expect(approvedLoan?.status).toBe("Disetujui");
+    expect(approvedLoan?.rejection_reason).toBeNull();
+
+    await cleanupTestLoan(loanId, memberId);
+  });
 });

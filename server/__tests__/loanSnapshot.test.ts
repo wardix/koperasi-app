@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
 import db from '../db'
 import { calculateLoanInterest } from '../services/loanService'
 
