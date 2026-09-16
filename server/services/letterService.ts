@@ -2,11 +2,11 @@ import type { Db } from '../db';
 import { audit } from '../lib/audit';
 
 export const LETTER_CATEGORIES = [
-  { id: 'PINJAMAN_ANGGOTA', code: 'SPP-ANG', label: 'Surat Perjanjian Pinjaman Anggota' },
-  { id: 'PINJAMAN_MODAL', code: 'SPH-MODAL', label: 'Surat Perjanjian Pinjaman Modal Masuk' },
-  { id: 'SURAT_KELUAR', code: 'SKEL-UMUM', label: 'Surat Keluar Umum' },
+  { id: 'PINJAMAN_ANGGOTA', code: 'SPP', label: 'Surat Perjanjian Pinjaman Anggota' },
+  { id: 'PINJAMAN_MODAL', code: 'SPM', label: 'Surat Perjanjian Pinjaman Modal Masuk' },
+  { id: 'SURAT_KELUAR', code: 'SK', label: 'Surat Keluar Umum' },
   { id: 'SURAT_KEPUTUSAN', code: 'SK-PENG', label: 'Surat Keputusan Pengurus' },
-  { id: 'PERJANJIAN_KERJASAMA', code: 'SPK-KERJA', label: 'Surat Perjanjian Kerjasama' },
+  { id: 'PERJANJIAN_KERJASAMA', code: 'SPK', label: 'Surat Perjanjian Kerjasama' },
 ] as const;
 
 export type LetterCategoryId = typeof LETTER_CATEGORIES[number]['id'];
@@ -24,7 +24,7 @@ export function formatLetterNumber(seq: number, categoryCode: string, date: Date
   const romanMonth = getRomanMonth(month);
   const paddedSeq = String(seq).padStart(3, '0');
 
-  return `${paddedSeq}/${categoryCode}/${romanMonth}/${year}`;
+  return `${paddedSeq}/KOPNUTERA/${categoryCode}/${romanMonth}/${year}`;
 }
 
 export async function getNextLetterNumberPreview(

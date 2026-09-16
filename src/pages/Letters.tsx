@@ -60,11 +60,11 @@ export default function LettersPage() {
   // Query categories
   const { data: catRes } = useApiQuery<LetterCategory[]>('/api/letters/categories');
   const categories = catRes || [
-    { id: 'PINJAMAN_ANGGOTA', code: 'SPP-ANG', label: 'Surat Perjanjian Pinjaman Anggota' },
-    { id: 'PINJAMAN_MODAL', code: 'SPH-MODAL', label: 'Surat Perjanjian Pinjaman Modal Masuk' },
-    { id: 'SURAT_KELUAR', code: 'SKEL-UMUM', label: 'Surat Keluar Umum' },
+    { id: 'PINJAMAN_ANGGOTA', code: 'SPP', label: 'Surat Perjanjian Pinjaman Anggota' },
+    { id: 'PINJAMAN_MODAL', code: 'SPM', label: 'Surat Perjanjian Pinjaman Modal Masuk' },
+    { id: 'SURAT_KELUAR', code: 'SK', label: 'Surat Keluar Umum' },
     { id: 'SURAT_KEPUTUSAN', code: 'SK-PENG', label: 'Surat Keputusan Pengurus' },
-    { id: 'PERJANJIAN_KERJASAMA', code: 'SPK-KERJA', label: 'Surat Perjanjian Kerjasama' },
+    { id: 'PERJANJIAN_KERJASAMA', code: 'SPK', label: 'Surat Perjanjian Kerjasama' },
   ];
 
   // Query letters list
@@ -618,7 +618,7 @@ export default function LettersPage() {
                           {isManualNumber ? 'Nomor Surat (Input Manual):' : 'Pratinjau Nomor Surat Ter-Generate Otomatis:'}
                         </Text>
                         <Heading level={3} color="primary">
-                          {isManualNumber ? (manualNumber || 'Contoh: 001/SPP/VIII/2026') : (previewRes?.letterNumber || 'Memuat nomor...')}
+                          {isManualNumber ? (manualNumber || 'Contoh: 040/KOPNUTERA/SPP/IX/2026') : (previewRes?.letterNumber || 'Memuat nomor...')}
                         </Heading>
                         <HStack justify="space-between" vAlign="center" style={{ marginTop: 4 }}>
                           <Text type="supporting" size="sm" color="secondary">
