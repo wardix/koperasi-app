@@ -93,6 +93,9 @@ export function TwoFactorSettings({
       {/* Enable 2FA Modal */}
       {showEnableModal && (step === 'setup' || step === 'verify') && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pengaturan Autentikasi Dua Faktor"
           style={{
             position: 'fixed',
             inset: 0,
@@ -101,6 +104,7 @@ export function TwoFactorSettings({
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
+            padding: '16px',
           }}
         >
           <div

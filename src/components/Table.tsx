@@ -15,3 +15,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>): 
     />
   );
 }
+
+export { proportional, pixel } from '@astryxdesign/core/Table';
+export type { TableColumn, TableProps } from '@astryxdesign/core/Table';
+

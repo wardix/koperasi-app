@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   VStack,
   HStack,
@@ -11,8 +11,7 @@ import {
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
-import { Table, proportional, pixel } from '@astryxdesign/core/Table';
-import type { TableColumn } from '@astryxdesign/core/Table';
+import { IconButton } from '@astryxdesign/core/IconButton';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useApiAction } from '../hooks/useApiAction';
 import { useA11yDialog } from '../hooks/useA11yDialog';
@@ -45,6 +44,7 @@ function JournalDialog({
 }) {
   const [date, setDate] = useState(todayIsoDate());
   const [description, setDescription] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [lines, setLines] = useState([{ account_id: '', debit: '', credit: '' }, { account_id: '', debit: '', credit: '' }]);
 
@@ -56,16 +56,17 @@ function JournalDialog({
   const isZero = totalDebit === 0;
 
   const handleSave = () => {
+    setErrorMsg(null);
     if (!description || lines.some(l => !l.account_id)) {
-      alert("Harap lengkapi semua field yang wajib");
+      setErrorMsg("Harap lengkapi semua field yang wajib");
       return;
     }
     if (!isBalance) {
-      alert("Total Debit harus sama dengan Kredit");
+      setErrorMsg("Total Debit harus sama dengan Kredit");
       return;
     }
     if (isZero) {
-      alert("Nilai tidak boleh 0");
+      setErrorMsg("Nilai tidak boleh 0");
       return;
     }
     
@@ -95,6 +96,21 @@ function JournalDialog({
         value={description}
         onChange={setDescription}
       />
+
+      {errorMsg && (
+        <div
+          style={{
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md, 6px)',
+            backgroundColor: 'var(--color-background-danger-subtle)',
+            border: '1px solid var(--color-critical-500)',
+            color: 'var(--color-critical-500)',
+            fontSize: '13px',
+          }}
+        >
+          {errorMsg}
+        </div>
+      )}
 
       <div style={{ marginTop: 16 }}>
         <HStack hAlign="space-between" vAlign="center" style={{ marginBottom: 8 }}>
@@ -273,8 +289,9 @@ export default function Accounting() {
                         <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', textAlign: 'center' }}>
                           <HStack gap={1} hAlign="center">
                             {entry.reference_type !== 'reversal_of' && (
-                              <button
-                                title="Buat Jurnal Koreksi"
+                              <Button
+                                size="sm"
+                                variant="secondary"
                                 onClick={() => {
                                   if (!confirm(`Buat jurnal koreksi (reversal) untuk "${entry.description}"?\n\nIni akan membuat entri baru yang membalik semua Debit dan Kredit jurnal ini.`)) return;
                                   apiAction.execute(
@@ -286,19 +303,17 @@ export default function Accounting() {
                                     }
                                   );
                                 }}
-                                style={{
-                                  background: 'none', border: '1px solid var(--color-border)', borderRadius: 6,
-                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-text-orange)',
-                                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
-                                }}
                               >
-                                <ArrowPathIcon width={14} />
-                                Koreksi
-                              </button>
+                                <HStack gap={1} vAlign="center">
+                                  <ArrowPathIcon width={14} />
+                                  <span>Koreksi</span>
+                                </HStack>
+                              </Button>
                             )}
                             {isSuperAdmin && (
-                              <button
-                                title="Hapus Jurnal"
+                              <Button
+                                size="sm"
+                                variant="destructive"
                                 onClick={() => {
                                   if (!confirm(`HAPUS PERMANEN jurnal "${entry.description}"?\n\nData tidak dapat dipulihkan. Yakin?`)) return;
                                   apiAction.execute(
@@ -310,15 +325,12 @@ export default function Accounting() {
                                     }
                                   );
                                 }}
-                                style={{
-                                  background: 'none', border: '1px solid var(--color-border-red)', borderRadius: 6,
-                                  padding: '4px 8px', cursor: 'pointer', color: 'var(--color-text-red)',
-                                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500,
-                                }}
                               >
-                                <TrashIcon width={14} />
-                                Hapus
-                              </button>
+                                <HStack gap={1} vAlign="center">
+                                  <TrashIcon width={14} />
+                                  <span>Hapus</span>
+                                </HStack>
+                              </Button>
                             )}
                           </HStack>
                         </td>

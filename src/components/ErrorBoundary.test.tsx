@@ -1,5 +1,5 @@
-import { expect, test, describe, beforeAll, afterAll } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { expect, test, describe, beforeAll, afterAll, afterEach } from "bun:test";
+import { render, screen, cleanup } from "@testing-library/react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const GoodComponent = () => <div>All Good</div>;
@@ -18,6 +18,10 @@ describe("ErrorBoundary Component", () => {
 
   afterAll(() => {
     console.error = consoleErrorMock;
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   test("renders children normally when there is no error", () => {

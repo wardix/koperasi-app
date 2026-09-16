@@ -1,5 +1,5 @@
-import { describe, it, expect, mock } from "bun:test";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, mock, beforeEach, afterEach, spyOn } from "bun:test";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import {
   ApproveLoanDialogContent,
   getEndOfMonth,
@@ -8,26 +8,7 @@ import {
   computeScheduleDueDates,
 } from "./ApproveLoanDialog";
 import type { LoanRow } from "../shared/types";
-
-// Mock useApiQuery
-mock.module("../hooks/useApiQuery", () => ({
-  useApiQuery: (url: string) => {
-    if (url === "/api/settings") {
-      return { data: { bungaPinjaman: "12" } };
-    }
-    if (url === "/api/loans/payment-sources") {
-      return {
-        data: {
-          success: true,
-          data: [
-            { id: "acc-1", code: "1101", name: "Kas Utama", type: "Asset" },
-          ],
-        },
-      };
-    }
-    return { data: null };
-  },
-}));
+import * as apiQueryModule from "../hooks/useApiQuery";
 
 const sampleLoan: LoanRow = {
   id: "loan-test-1",
@@ -80,6 +61,32 @@ describe("ApproveLoanDialog date utilities", () => {
 });
 
 describe("ApproveLoanDialogContent component", () => {
+  let apiQuerySpy: any;
+
+  beforeEach(() => {
+    apiQuerySpy = spyOn(apiQueryModule, "useApiQuery").mockImplementation((url: string) => {
+      if (url === "/api/settings") {
+        return { data: { bungaPinjaman: "12" } } as any;
+      }
+      if (url === "/api/loans/payment-sources") {
+        return {
+          data: {
+            success: true,
+            data: [
+              { id: "acc-1", code: "1101", name: "Kas Utama", type: "Asset" },
+            ],
+          },
+        } as any;
+      }
+      return { data: null } as any;
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    apiQuerySpy?.mockRestore?.();
+  });
+
   it("renders first installment date input and submits selected values", () => {
     const onConfirmMock = mock(() => {});
     const onCloseMock = mock(() => {});

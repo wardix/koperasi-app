@@ -1,9 +1,16 @@
-import { describe, it, expect, mock } from 'bun:test';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, mock, afterEach, spyOn } from 'bun:test';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { ShuConfigDialog } from './ShuConfigDialog';
 import * as apiModule from '../services/api';
 
 describe('ShuConfigDialog Component', () => {
+  let putSpy: any;
+
+  afterEach(() => {
+    cleanup();
+    putSpy?.mockRestore?.();
+  });
+
   it('renders modal with current configuration', () => {
     const onClose = mock(() => {});
     const onSuccess = mock(() => {});
@@ -36,8 +43,7 @@ describe('ShuConfigDialog Component', () => {
   it('submits updated config to api and triggers onSuccess', async () => {
     const onClose = mock(() => {});
     const onSuccess = mock(() => {});
-    const putMock = mock(() => Promise.resolve({ success: true }));
-    (apiModule.api as any).put = putMock;
+    putSpy = spyOn(apiModule.api, 'put').mockResolvedValue({ success: true } as any);
 
     render(
       <ShuConfigDialog
@@ -59,7 +65,7 @@ describe('ShuConfigDialog Component', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(putMock).toHaveBeenCalledTimes(1);
+      expect(putSpy).toHaveBeenCalledTimes(1);
       expect(onSuccess).toHaveBeenCalledTimes(1);
       expect(onClose).toHaveBeenCalledTimes(1);
     });

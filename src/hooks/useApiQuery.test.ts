@@ -1,20 +1,19 @@
-import { expect, test, describe, mock, beforeEach } from "bun:test";
-import { renderHook, waitFor } from "@testing-library/react";
+import { expect, test, describe, spyOn, afterEach } from "bun:test";
+import { renderHook, waitFor, cleanup } from "@testing-library/react";
 import { useApiQuery } from "./useApiQuery";
 import { api } from "../services/api";
 
 describe("useApiQuery", () => {
-  beforeEach(() => {
-    mock.restore();
+  let getSpy: any;
+
+  afterEach(() => {
+    cleanup();
+    getSpy?.mockRestore?.();
   });
 
   test("should fetch data successfully", async () => {
     const mockData = { id: 1, name: "Test" };
-    mock.module("../services/api", () => ({
-      api: {
-        get: async () => mockData
-      }
-    }));
+    getSpy = spyOn(api, "get").mockResolvedValue(mockData);
 
     const { result } = renderHook(() => useApiQuery("/test"));
 
@@ -29,13 +28,7 @@ describe("useApiQuery", () => {
   });
 
   test("should handle error", async () => {
-    mock.module("../services/api", () => ({
-      api: {
-        get: async () => {
-          throw new Error("Server error");
-        }
-      }
-    }));
+    getSpy = spyOn(api, "get").mockRejectedValue(new Error("Server error"));
 
     const { result } = renderHook(() => useApiQuery("/test"));
 

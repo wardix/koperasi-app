@@ -220,11 +220,11 @@ export default function NPLTemplate() {
                     onClick={() => setSelectedTab(tab.id as any)}
                     style={{
                       padding: '6px 14px',
-                      borderRadius: '6px',
+                      borderRadius: 'var(--radius-md, 6px)',
                       border: '1px solid',
-                      borderColor: selectedTab === tab.id ? 'var(--color-primary-500, #0171E3)' : 'var(--color-border-primary)',
-                      backgroundColor: selectedTab === tab.id ? 'var(--color-primary-500, #0171E3)' : 'var(--color-background-primary)',
-                      color: selectedTab === tab.id ? '#ffffff' : 'var(--color-text-primary)',
+                      borderColor: selectedTab === tab.id ? 'var(--color-primary-500)' : 'var(--color-border-primary)',
+                      backgroundColor: selectedTab === tab.id ? 'var(--color-primary-50)' : 'var(--color-background-primary)',
+                      color: selectedTab === tab.id ? 'var(--color-primary-700)' : 'var(--color-text-primary)',
                       fontSize: '13px',
                       fontWeight: selectedTab === tab.id ? 600 : 400,
                       cursor: 'pointer',

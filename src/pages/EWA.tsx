@@ -1318,6 +1318,9 @@ export default function EWA() {
           {/* Modal Disburse */}
           {showDisburseModal && selectedDisburseReq && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Konfirmasi Pencairan Dana EWA"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -1326,6 +1329,7 @@ export default function EWA() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 1000,
+                padding: '16px',
               }}
             >
               <Card style={{ width: 480, padding: 24, maxWidth: '90%' }}>
@@ -1433,6 +1437,9 @@ export default function EWA() {
           {/* Modal Reject */}
           {showRejectModal && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Tolak Pengajuan Pencairan EWA"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -1441,6 +1448,7 @@ export default function EWA() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 1000,
+                padding: '16px',
               }}
             >
               <Card style={{ width: 450, padding: 24, maxWidth: '90%' }}>
@@ -1492,6 +1500,9 @@ export default function EWA() {
           {/* Modal Add/Edit Fee Tier */}
           {showTierModal && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Atur Rentang Biaya Admin EWA"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -1500,6 +1511,7 @@ export default function EWA() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 1000,
+                padding: '16px',
               }}
             >
               <Card style={{ width: 500, padding: 24, maxWidth: '90%' }}>
@@ -1652,6 +1664,9 @@ export default function EWA() {
           {/* Modal Import CSV */}
           {showImportModal && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Import Data Karyawan (CSV)"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -1660,6 +1675,7 @@ export default function EWA() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 1000,
+                padding: '16px',
               }}
             >
               <Card style={{ width: 550, padding: 24, maxWidth: '90%' }}>

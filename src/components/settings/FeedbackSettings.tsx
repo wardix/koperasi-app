@@ -9,11 +9,16 @@ import {
   TrashIcon,
   XMarkIcon,
   CheckCircleIcon,
-  ClockIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
 import { useToast } from '@astryxdesign/core/Toast';
+import { Badge } from '@astryxdesign/core/Badge';
+import { Button } from '@astryxdesign/core/Button';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { Icon } from '@astryxdesign/core/Icon';
+import { Text, Heading } from '@astryxdesign/core/Text';
+import { HStack, VStack } from '@astryxdesign/core/Layout';
 
 export interface FeedbackItem {
   id: string;
@@ -141,141 +146,38 @@ export const FeedbackSettings: React.FC = () => {
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'bug':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-danger-subtle, #fce8e6)',
-              color: 'var(--color-critical-500, #ef4444)',
-            }}
-          >
-            <BugAntIcon style={{ width: '13px', height: '13px' }} />
-            <span>Bug</span>
-          </span>
-        );
+        return <Badge variant="critical" size="sm" label="Bug" />;
       case 'feature':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-primary-subtle, #eff6ff)',
-              color: 'var(--color-primary-500, #0171E3)',
-            }}
-          >
-            <LightBulbIcon style={{ width: '13px', height: '13px' }} />
-            <span>Usulan Fitur</span>
-          </span>
-        );
+        return <Badge variant="info" size="sm" label="Usulan Fitur" />;
       default:
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-success-subtle, #e6f4ea)',
-              color: 'var(--color-success-500, #10b981)',
-            }}
-          >
-            <ChatBubbleBottomCenterTextIcon style={{ width: '13px', height: '13px' }} />
-            <span>Masukan</span>
-          </span>
-        );
+        return <Badge variant="success" size="sm" label="Masukan" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
-        return (
-          <span
-            style={{
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-warning-subtle, #fef3c7)',
-              color: 'var(--color-warning-500, #f59e0b)',
-            }}
-          >
-            Baru (Open)
-          </span>
-        );
+        return <Badge variant="warning" size="sm" label="Baru (Open)" />;
       case 'in_review':
-        return (
-          <span
-            style={{
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-primary-subtle, #eff6ff)',
-              color: 'var(--color-primary-500, #0171E3)',
-            }}
-          >
-            Ditinjau
-          </span>
-        );
+        return <Badge variant="info" size="sm" label="Ditinjau" />;
       case 'resolved':
-        return (
-          <span
-            style={{
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-success-subtle, #e6f4ea)',
-              color: 'var(--color-success-500, #10b981)',
-            }}
-          >
-            Selesai
-          </span>
-        );
+        return <Badge variant="success" size="sm" label="Selesai" />;
       default:
-        return (
-          <span
-            style={{
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-              color: 'var(--color-text-secondary, #71717a)',
-            }}
-          >
-            Ditutup
-          </span>
-        );
+        return <Badge variant="neutral" size="sm" label="Ditutup" />;
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header Description */}
-      <div>
-        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.25rem', fontWeight: 600 }}>
+      <VStack gap={1}>
+        <Heading level={3}>
           Laporan Masukan, Bug & Usulan Fitur
-        </h3>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary, #71717a)' }}>
+        </Heading>
+        <Text type="supporting" color="secondary">
           Kelola seluruh feedback dan kendala yang dilaporkan oleh anggota koperasi dan pengguna sistem lengkap dengan tangkapan layar.
-        </p>
-      </div>
+        </Text>
+      </VStack>
 
       {/* Stats Summary Cards */}
       {stats && (
@@ -452,32 +354,22 @@ export const FeedbackSettings: React.FC = () => {
           />
         </div>
 
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={loadData}
-          disabled={loading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            border: '1px solid var(--color-border-primary, #e4e4e7)',
-            backgroundColor: 'var(--color-background-primary, #ffffff)',
-            color: 'var(--color-text-primary, #18181b)',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-          }}
+          isDisabled={loading}
         >
-          <ArrowPathIcon
-            style={{
-              width: '16px',
-              height: '16px',
-              animation: loading ? 'spin 1s linear infinite' : 'none',
-            }}
-          />
-          <span>Segarkan</span>
-        </button>
+          <HStack gap={1} vAlign="center">
+            <ArrowPathIcon
+              style={{
+                width: '16px',
+                height: '16px',
+                animation: loading ? 'spin 1s linear infinite' : 'none',
+              }}
+            />
+            <span>Segarkan</span>
+          </HStack>
+        </Button>
       </div>
 
       {/* Feedbacks List Table */}
@@ -609,46 +501,27 @@ export const FeedbackSettings: React.FC = () => {
                     </td>
 
                     <td style={{ padding: '12px 16px', verticalAlign: 'top', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
-                        <button
-                          type="button"
+                      <HStack gap={1} hAlign="end">
+                        <Button
+                          size="sm"
+                          variant="secondary"
                           onClick={() => handleOpenDetail(item)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '5px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--color-border-primary, #e4e4e7)',
-                            backgroundColor: 'transparent',
-                            color: 'var(--color-primary-500, #0171E3)',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
                         >
-                          <EyeIcon style={{ width: '14px', height: '14px' }} />
-                          <span>Detail</span>
-                        </button>
+                          <HStack gap={1} vAlign="center">
+                            <EyeIcon width={14} />
+                            <span>Detail</span>
+                          </HStack>
+                        </Button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item)}
+                        <IconButton
+                          icon={<Icon icon={TrashIcon} />}
+                          label="Hapus masukan"
                           title="Hapus masukan"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '5px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--color-border-primary, #e4e4e7)',
-                            backgroundColor: 'transparent',
-                            color: 'var(--color-critical-500, #ef4444)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <TrashIcon style={{ width: '14px', height: '14px' }} />
-                        </button>
-                      </div>
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(item)}
+                        />
+                      </HStack>
                     </td>
                   </tr>
                 ))}
@@ -700,25 +573,19 @@ export const FeedbackSettings: React.FC = () => {
                 borderBottom: '1px solid var(--color-border-primary, #e4e4e7)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <HStack vAlign="center" gap={2}>
                 {getTypeBadge(selectedItem.type)}
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
+                <Heading level={3} style={{ margin: 0 }}>
                   {selectedItem.title || 'Detail Masukan'}
-                </h3>
-              </div>
-              <button
-                type="button"
+                </Heading>
+              </HStack>
+              <IconButton
+                icon={<Icon icon={XMarkIcon} />}
+                label="Tutup Modal"
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelectedItem(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '6px',
-                  cursor: 'pointer',
-                  color: 'var(--color-text-secondary, #71717a)',
-                }}
-              >
-                <XMarkIcon style={{ width: '20px', height: '20px' }} />
-              </button>
+              />
             </div>
 
             {/* Modal Body */}

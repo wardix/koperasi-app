@@ -763,19 +763,19 @@ export default function ReportsTemplate() {
                             const totalExp = projectionRes.summary.totalRealizedExpense ?? 0;
 
                             const statusBg = isProfit
-                              ? 'rgba(16, 185, 129, 0.08)'
+                              ? 'var(--color-background-success-subtle)'
                               : isLoss
-                              ? 'rgba(239, 68, 68, 0.08)'
+                              ? 'var(--color-background-danger-subtle)'
                               : 'var(--color-background-subtle)';
                             const statusBorder = isProfit
-                              ? 'var(--color-success-500, #10B981)'
+                              ? 'var(--color-success-500)'
                               : isLoss
-                              ? 'var(--color-error-500, #EF4444)'
+                              ? 'var(--color-critical-500)'
                               : 'var(--color-border-primary)';
                             const statusTextColor = isProfit
-                              ? 'var(--color-success-500, #10B981)'
+                              ? 'var(--color-success-500)'
                               : isLoss
-                              ? 'var(--color-error-500, #EF4444)'
+                              ? 'var(--color-critical-500)'
                               : 'var(--color-text-secondary)';
                             const statusLabel = isProfit
                               ? '🟢 ESTIMASI UNTUNG (SURPLUS SHU)'
@@ -808,7 +808,7 @@ export default function ReportsTemplate() {
                                     style={{
                                       padding: '6px 14px',
                                       borderRadius: '20px',
-                                      backgroundColor: isProfit ? '#10B981' : isLoss ? '#EF4444' : '#6B7280',
+                                      backgroundColor: isProfit ? 'var(--color-success-500)' : isLoss ? 'var(--color-critical-500)' : 'var(--color-text-secondary)',
                                       color: '#ffffff',
                                       fontWeight: 700,
                                       fontSize: '13px',
@@ -920,7 +920,7 @@ export default function ReportsTemplate() {
                               <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 Proyeksi Kas Masuk Sisa Tahun
                               </Text>
-                              <div style={{ fontSize: '20px', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>
+                              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success-500)', marginTop: '4px' }}>
                                 {formatRp(projectionRes.summary.totalProjectedCashInflow)}
                               </div>
                               <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
@@ -1057,7 +1057,7 @@ export default function ReportsTemplate() {
                                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>
                                       {formatRp(row.projectedPrincipal)}
                                     </td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 500, color: row.projectedTotal > 0 ? '#10B981' : 'inherit' }}>
+                                    <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 500, color: row.projectedTotal > 0 ? 'var(--color-success-500)' : 'inherit' }}>
                                       {formatRp(row.projectedTotal)}
                                     </td>
                                   </tr>
@@ -1076,7 +1076,7 @@ export default function ReportsTemplate() {
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                                     {formatRp(projectionRes.summary.totalProjectedPrincipal)}
                                   </td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: '#10B981' }}>
+                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
                                     {formatRp(projectionRes.summary.totalProjectedCashInflow)}
                                   </td>
                                 </tr>

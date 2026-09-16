@@ -13,6 +13,7 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {Badge} from '@astryxdesign/core/Badge';
 import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
 import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
+import {useToast} from '@astryxdesign/core/Toast';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {Button} from '@astryxdesign/core/Button';
@@ -47,6 +48,7 @@ const fieldDefs = [
 ] as const;
 
 export default function SavingsTemplate() {
+  const toast = useToast();
   const dialog = useA11yDialog({purpose: 'form', width: 600});
   const {hasPermission} = useAuth();
   
@@ -323,10 +325,10 @@ export default function SavingsTemplate() {
                               fetchPendingCount();
                               fetchTransactions();
                             } else {
-                              alert(res.message || 'Gagal menyetujui penarikan');
+                              toast.show(res.message || 'Gagal menyetujui penarikan', { type: 'critical' });
                             }
                           } catch {
-                            alert('Terjadi kesalahan jaringan');
+                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
                           }
                         }}
                       />
@@ -354,10 +356,10 @@ export default function SavingsTemplate() {
                               fetchPendingCount();
                               fetchTransactions();
                             } else {
-                              alert(res.message || 'Gagal menolak penarikan');
+                              toast.show(res.message || 'Gagal menolak penarikan', { type: 'critical' });
                             }
                           } catch {
-                            alert('Terjadi kesalahan jaringan');
+                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
                           }
                         }}
                       />
@@ -534,10 +536,10 @@ export default function SavingsTemplate() {
                               fetchPendingDepositsCount();
                               fetchTransactions();
                             } else {
-                              alert(res.message || 'Gagal memverifikasi setoran');
+                              toast.show(res.message || 'Gagal memverifikasi setoran', { type: 'critical' });
                             }
                           } catch {
-                            alert('Terjadi kesalahan jaringan');
+                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
                           }
                         }}
                       />
@@ -565,10 +567,10 @@ export default function SavingsTemplate() {
                               fetchPendingDepositsCount();
                               fetchTransactions();
                             } else {
-                              alert(res.message || 'Gagal menolak setoran');
+                              toast.show(res.message || 'Gagal menolak setoran', { type: 'critical' });
                             }
                           } catch {
-                            alert('Terjadi kesalahan jaringan');
+                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
                           }
                         }}
                       />
@@ -644,8 +646,8 @@ export default function SavingsTemplate() {
                   display: 'inline-flex',
                   gap: 8,
                   padding: 4,
-                  backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
-                  borderRadius: 8,
+                  backgroundColor: 'var(--color-background-secondary)',
+                  borderRadius: 'var(--radius-md, 8px)',
                   width: 'fit-content',
                 }}
               >
@@ -654,13 +656,13 @@ export default function SavingsTemplate() {
                   onClick={() => setActiveTab('transactions')}
                   style={{
                     padding: '8px 16px',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-md, 6px)',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: activeTab === 'transactions' ? 600 : 500,
                     fontSize: 14,
-                    backgroundColor: activeTab === 'transactions' ? 'var(--color-background-primary, #ffffff)' : 'transparent',
-                    color: activeTab === 'transactions' ? 'var(--color-text-primary, #111827)' : 'var(--color-text-secondary, #6b7280)',
+                    backgroundColor: activeTab === 'transactions' ? 'var(--color-background-primary)' : 'transparent',
+                    color: activeTab === 'transactions' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                     boxShadow: activeTab === 'transactions' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                     transition: 'all 0.15s ease',
                   }}
@@ -678,36 +680,20 @@ export default function SavingsTemplate() {
                     alignItems: 'center',
                     gap: 8,
                     padding: '8px 16px',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-md, 6px)',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: activeTab === 'deposits' ? 600 : 500,
                     fontSize: 14,
-                    backgroundColor: activeTab === 'deposits' ? 'var(--color-background-primary, #ffffff)' : 'transparent',
-                    color: activeTab === 'deposits' ? 'var(--color-text-primary, #111827)' : 'var(--color-text-secondary, #6b7280)',
+                    backgroundColor: activeTab === 'deposits' ? 'var(--color-background-primary)' : 'transparent',
+                    color: activeTab === 'deposits' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                     boxShadow: activeTab === 'deposits' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   Konfirmasi Setoran Masuk
                   {pendingDepositsCount > 0 && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'var(--color-primary-600, #2563eb)',
-                        color: '#ffffff',
-                        borderRadius: 9999,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: '1px 7px',
-                        minWidth: 18,
-                        height: 18,
-                      }}
-                    >
-                      {pendingDepositsCount}
-                    </span>
+                    <Badge variant="info" size="sm" label={String(pendingDepositsCount)} />
                   )}
                 </button>
                 <button
@@ -721,36 +707,20 @@ export default function SavingsTemplate() {
                     alignItems: 'center',
                     gap: 8,
                     padding: '8px 16px',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-md, 6px)',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: activeTab === 'withdrawals' ? 600 : 500,
                     fontSize: 14,
-                    backgroundColor: activeTab === 'withdrawals' ? 'var(--color-background-primary, #ffffff)' : 'transparent',
-                    color: activeTab === 'withdrawals' ? 'var(--color-text-primary, #111827)' : 'var(--color-text-secondary, #6b7280)',
+                    backgroundColor: activeTab === 'withdrawals' ? 'var(--color-background-primary)' : 'transparent',
+                    color: activeTab === 'withdrawals' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                     boxShadow: activeTab === 'withdrawals' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   Permohonan Penarikan Sukarela
                   {pendingCount > 0 && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'var(--color-warning-500, #f59e0b)',
-                        color: '#ffffff',
-                        borderRadius: 9999,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: '1px 7px',
-                        minWidth: 18,
-                        height: 18,
-                      }}
-                    >
-                      {pendingCount}
-                    </span>
+                    <Badge variant="warning" size="sm" label={String(pendingCount)} />
                   )}
                 </button>
               </div>

@@ -2176,7 +2176,7 @@ export default function MemberPortal() {
 
                     {/* Alert jika Kontrak Berakhir / Tidak Eligible */}
                     {ewaQuota?.isEligible === false && (
-                      <Card style={{ padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444' }}>
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-danger-subtle)', border: '1px solid var(--color-critical-500)' }}>
                         <HStack gap={3} vAlign="center">
                           <VStack gap={1}>
                             <Text type="body" weight="bold" color="critical">

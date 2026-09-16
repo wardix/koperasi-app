@@ -107,6 +107,9 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Atur Alokasi SHU"
       style={{
         position: 'fixed',
         inset: 0,
@@ -115,6 +118,7 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
+        padding: '16px',
       }}
     >
       <Card style={{ width: 560, padding: 24, maxWidth: '92%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -131,10 +135,10 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
               <div
                 style={{
                   padding: '8px 12px',
-                  borderRadius: 6,
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid var(--color-error-500, #ef4444)',
-                  color: 'var(--color-error-500, #ef4444)',
+                  borderRadius: 'var(--radius-md, 6px)',
+                  backgroundColor: 'var(--color-background-danger-subtle)',
+                  border: '1px solid var(--color-critical-500)',
+                  color: 'var(--color-critical-500)',
                   fontSize: 13,
                 }}
               >

@@ -11,8 +11,7 @@ import { Table, pixel, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Grid } from '@astryxdesign/core/Grid';
-import { Dialog, DialogHeader, DialogBody, DialogFooter } from '@astryxdesign/core/Dialog';
-import { PaperClipIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PaperClipIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { apiFetch } from '../config';
 import { formatRp, formatDate } from '../utils/format';
@@ -576,26 +575,13 @@ export default function LettersPage() {
                   <Heading level={3} style={{ margin: 0 }}>
                     Terbitkan Nomor Surat Resmi Baru
                   </Heading>
-                  <button
-                    type="button"
+                  <IconButton
+                    icon={<Icon icon={XMarkIcon} />}
+                    label="Tutup Modal"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowCreateModal(false)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      fontSize: '20px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text-secondary)',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      lineHeight: 1,
-                    }}
-                    title="Tutup Modal"
-                  >
-                    ✕
-                  </button>
+                  />
                 </div>
 
                 <form onSubmit={handleCreateLetter} style={{ padding: '20px 24px' }}>
@@ -853,26 +839,13 @@ export default function LettersPage() {
                   <Heading level={3} style={{ margin: 0 }}>
                     Edit Data Surat Resmi
                   </Heading>
-                  <button
-                    type="button"
+                  <IconButton
+                    icon={<Icon icon={XMarkIcon} />}
+                    label="Tutup Modal"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowEditModal(false)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      fontSize: '20px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text-secondary)',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      lineHeight: 1,
-                    }}
-                    title="Tutup Modal"
-                  >
-                    ✕
-                  </button>
+                  />
                 </div>
 
                 <form onSubmit={handleSaveEdit} style={{ padding: '20px 24px' }}>

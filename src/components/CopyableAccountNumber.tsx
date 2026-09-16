@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { Icon } from '@astryxdesign/core/Icon';
 import { useToast } from '@astryxdesign/core/Toast';
 import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline';
 
@@ -93,31 +95,14 @@ export function CopyableAccountNumber({
           </Text>
         </span>
         {cleanNumber && (
-          <button
-            type="button"
-            onClick={handleCopy}
+          <IconButton
+            icon={<Icon icon={copied ? CheckIcon : DocumentDuplicateIcon} />}
+            label="Salin nomor rekening"
             title={copied ? 'Tersalin!' : 'Salin nomor rekening'}
-            aria-label="Salin nomor rekening"
-            style={{
-              background: copied ? 'rgba(34, 197, 94, 0.12)' : 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '2px 4px',
-              borderRadius: '4px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: copied ? 'var(--color-success-600, #16a34a)' : 'var(--color-text-secondary, #6b7280)',
-              transition: 'all 0.15s ease',
-              marginLeft: '2px',
-            }}
-          >
-            {copied ? (
-              <CheckIcon style={{ width: '14px', height: '14px', strokeWidth: 2.5 }} />
-            ) : (
-              <DocumentDuplicateIcon style={{ width: '14px', height: '14px' }} />
-            )}
-          </button>
+            size="sm"
+            variant={copied ? 'secondary' : 'ghost'}
+            onClick={handleCopy}
+          />
         )}
       </HStack>
       {showHolder && accountHolder && (

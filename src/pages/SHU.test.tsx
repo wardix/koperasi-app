@@ -1,15 +1,10 @@
-import { describe, it, expect, mock, afterEach } from 'bun:test';
+import { describe, it, expect, mock, afterEach, beforeEach, spyOn } from 'bun:test';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import SHU from './SHU';
+import * as authModule from '../hooks/useAuth';
+import * as apiQueryModule from '../hooks/useApiQuery';
 
-// Mock useAuth
-mock.module('../hooks/useAuth', () => ({
-  useAuth: () => ({
-    hasPermission: () => true,
-  }),
-}));
-
-let mockApiData: any = {
+const defaultMockApiData = {
   year: '2026',
   pendapatan: 100000000,
   biayaOperasional: 20000000,
@@ -35,19 +30,29 @@ let mockApiData: any = {
   ],
 };
 
-// Mock useApiQuery
-mock.module('../hooks/useApiQuery', () => ({
-  useApiQuery: () => ({
-    data: mockApiData,
-    isLoading: false,
-    error: null,
-    refetch: mock(() => {}),
-  }),
-}));
+let mockApiData: any;
 
 describe('SHU Page', () => {
+  let authSpy: any;
+  let apiQuerySpy: any;
+
+  beforeEach(() => {
+    mockApiData = JSON.parse(JSON.stringify(defaultMockApiData));
+    authSpy = spyOn(authModule, 'useAuth').mockReturnValue({
+      hasPermission: () => true,
+    } as any);
+    apiQuerySpy = spyOn(apiQueryModule, 'useApiQuery').mockImplementation(() => ({
+      data: mockApiData,
+      isLoading: false,
+      error: null,
+      refetch: mock(() => {}),
+    } as any));
+  });
+
   afterEach(() => {
     cleanup();
+    authSpy?.mockRestore?.();
+    apiQuerySpy?.mockRestore?.();
   });
   it('hides 0% distribution items in details list', () => {
     render(<SHU />);

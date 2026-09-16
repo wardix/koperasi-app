@@ -5,6 +5,7 @@ import { CopyableAccountNumber } from "./CopyableAccountNumber";
 describe("CopyableAccountNumber Component", () => {
   afterEach(() => {
     cleanup();
+    document.querySelectorAll('[data-astryx-toast-fallback]').forEach((el) => el.remove());
   });
 
   test("renders bank name, account number, and account holder", () => {

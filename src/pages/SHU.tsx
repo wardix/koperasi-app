@@ -205,9 +205,9 @@ export default function SHU() {
                   <div
                     style={{
                       display: 'inline-flex',
-                      backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
+                      backgroundColor: 'var(--color-background-secondary)',
                       padding: 3,
-                      borderRadius: 8,
+                      borderRadius: 'var(--radius-md, 8px)',
                       gap: 2,
                     }}
                   >
@@ -216,13 +216,13 @@ export default function SHU() {
                       onClick={() => setMode('realization')}
                       style={{
                         padding: '6px 12px',
-                        borderRadius: 6,
+                        borderRadius: 'var(--radius-md, 6px)',
                         border: 'none',
                         cursor: 'pointer',
                         fontWeight: mode === 'realization' ? 600 : 500,
                         fontSize: 13,
-                        backgroundColor: mode === 'realization' ? 'var(--color-background-primary, #ffffff)' : 'transparent',
-                        color: mode === 'realization' ? 'var(--color-text-primary, #111827)' : 'var(--color-text-secondary, #6b7280)',
+                        backgroundColor: mode === 'realization' ? 'var(--color-background-primary)' : 'transparent',
+                        color: mode === 'realization' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                         boxShadow: mode === 'realization' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                         transition: 'all 0.15s ease',
                       }}
@@ -234,13 +234,13 @@ export default function SHU() {
                       onClick={() => setMode('projection')}
                       style={{
                         padding: '6px 12px',
-                        borderRadius: 6,
+                        borderRadius: 'var(--radius-md, 6px)',
                         border: 'none',
                         cursor: 'pointer',
                         fontWeight: mode === 'projection' ? 600 : 500,
                         fontSize: 13,
-                        backgroundColor: mode === 'projection' ? 'var(--color-background-primary, #ffffff)' : 'transparent',
-                        color: mode === 'projection' ? 'var(--color-text-primary, #111827)' : 'var(--color-text-secondary, #6b7280)',
+                        backgroundColor: mode === 'projection' ? 'var(--color-background-primary)' : 'transparent',
+                        color: mode === 'projection' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                         boxShadow: mode === 'projection' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                         transition: 'all 0.15s ease',
                       }}
@@ -292,10 +292,10 @@ export default function SHU() {
             <VStack gap={6}>
               {/* Alert Mode Proyeksi */}
               {isProjection && (
-                <Card style={{ padding: '12px 16px', backgroundColor: 'var(--color-background-info-subtle, #eff6ff)', border: '1px solid var(--color-border-info, #bfdbfe)' }}>
+                <Card style={{ padding: '12px 16px', backgroundColor: 'var(--color-background-info-subtle)', border: '1px solid var(--color-border-info)' }}>
                   <HStack gap={2} vAlign="center">
                     <Badge variant="info" label="Simulasi Prognosis RAT" />
-                    <Text type="supporting" style={{ color: 'var(--color-text-info, #1e40af)' }}>
+                    <Text type="supporting" style={{ color: 'var(--color-text-info)' }}>
                       Menghitung realisasi bunga pinjaman berjalan (YTD) ditambah estimasi bunga jadwal pinjaman aktif yang jatuh tempo hingga akhir tahun {year}. Angka ini bersifat indikatif (simulasi) dan bukan pembagian kas resmi.
                     </Text>
                   </HStack>
