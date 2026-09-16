@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   XMarkIcon,
   BugAntIcon,
@@ -11,6 +11,7 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
 
@@ -44,6 +45,39 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('File yang dipilih harus berupa gambar (PNG, JPG, WebP).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('Ukuran file gambar maksimal 5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setScreenshotData(reader.result);
+        setIncludeScreenshot(true);
+        setErrorMsg('');
+      }
+    };
+    reader.onerror = () => {
+      setErrorMsg('Gagal membaca file gambar.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+    e.target.value = '';
+  };
+
   // Sync screenshot when parent updates it
   useEffect(() => {
     setScreenshotData(initialScreenshot);
@@ -51,6 +85,33 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
       setIncludeScreenshot(true);
     }
   }, [initialScreenshot]);
+
+  // Support pasting image from clipboard
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            processImageFile(file);
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [isOpen]);
 
   // Reset state when opened
   useEffect(() => {
@@ -596,6 +657,25 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
 
                       <button
                         type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Ganti dengan unggah gambar"
+                        style={{
+                          background: 'none',
+                          border: '1px solid var(--color-border-primary, #e4e4e7)',
+                          borderRadius: '6px',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-secondary, #71717a)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ArrowUpTrayIcon style={{ width: '16px', height: '16px' }} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => {
                           setScreenshotData(null);
                           setIncludeScreenshot(false);
@@ -618,19 +698,92 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '0.75rem',
-                      color: 'var(--color-text-secondary, #71717a)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    {!screenshotData
-                      ? 'Tangkapan layar tidak tersedia atau dihapus.'
-                      : 'Tangkapan layar dinonaktifkan untuk laporan ini.'}
-                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '0.75rem',
+                        color: 'var(--color-text-secondary, #71717a)',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {!screenshotData
+                        ? 'Tangkapan layar tidak tersedia atau dihapus.'
+                        : 'Tangkapan layar dinonaktifkan untuk laporan ini.'}
+                    </p>
+                    {!screenshotData && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {onRetakeScreenshot && (
+                          <button
+                            type="button"
+                            onClick={onRetakeScreenshot}
+                            disabled={isRetaking}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--color-border-primary, #e4e4e7)',
+                              backgroundColor: 'var(--color-background-primary, #ffffff)',
+                              color: 'var(--color-primary-500, #0171E3)',
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              cursor: isRetaking ? 'wait' : 'pointer',
+                            }}
+                          >
+                            <CameraIcon style={{ width: '14px', height: '14px' }} />
+                            <span>{isRetaking ? 'Mengambil Layar...' : 'Ambil Layar'}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--color-border-primary, #e4e4e7)',
+                            backgroundColor: 'var(--color-background-primary, #ffffff)',
+                            color: 'var(--color-text-primary, #18181b)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <ArrowUpTrayIcon style={{ width: '14px', height: '14px' }} />
+                          <span>Unggah Gambar</span>
+                        </button>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--color-text-secondary, #71717a)',
+                          }}
+                        >
+                          atau tempel gambar dengan <kbd style={{ padding: '1px 5px', borderRadius: '4px', background: 'var(--color-background-secondary, #f4f4f5)', border: '1px solid var(--color-border-primary, #e4e4e7)', fontSize: '0.75rem' }}>Ctrl+V</kbd>
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  aria-label="Pilih gambar tangkapan layar"
+                />
               </div>
 
               {/* Metadata Details Accordion */}

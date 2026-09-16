@@ -78,4 +78,46 @@ describe("FeedbackDialog Component", () => {
 
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("shows fallback message and upload/retake actions when screenshot is null", () => {
+    const onClose = mock(() => {});
+    const onRetake = mock(() => {});
+    render(
+      <FeedbackDialog
+        isOpen={true}
+        onClose={onClose}
+        initialScreenshot={null}
+        onRetakeScreenshot={onRetake}
+      />
+    );
+
+    expect(screen.getByText("Tangkapan layar tidak tersedia atau dihapus.")).toBeDefined();
+    expect(screen.getByText("Ambil Layar")).toBeDefined();
+    expect(screen.getByText("Unggah Gambar")).toBeDefined();
+
+    const retakeBtn = screen.getByRole("button", { name: /Ambil Layar/i });
+    fireEvent.click(retakeBtn);
+    expect(onRetake).toHaveBeenCalled();
+  });
+
+  it("allows deleting screenshot and reverts to fallback state", () => {
+    const onClose = mock(() => {});
+    const sampleScreenshot =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+    render(
+      <FeedbackDialog
+        isOpen={true}
+        onClose={onClose}
+        initialScreenshot={sampleScreenshot}
+      />
+    );
+
+    expect(screen.getByText("Tangkapan Layar Halaman")).toBeDefined();
+    const deleteBtn = screen.getByTitle("Hapus tangkapan layar");
+    fireEvent.click(deleteBtn);
+
+    expect(screen.getByText("Tangkapan layar tidak tersedia atau dihapus.")).toBeDefined();
+    expect(screen.queryByText("Tangkapan Layar Halaman")).toBeNull();
+  });
 });

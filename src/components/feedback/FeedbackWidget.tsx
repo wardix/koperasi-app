@@ -11,14 +11,22 @@ export const FeedbackWidget: React.FC = () => {
   const captureCurrentScreen = async (): Promise<string | null> => {
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(document.body, {
+      const target = document.getElementById('root') || document.body;
+      const canvas = await html2canvas(target, {
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         logging: false,
         scale: Math.min(window.devicePixelRatio || 1, 1.5),
-        ignoreElements: (element) => element.hasAttribute('data-feedback-ignore'),
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
+        ignoreElements: (element) => {
+          const tag = element.tagName;
+          if (tag === 'IFRAME' || tag === 'VIDEO' || tag === 'AUDIO') return true;
+          if (element.id === 'credential_picker_container' || element.id === 'credential_picker_iframe') return true;
+          if (element.hasAttribute('data-feedback-ignore')) return true;
+          if (element.closest && element.closest('[data-feedback-ignore="true"]')) return true;
+          return false;
+        },
+        windowWidth: document.documentElement.clientWidth || window.innerWidth,
+        windowHeight: document.documentElement.clientHeight || window.innerHeight,
         x: window.scrollX,
         y: window.scrollY,
         width: window.innerWidth,
@@ -26,8 +34,30 @@ export const FeedbackWidget: React.FC = () => {
       });
       return canvas.toDataURL('image/jpeg', 0.85);
     } catch (err) {
-      console.warn('Screenshot capture failed gracefully:', err);
-      return null;
+      console.warn('Screenshot capture failed, trying fallback:', err);
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        const target = document.getElementById('root') || document.body;
+        const canvas = await html2canvas(target, {
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          scale: 1,
+          ignoreElements: (element) => {
+            const tag = element.tagName;
+            return (
+              tag === 'IFRAME' ||
+              tag === 'VIDEO' ||
+              tag === 'AUDIO' ||
+              element.hasAttribute('data-feedback-ignore')
+            );
+          },
+        });
+        return canvas.toDataURL('image/jpeg', 0.8);
+      } catch (fallbackErr) {
+        console.warn('Screenshot fallback also failed:', fallbackErr);
+        return null;
+      }
     }
   };
 
@@ -45,18 +75,18 @@ export const FeedbackWidget: React.FC = () => {
 
   const handleRetakeScreenshot = async () => {
     setIsCapturing(true);
-    // Temporarily hide the dialog backdrop during capture
-    const dialogElem = document.querySelector('[data-feedback-ignore="true"]') as HTMLElement | null;
-    if (dialogElem) {
-      dialogElem.style.visibility = 'hidden';
-    }
+    // Temporarily hide all feedback ignored elements (dialog backdrop, triggers) during capture
+    const ignoredElems = document.querySelectorAll<HTMLElement>('[data-feedback-ignore="true"]');
+    ignoredElems.forEach((el) => {
+      el.style.visibility = 'hidden';
+    });
 
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 80));
     const captured = await captureCurrentScreen();
 
-    if (dialogElem) {
-      dialogElem.style.visibility = 'visible';
-    }
+    ignoredElems.forEach((el) => {
+      el.style.visibility = 'visible';
+    });
 
     setScreenshotData(captured);
     setIsCapturing(false);
