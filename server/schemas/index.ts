@@ -622,3 +622,28 @@ export const savingsDepositRejectSchema = z.object({
   rejectionReason: z.string().min(1, "Alasan penolakan wajib diisi").transform(sanitize),
 });
 
+// ---------------------------------------------------------------------------
+// Feedback & Bug Reports
+// ---------------------------------------------------------------------------
+
+export const createFeedbackSchema = z.object({
+  type: z.enum(['bug', 'feature', 'general'], {
+    message: "Tipe masukan harus bug, feature, atau general",
+  }),
+  title: z.string().max(200, "Judul maksimal 200 karakter").transform(sanitize).optional().nullable(),
+  description: z.string().min(5, "Deskripsi minimal 5 karakter").max(5000, "Deskripsi maksimal 5000 karakter").transform(sanitize),
+  screenshot: z.string().optional().nullable(),
+  pageUrl: z.string().max(1000).transform(sanitize).optional().nullable(),
+  userAgent: z.string().max(500).transform(sanitize).optional().nullable(),
+  screenResolution: z.string().max(50).transform(sanitize).optional().nullable(),
+  userName: z.string().max(100).transform(sanitize).optional().nullable(),
+  userEmail: z.string().email("Format email tidak valid").optional().nullable().or(z.literal("")),
+});
+
+export const updateFeedbackStatusSchema = z.object({
+  status: z.enum(['open', 'in_review', 'resolved', 'closed'], {
+    message: "Status harus open, in_review, resolved, atau closed",
+  }),
+  adminNotes: z.string().max(2000).transform(sanitize).optional().nullable(),
+});
+

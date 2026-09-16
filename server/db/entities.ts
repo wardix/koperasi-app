@@ -371,4 +371,28 @@ export const savingsDepositRowSchema = z.object({
 });
 export type SavingsDepositRow = z.infer<typeof savingsDepositRowSchema>;
 
+// ---------------------------------------------------------------------------
+// User Feedbacks & Bug Reports
+// ---------------------------------------------------------------------------
+
+export const userFeedbackRowSchema = z.object({
+  id: str,
+  type: str,
+  title: strNull,
+  description: str,
+  screenshot_url: strNull,
+  page_url: strNull,
+  user_agent: strNull,
+  screen_resolution: strNull,
+  user_id: strNull,
+  user_name: strNull,
+  user_email: strNull,
+  user_role: strNull,
+  status: str.default("open"),
+  admin_notes: strNull,
+  created_at: str,
+  updated_at: str,
+});
+export type UserFeedbackRow = z.infer<typeof userFeedbackRowSchema>;
+
 

@@ -13,6 +13,7 @@ import { koperasiTheme } from './design/theme'
 const Shell = lazy(() => import('./components/Shell'))
 const Login = lazy(() => import('./pages/Login'))
 const MemberPortal = lazy(() => import('./pages/MemberPortal'))
+const FeedbackWidget = lazy(() => import('./components/feedback/FeedbackWidget'))
 
 function LoadingScreen({ label = 'Loading...' }: { label?: string }) {
   return (
@@ -93,6 +94,7 @@ function LazyRoot() {
         <Route path="/login" element={<AdminLoginRoute />} />
         <Route path="/*" element={<AdminAppRoute />} />
       </Routes>
+      <FeedbackWidget />
     </Suspense>
   )
 }

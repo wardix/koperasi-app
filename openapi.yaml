@@ -33,6 +33,8 @@ tags:
     description: Pengeluaran operasional koperasi
   - name: reports
     description: Laporan ringkasan
+  - name: feedbacks
+    description: Masukan pengguna, laporan kendala (bug), dan usulan fitur dengan tangkapan layar
 components:
   securitySchemes:
     bearerAuth:
@@ -1134,3 +1136,108 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/DataResponse'
+  /feedbacks:
+    post:
+      tags: [feedbacks]
+      summary: Kirim masukan, laporan bug, atau usulan fitur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, description]
+              properties:
+                type: { type: string, enum: [bug, feature, general] }
+                title: { type: string }
+                description: { type: string }
+                screenshot: { type: string, description: 'Base64 Data URL gambar tangkapan layar' }
+                pageUrl: { type: string }
+                userAgent: { type: string }
+                screenResolution: { type: string }
+                userName: { type: string }
+                userEmail: { type: string }
+      responses:
+        '201':
+          $ref: '#/components/responses/DataResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    get:
+      tags: [feedbacks]
+      summary: Daftar masukan pengguna dan laporan bug (Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: type
+          schema: { type: string, enum: [bug, feature, general] }
+        - in: query
+          name: status
+          schema: { type: string, enum: [open, in_review, resolved, closed] }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+  /feedbacks/stats:
+    get:
+      tags: [feedbacks]
+      summary: Statistik jumlah masukan berdasarkan tipe dan status (Admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/DataResponse'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+  /feedbacks/{id}/status:
+    put:
+      tags: [feedbacks]
+      summary: Perbarui status masukan dan catatan admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [open, in_review, resolved, closed] }
+                adminNotes: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /feedbacks/{id}:
+    delete:
+      tags: [feedbacks]
+      summary: Hapus laporan masukan
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'

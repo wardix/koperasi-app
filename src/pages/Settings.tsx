@@ -39,6 +39,7 @@ import {ParameterSettings} from '../components/settings/ParameterSettings';
 import {TwoFactorSettings} from '../components/settings/TwoFactorSettings';
 import {WaNotificationSettings} from '../components/settings/WaNotificationSettings';
 import {ShuSettings, type ShuSettingsValues} from '../components/settings/ShuSettings';
+import {FeedbackSettings} from '../components/settings/FeedbackSettings';
 
 const NAV_ITEMS = [
   'Profil Koperasi',
@@ -47,6 +48,7 @@ const NAV_ITEMS = [
   'Notifikasi WhatsApp',
   'Hak Akses',
   'Keamanan',
+  'Laporan & Masukan',
 ];
 
 const SETTINGS_ITEMS: SearchableItem[] = [
@@ -301,125 +303,131 @@ export default function SettingsTemplate() {
               </VStack>
             )}
             
-            <ProfileSettings
-              koperasiName={koperasiName}
-              alamat={alamat}
-              telepon={telepon}
-              email={email}
-              coopBankName={coopBankName}
-              coopBankAccountNumber={coopBankAccountNumber}
-              coopBankAccountName={coopBankAccountName}
-              canUpdate={hasPermission('update:settings')}
-              onKoperasiNameChange={setKoperasiName}
-              onAlamatChange={setAlamat}
-              onTeleponChange={setTelepon}
-              onEmailChange={setEmail}
-              onCoopBankNameChange={setCoopBankName}
-              onCoopBankAccountNumberChange={setCoopBankAccountNumber}
-              onCoopBankAccountNameChange={setCoopBankAccountName}
-              onSave={saveSettings}
-            />
-
-            <Divider />
-
-            <ParameterSettings
-              bungaPinjaman={bungaPinjaman}
-              bungaSimpanan={bungaSimpanan}
-              denda={denda}
-              canUpdate={hasPermission('update:settings')}
-              onBungaPinjamanChange={setBungaPinjaman}
-              onBungaSimpananChange={setBungaSimpanan}
-              onDendaChange={setDenda}
-              onSave={saveSettings}
-            />
-
-            <Divider />
-
-            <ShuSettings
-              initialValues={{
-                anggotaPct: settingsData?.shu_anggota_pct,
-                cadanganPct: settingsData?.shu_cadangan_pct,
-                pengurusPct: settingsData?.shu_pengurus_pct,
-                sosialPct: settingsData?.shu_sosial_pct,
-                pembangunanPct: settingsData?.shu_pembangunan_pct,
-                jasaSimpananPct: settingsData?.shu_jasa_simpanan_pct,
-                jasaPinjamanPct: settingsData?.shu_jasa_pinjaman_pct,
-                includeInactiveMembers: settingsData?.shu_include_inactive_members !== undefined
-                  ? (settingsData.shu_include_inactive_members === 'true' || settingsData.shu_include_inactive_members === true)
-                  : true,
-              }}
-              canUpdate={hasPermission('update:settings')}
-              onSave={handleSaveShu}
-            />
-
-            <Divider />
-
-            <WaNotificationSettings
-              waNotificationEnabled={waNotificationEnabled}
-              waWebhookUrl={waWebhookUrl}
-              waWebhookToken={waWebhookToken}
-              waNotificationTarget={waNotificationTarget}
-              canUpdate={hasPermission('update:settings')}
-              onWaNotificationEnabledChange={setWaNotificationEnabled}
-              onWaWebhookUrlChange={setWaWebhookUrl}
-              onWaWebhookTokenChange={setWaWebhookToken}
-              onWaNotificationTargetChange={setWaNotificationTarget}
-              onSave={saveSettings}
-            />
-
-            <Divider />
-
-            <Grid columns={{minWidth: 320}} gap={10}>
-              <VStack gap={1}>
-                <Heading level={3}>Hak Akses & Keamanan</Heading>
-                <Text type="supporting" color="secondary">
-                  Konfigurasikan preferensi sistem dan kebijakan anggota.
-                </Text>
-              </VStack>
-              <VStack gap={5}>
-                <CheckboxInput
-                  label="Izinkan Anggota Melihat Laporan"
-                  description="Anggota biasa dapat mengunduh laporan neraca tahunan."
-                  value={viewReports}
-                  onChange={setViewReports}
-                  disabled={!hasPermission('update:settings')}
+            {activeNav === 'Laporan & Masukan' ? (
+              <FeedbackSettings />
+            ) : (
+              <>
+                <ProfileSettings
+                  koperasiName={koperasiName}
+                  alamat={alamat}
+                  telepon={telepon}
+                  email={email}
+                  coopBankName={coopBankName}
+                  coopBankAccountNumber={coopBankAccountNumber}
+                  coopBankAccountName={coopBankAccountName}
+                  canUpdate={hasPermission('update:settings')}
+                  onKoperasiNameChange={setKoperasiName}
+                  onAlamatChange={setAlamat}
+                  onTeleponChange={setTelepon}
+                  onEmailChange={setEmail}
+                  onCoopBankNameChange={setCoopBankName}
+                  onCoopBankAccountNumberChange={setCoopBankAccountNumber}
+                  onCoopBankAccountNameChange={setCoopBankAccountName}
+                  onSave={saveSettings}
                 />
-                <CheckboxInput
-                  label="Aktifkan Pendaftaran Mandiri"
-                  description="Calon anggota dapat mendaftar sendiri melalui aplikasi web."
-                  value={selfRegister}
-                  onChange={setSelfRegister}
-                  disabled={!hasPermission('update:settings')}
+
+                <Divider />
+
+                <ParameterSettings
+                  bungaPinjaman={bungaPinjaman}
+                  bungaSimpanan={bungaSimpanan}
+                  denda={denda}
+                  canUpdate={hasPermission('update:settings')}
+                  onBungaPinjamanChange={setBungaPinjaman}
+                  onBungaSimpananChange={setBungaSimpanan}
+                  onDendaChange={setDenda}
+                  onSave={saveSettings}
                 />
-                <TwoFactorSettings
-                  twoFactorEnabled={twoFactorEnabled}
-                  showEnableModal={showEnableModal}
-                  step={step}
-                  totpUri={totpUri}
-                  recoveryCodes={recoveryCodes}
-                  verifyToken={verifyToken}
-                  onEnable={handleEnable2Fa}
-                  onDisable={handleDisable2Fa}
-                  onRegenerateCodes={handleRegenerateRecoveryCodes}
-                  onVerify={handleVerify2Fa}
-                  onSetStep={setStep}
-                  onVerifyTokenChange={setVerifyToken}
-                  onCloseModal={() => { setShowEnableModal(false); setStep('setup'); }}
+
+                <Divider />
+
+                <ShuSettings
+                  initialValues={{
+                    anggotaPct: settingsData?.shu_anggota_pct,
+                    cadanganPct: settingsData?.shu_cadangan_pct,
+                    pengurusPct: settingsData?.shu_pengurus_pct,
+                    sosialPct: settingsData?.shu_sosial_pct,
+                    pembangunanPct: settingsData?.shu_pembangunan_pct,
+                    jasaSimpananPct: settingsData?.shu_jasa_simpanan_pct,
+                    jasaPinjamanPct: settingsData?.shu_jasa_pinjaman_pct,
+                    includeInactiveMembers: settingsData?.shu_include_inactive_members !== undefined
+                      ? (settingsData.shu_include_inactive_members === 'true' || settingsData.shu_include_inactive_members === true)
+                      : true,
+                  }}
+                  canUpdate={hasPermission('update:settings')}
+                  onSave={handleSaveShu}
                 />
-                <CheckboxInput
-                  label="Registrasi Otomatis via Google SSO"
-                  description="Mendaftarkan secara otomatis akun Google baru dengan role Viewer."
-                  value={ssoAutoRegister}
-                  onChange={setSsoAutoRegister}
-                  disabled={!hasPermission('update:settings')}
+
+                <Divider />
+
+                <WaNotificationSettings
+                  waNotificationEnabled={waNotificationEnabled}
+                  waWebhookUrl={waWebhookUrl}
+                  waWebhookToken={waWebhookToken}
+                  waNotificationTarget={waNotificationTarget}
+                  canUpdate={hasPermission('update:settings')}
+                  onWaNotificationEnabledChange={setWaNotificationEnabled}
+                  onWaWebhookUrlChange={setWaWebhookUrl}
+                  onWaWebhookTokenChange={setWaWebhookToken}
+                  onWaNotificationTargetChange={setWaNotificationTarget}
+                  onSave={saveSettings}
                 />
-                {hasPermission('update:settings') && (
-                  <HStack>
-                    <Button label="Simpan Hak Akses" variant="primary" onClick={saveSettings} />
-                  </HStack>
-                )}
-              </VStack>
-            </Grid>
+
+                <Divider />
+
+                <Grid columns={{minWidth: 320}} gap={10}>
+                  <VStack gap={1}>
+                    <Heading level={3}>Hak Akses & Keamanan</Heading>
+                    <Text type="supporting" color="secondary">
+                      Konfigurasikan preferensi sistem dan kebijakan anggota.
+                    </Text>
+                  </VStack>
+                  <VStack gap={5}>
+                    <CheckboxInput
+                      label="Izinkan Anggota Melihat Laporan"
+                      description="Anggota biasa dapat mengunduh laporan neraca tahunan."
+                      value={viewReports}
+                      onChange={setViewReports}
+                      disabled={!hasPermission('update:settings')}
+                    />
+                    <CheckboxInput
+                      label="Aktifkan Pendaftaran Mandiri"
+                      description="Calon anggota dapat mendaftar sendiri melalui aplikasi web."
+                      value={selfRegister}
+                      onChange={setSelfRegister}
+                      disabled={!hasPermission('update:settings')}
+                    />
+                    <TwoFactorSettings
+                      twoFactorEnabled={twoFactorEnabled}
+                      showEnableModal={showEnableModal}
+                      step={step}
+                      totpUri={totpUri}
+                      recoveryCodes={recoveryCodes}
+                      verifyToken={verifyToken}
+                      onEnable={handleEnable2Fa}
+                      onDisable={handleDisable2Fa}
+                      onRegenerateCodes={handleRegenerateRecoveryCodes}
+                      onVerify={handleVerify2Fa}
+                      onSetStep={setStep}
+                      onVerifyTokenChange={setVerifyToken}
+                      onCloseModal={() => { setShowEnableModal(false); setStep('setup'); }}
+                    />
+                    <CheckboxInput
+                      label="Registrasi Otomatis via Google SSO"
+                      description="Mendaftarkan secara otomatis akun Google baru dengan role Viewer."
+                      value={ssoAutoRegister}
+                      onChange={setSsoAutoRegister}
+                      disabled={!hasPermission('update:settings')}
+                    />
+                    {hasPermission('update:settings') && (
+                      <HStack>
+                        <Button label="Simpan Hak Akses" variant="primary" onClick={saveSettings} />
+                      </HStack>
+                    )}
+                  </VStack>
+                </Grid>
+              </>
+            )}
           </VStack>
           </DataStateView>
         </LayoutContent>

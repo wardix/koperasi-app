@@ -16,6 +16,8 @@ export const PUBLIC_AUTH_PATHS = [
   // Public EWA fee tiers & calculation preview
   `/api/v1/ewa/fee-tiers`,
   `/api/v1/ewa/calculate-fee`,
+  // Feedback submission endpoint
+  `/api/v1/feedbacks`,
 ] as const;
 
 /** Legacy paths without /auth segment — forwarded with Deprecation header. */
