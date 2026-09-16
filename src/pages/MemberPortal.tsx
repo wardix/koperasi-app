@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout, LayoutContent, LayoutHeader } from '@astryxdesign/core/Layout';
+import { Layout, LayoutContent, LayoutHeader, StackItem } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
@@ -1281,31 +1281,31 @@ export default function MemberPortal() {
       <Layout
         header={
           <LayoutHeader hasDivider style={{ backgroundColor: 'var(--color-background-primary)', borderBottom: '1px solid var(--color-border-primary)' }}>
-            <div style={{ padding: '16px 24px', width: '100%', boxSizing: 'border-box' }}>
-              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3} style={{ width: '100%' }}>
+            <HStack gap={3} vAlign="center" wrap="wrap">
+              <StackItem size="fill">
                 <VStack gap={1}>
-                  <Heading level={2} style={{ margin: 0, color: 'var(--color-text-primary)' }}>
+                  <Heading level={1} style={{ margin: 0, color: 'var(--color-text-primary)' }}>
                     Selamat Datang, {profile?.name}
                   </Heading>
                   <Text type="supporting" color="secondary">
                     {profile?.memberId ? `No. Anggota: ${profile.memberId}` : 'Portal Layanan Mandiri Anggota'}
                   </Text>
                 </VStack>
-                <HStack gap={2} vAlign="center">
-                  <IconButton
-                    label={isDark ? "Mode Terang" : "Mode Gelap"}
-                    icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
-                    variant="ghost"
-                    onClick={() => setMode(isDark ? 'light' : 'dark')}
-                  />
-                  <Button
-                    label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
-                    onClick={handleLogout}
-                    variant="secondary"
-                  />
-                </HStack>
+              </StackItem>
+              <HStack gap={2} vAlign="center">
+                <IconButton
+                  label={isDark ? "Mode Terang" : "Mode Gelap"}
+                  icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+                  variant="ghost"
+                  onClick={() => setMode(isDark ? 'light' : 'dark')}
+                />
+                <Button
+                  label={isPreview ? 'Tutup pratinjau' : 'Keluar'}
+                  onClick={handleLogout}
+                  variant="secondary"
+                />
               </HStack>
-            </div>
+            </HStack>
           </LayoutHeader>
         }
       >

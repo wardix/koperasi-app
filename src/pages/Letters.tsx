@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Layout, LayoutHeader, LayoutContent, VStack, HStack } from '@astryxdesign/core/Layout';
+import { Layout, LayoutHeader, LayoutContent, VStack, HStack, StackItem } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
@@ -11,7 +11,7 @@ import { Table, pixel, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Grid } from '@astryxdesign/core/Grid';
-import { PaperClipIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PaperClipIcon, PencilIcon, TrashIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { apiFetch } from '../config';
 import { formatRp, formatDate } from '../utils/format';
@@ -425,16 +425,19 @@ export default function LettersPage() {
       height="auto"
       header={
         <LayoutHeader hasDivider>
-          <HStack justify="space-between" vAlign="center" style={{ width: '100%' }}>
-            <VStack gap={0}>
-              <Heading level={2}>Buku Agenda &amp; Penomoran Surat Resmi</Heading>
-              <Text type="supporting" color="secondary">
-                Penerbitan nomor surat resmi, perjanjian pinjaman anggota, dan perjanjian pinjaman modal (Anti Duplikasi).
-              </Text>
-            </VStack>
+          <HStack gap={2} vAlign="center">
+            <StackItem size="fill">
+              <VStack gap={0}>
+                <Heading level={1}>Buku Agenda &amp; Penomoran Surat Resmi</Heading>
+                <Text type="supporting" color="secondary">
+                  Penerbitan nomor surat resmi, perjanjian pinjaman anggota, dan perjanjian pinjaman modal (Anti Duplikasi).
+                </Text>
+              </VStack>
+            </StackItem>
             <Button
-              label="+ Terbitkan Nomor Surat"
+              label="Terbitkan Nomor Surat"
               variant="primary"
+              icon={<Icon icon={PlusIcon} size="sm" />}
               onClick={() => {
                 setShowCreateModal(true);
                 setFormError('');

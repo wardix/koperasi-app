@@ -166,15 +166,15 @@ export default function AuditLog() {
     <Layout
       header={
         <LayoutHeader hasDivider>
-          <HStack hAlign="between" vAlign="center" style={{ width: '100%' }}>
-            <StackItem>
-              <HStack gap={2} vAlign="center">
-                <Icon icon={ClipboardDocumentCheckIcon} size="md" color="primary" />
-                <Heading level={2}>Log Audit</Heading>
-              </HStack>
-            </StackItem>
-            <StackItem>
-              <Text type="supporting" color="secondary">Catatan operasi administratif sensitif</Text>
+          <HStack gap={2} vAlign="center">
+            <StackItem size="fill">
+              <VStack gap={0}>
+                <HStack gap={2} vAlign="center">
+                  <Icon icon={ClipboardDocumentCheckIcon} size="md" color="primary" />
+                  <Heading level={1}>Log Audit</Heading>
+                </HStack>
+                <Text type="supporting" color="secondary">Catatan operasi administratif sensitif</Text>
+              </VStack>
             </StackItem>
           </HStack>
         </LayoutHeader>

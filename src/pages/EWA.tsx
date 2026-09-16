@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layout, LayoutContent, LayoutHeader } from '@astryxdesign/core/Layout';
+import { Layout, LayoutContent, LayoutHeader, StackItem } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
+import { IconButton } from '@astryxdesign/core/IconButton';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
@@ -926,55 +927,55 @@ export default function EWA() {
     <Layout
       header={
         <LayoutHeader hasDivider>
-          <div style={{ padding: '16px 24px', width: '100%', boxSizing: 'border-box' }}>
-            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3} style={{ width: '100%' }}>
+          <HStack gap={3} vAlign="center" wrap="wrap">
+            <StackItem size="fill">
               <VStack gap={1}>
-                <Heading level={2} style={{ margin: 0 }}>
+                <Heading level={1} style={{ margin: 0 }}>
                   Layanan Gaji Awal (EWA)
                 </Heading>
                 <Text type="supporting" color="secondary">
                   Earned Wage Access — Fasilitas kasbon gaji karyawan perusahaan induk
                 </Text>
               </VStack>
+            </StackItem>
 
-              <HStack gap={2}>
+            <HStack gap={2} vAlign="center">
+              <IconButton
+                label="Muat Ulang"
+                variant="ghost"
+                icon={<Icon icon={ArrowPathIcon} size="sm" />}
+                onClick={() => {
+                  if (activeTab === 'requests') fetchRequests();
+                  if (activeTab === 'employees') fetchEmployees();
+                  if (activeTab === 'payroll') fetchPayrollRecap();
+                }}
+              />
+              {activeTab === 'employees' && (
                 <Button
-                  label="Muat Ulang"
-                  variant="secondary"
-                  icon={<Icon icon={ArrowPathIcon} size="sm" />}
-                  onClick={() => {
-                    if (activeTab === 'requests') fetchRequests();
-                    if (activeTab === 'employees') fetchEmployees();
-                    if (activeTab === 'payroll') fetchPayrollRecap();
-                  }}
+                  label="Import Data Karyawan (CSV)"
+                  variant="primary"
+                  icon={<Icon icon={ArrowUpTrayIcon} size="sm" />}
+                  onClick={() => setShowImportModal(true)}
                 />
-                {activeTab === 'employees' && (
-                  <Button
-                    label="Import Data Karyawan (CSV)"
-                    variant="primary"
-                    icon={<Icon icon={ArrowUpTrayIcon} size="sm" />}
-                    onClick={() => setShowImportModal(true)}
-                  />
-                )}
-                {activeTab === 'payroll' && payrollRecap?.items?.length > 0 && (
-                  <Button
-                    label="Ekspor CSV untuk HRD"
-                    variant="primary"
-                    icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
-                    onClick={exportPayrollCsv}
-                  />
-                )}
-                {activeTab === 'fee-tiers' && (
-                  <Button
-                    label="Tambah Rentang Tarif"
-                    variant="primary"
-                    icon={<Icon icon={PlusIcon} size="sm" />}
-                    onClick={openAddTier}
-                  />
-                )}
-              </HStack>
+              )}
+              {activeTab === 'payroll' && payrollRecap?.items?.length > 0 && (
+                <Button
+                  label="Ekspor CSV untuk HRD"
+                  variant="primary"
+                  icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
+                  onClick={exportPayrollCsv}
+                />
+              )}
+              {activeTab === 'fee-tiers' && (
+                <Button
+                  label="Tambah Rentang Tarif"
+                  variant="primary"
+                  icon={<Icon icon={PlusIcon} size="sm" />}
+                  onClick={openAddTier}
+                />
+              )}
             </HStack>
-          </div>
+          </HStack>
         </LayoutHeader>
       }
     >

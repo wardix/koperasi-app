@@ -188,10 +188,10 @@ export default function SHU() {
     <Layout
       header={
         <LayoutHeader hasDivider>
-          <HStack justify="space-between" vAlign="center" style={{ width: '100%' }}>
-            <StackItem>
+          <HStack gap={3} vAlign="center">
+            <StackItem size="fill">
               <HStack gap={3} vAlign="center">
-                <Heading level={2}>Kalkulasi Sisa Hasil Usaha (SHU)</Heading>
+                <Heading level={1}>Kalkulasi Sisa Hasil Usaha (SHU)</Heading>
                 {data?.isClosed ? (
                   <Badge variant="neutral" label="Tutup Buku Final" />
                 ) : isProjection ? (

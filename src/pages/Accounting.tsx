@@ -12,6 +12,7 @@ import {
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
+import { Icon } from '@astryxdesign/core/Icon';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useApiAction } from '../hooks/useApiAction';
 import { useA11yDialog } from '../hooks/useA11yDialog';
@@ -239,11 +240,11 @@ export default function Accounting() {
             <HStack gap={2} vAlign="center">
               <StackItem size="fill">
                 <VStack gap={1}>
-                  <Heading level={2}>Jurnal Umum & Akuntansi</Heading>
+                  <Heading level={1}>Jurnal Umum & Akuntansi</Heading>
                   <Text type="supporting">Catat dan pantau transaksi keuangan secara double-entry.</Text>
                 </VStack>
               </StackItem>
-              <Button label="Tambah Jurnal" icon={<PlusIcon width={20} />} onClick={handleAdd} />
+              <Button label="Tambah Jurnal" icon={<Icon icon={PlusIcon} size="sm" />} onClick={handleAdd} />
             </HStack>
           </LayoutHeader>
         }

@@ -13,10 +13,10 @@ import {
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
-import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
+import {IconButton} from '@astryxdesign/core/IconButton';
 import React, {useState, useEffect} from 'react';
 import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
@@ -253,19 +253,16 @@ export default function DashboardTemplate() {
       height="auto"
       header={
         <LayoutHeader hasDivider>
-          <HStack hAlign="between" vAlign="center" style={{ width: '100%' }}>
-            <StackItem>
-              <Heading level={2}>Dasbor Utama</Heading>
+          <HStack gap={2} vAlign="center">
+            <StackItem size="fill">
+              <Heading level={1}>Dasbor Utama</Heading>
             </StackItem>
-            <StackItem>
-              <Button
-                label="Muat Ulang"
-                variant="secondary"
-                size="md"
-                icon={<Icon icon={ArrowPathIcon} size="sm" />}
-                onClick={fetchStats}
-              />
-            </StackItem>
+            <IconButton
+              label="Muat Ulang"
+              variant="ghost"
+              icon={<Icon icon={ArrowPathIcon} size="sm" />}
+              onClick={fetchStats}
+            />
           </HStack>
         </LayoutHeader>
       }
