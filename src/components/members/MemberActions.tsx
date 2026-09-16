@@ -1,8 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { HStack } from '@astryxdesign/core/Layout';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
+import { MoreMenu } from '@astryxdesign/core/MoreMenu';
+import type { DropdownMenuOption } from '@astryxdesign/core/DropdownMenu';
 import {
   PencilIcon,
   TrashIcon,
@@ -30,8 +33,9 @@ interface MemberActionsProps {
 }
 
 /**
- * Action icon buttons for each member row in the members table.
- * Receives all handlers as props — no data fetching.
+ * Action buttons for each member row in the members table.
+ * Shows primary actions directly (Edit, Lihat Portal) and
+ * groups secondary actions (Akses Portal, Setor, Riwayat, Hapus) inside MoreMenu.
  */
 export function MemberActions({
   member,
@@ -43,8 +47,45 @@ export function MemberActions({
   onShowHistory,
   onDelete,
 }: MemberActionsProps) {
+  const moreMenuItems = useMemo<DropdownMenuOption[]>(() => {
+    const items: DropdownMenuOption[] = [];
+
+    if (permissions.canUpdate) {
+      items.push({
+        label: member.hasPortalAccess ? 'Kelola Akses Portal' : 'Beri Akses Portal',
+        icon: <Icon icon={KeyIcon} size="sm" />,
+        onClick: () => onPortalAccess(member),
+      });
+    }
+
+    if (permissions.canUpdateSavings) {
+      items.push({
+        label: 'Setor Simpanan',
+        icon: <Icon icon={BanknotesIcon} size="sm" />,
+        onClick: () => onUpdateSavings(member),
+      });
+    }
+
+    items.push({
+      label: 'Riwayat Transaksi',
+      icon: <Icon icon={ClockIcon} size="sm" />,
+      onClick: () => onShowHistory(member),
+    });
+
+    if (permissions.canDelete) {
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Hapus Anggota',
+        icon: <Icon icon={TrashIcon} size="sm" />,
+        onClick: () => onDelete(member),
+      });
+    }
+
+    return items;
+  }, [member, permissions, onPortalAccess, onUpdateSavings, onShowHistory, onDelete]);
+
   return (
-    <HStack gap={1}>
+    <HStack gap={1} vAlign="center">
       {permissions.canUpdate && (
         <IconButton
           icon={<Icon icon={PencilIcon} />}
@@ -63,39 +104,12 @@ export function MemberActions({
           onClick={() => onPreviewPortal(member)}
         />
       )}
-      {permissions.canUpdate && (
-        <IconButton
-          icon={<Icon icon={KeyIcon} />}
-          label={member.hasPortalAccess ? 'Portal aktif' : 'Akses portal'}
+      {moreMenuItems.length > 0 && (
+        <MoreMenu
+          items={moreMenuItems}
+          label="Opsi anggota"
           variant="ghost"
           size="sm"
-          onClick={() => onPortalAccess(member)}
-        />
-      )}
-      {permissions.canUpdateSavings && (
-        <IconButton
-          icon={<Icon icon={BanknotesIcon} />}
-          label="Setor"
-          variant="ghost"
-          size="sm"
-          onClick={() => onUpdateSavings(member)}
-        />
-      )}
-      <IconButton
-        icon={<Icon icon={ClockIcon} />}
-        label="Riwayat"
-        variant="ghost"
-        size="sm"
-        onClick={() => onShowHistory(member)}
-      />
-      {permissions.canDelete && (
-        <IconButton
-          icon={<Icon icon={TrashIcon} />}
-          label="Hapus"
-          variant="ghost"
-          color="error"
-          size="sm"
-          onClick={() => onDelete(member)}
         />
       )}
     </HStack>

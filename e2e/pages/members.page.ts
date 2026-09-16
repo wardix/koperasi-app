@@ -55,10 +55,21 @@ export class MembersPage {
     await this.page.getByRole("button", { name: "Simpan Perubahan" }).click();
   }
 
-  async updateSavings(name: string, amount: string, type: "sukarela" | "wajib" | "pokok") {
+  async openMoreMenuAction(name: string, actionPattern: RegExp | string) {
     const row = this.getRow(name);
-    const button = row.getByRole("button", { name: "Setor" });
-    await clickReactElement(button);
+    const directBtn = row.getByRole("button", { name: actionPattern });
+    if (await directBtn.count() > 0 && await directBtn.first().isVisible()) {
+      await clickReactElement(directBtn.first());
+      return;
+    }
+    const moreBtn = row.getByRole("button", { name: /opsi/i });
+    await clickReactElement(moreBtn);
+    const menuItem = this.page.getByRole("menuitem", { name: actionPattern }).first();
+    await clickReactElement(menuItem);
+  }
+
+  async updateSavings(name: string, amount: string, type: "sukarela" | "wajib" | "pokok") {
+    await this.openMoreMenuAction(name, /setor/i);
     
     // Select the savings type using custom Selector combobox
     await this.page.getByRole("combobox", { name: "Jenis Simpanan" }).click();
@@ -70,16 +81,12 @@ export class MembersPage {
   }
 
   async deleteMember(name: string) {
-    const row = this.getRow(name);
-    const button = row.getByRole("button", { name: "Hapus" });
-    await clickReactElement(button);
+    await this.openMoreMenuAction(name, /hapus/i);
     // Confirm delete in the confirmation dialog
     await this.page.getByRole("dialog").getByRole("button", { name: "Hapus", exact: true }).click();
   }
 
   async viewHistory(name: string) {
-    const row = this.getRow(name);
-    const button = row.getByRole("button", { name: "Riwayat" });
-    await clickReactElement(button);
+    await this.openMoreMenuAction(name, /riwayat/i);
   }
 }

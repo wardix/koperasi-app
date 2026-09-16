@@ -62,7 +62,11 @@ export function MembersList({
         header: 'NIK',
         width: pixel(150),
         renderCell: (item: MemberRow) => (
-          <Text type="body" color={item.nik ? undefined : 'secondary'}>
+          <Text
+            type="body"
+            color={item.nik ? undefined : 'secondary'}
+            style={{ fontFamily: 'var(--mono)' }}
+          >
             {item.nik || '—'}
           </Text>
         ),
@@ -91,7 +95,7 @@ export function MembersList({
       {
         key: 'joinDate',
         header: 'Tanggal Bergabung',
-        width: proportional(1),
+        width: pixel(160),
         renderCell: (item: MemberRow) => <Text type="body">{item.joinDate}</Text>,
       },
       {
@@ -99,16 +103,10 @@ export function MembersList({
         header: 'Total Simpanan',
         width: proportional(1.5),
         renderCell: (item: MemberRow) => (
-          <VStack gap={1}>
-            <Text type="body">{formatRp(item.totalSavings)}</Text>
-            <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-              Pokok: {formatRp(item.simpananPokok)}
-            </Text>
-            <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-              Wajib: {formatRp(item.simpananWajib)}
-            </Text>
-            <Text type="supporting" color="secondary" style={{ fontSize: '12px' }}>
-              Sukarela: {formatRp(item.simpananSukarela)}
+          <VStack gap={0.5}>
+            <Text type="body" weight="semibold">{formatRp(item.totalSavings)}</Text>
+            <Text type="supporting" color="secondary" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+              P: {formatRp(item.simpananPokok)} • W: {formatRp(item.simpananWajib)} • S: {formatRp(item.simpananSukarela)}
             </Text>
           </VStack>
         ),
@@ -116,7 +114,7 @@ export function MembersList({
       {
         key: 'actions',
         header: 'Aksi',
-        width: pixel(260),
+        width: pixel(130),
         renderCell: (item: MemberRow) => (
           <MemberActions
             member={item}

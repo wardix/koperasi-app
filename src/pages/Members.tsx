@@ -18,7 +18,7 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Selector} from '@astryxdesign/core/Selector';
-import {ArrowDownTrayIcon, PlusIcon} from '@heroicons/react/24/outline';
+import {ArrowDownTrayIcon, ArrowUpTrayIcon, PlusIcon} from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import {useA11yDialog} from '../hooks/useA11yDialog';
 import {AddMemberDialogContent} from '../components/AddMemberDialog';
@@ -276,16 +276,16 @@ export default function MembersTemplate() {
     <Layout
       height="auto"
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={3}>
           <HStack gap={2} vAlign="center">
             <StackItem size="fill">
               <Heading level={1}>Data Anggota</Heading>
             </StackItem>
             {hasPermission('export:reports') && (
-              <IconButton
-                label="Unduh"
+              <Button
+                label="Ekspor Excel"
                 icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                variant="ghost"
+                variant="secondary"
                 onClick={() => {
                   if (members.length === 0) {
                     toast.show({ type: 'error', message: 'Data kosong' });
@@ -328,7 +328,7 @@ export default function MembersTemplate() {
             {hasPermission('create:members') && (
               <Button
                 label="Import Anggota (CSV)"
-                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                icon={<Icon icon={ArrowUpTrayIcon} size="sm" />}
                 variant="secondary"
                 onClick={handleImportMembers}
               />
