@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import db from '../db';
 import { requirePermission } from '../middleware';
 import { getActor, getClientIp, audit } from '../lib/audit';
+import { notifyEwaDisbursed } from '../services/waNotificationService';
 import {
   getEwaRequestsList,
   getEwaRequestById,
@@ -90,6 +91,19 @@ ewa.post('/requests/:id/disburse', requirePermission('approve:loans'), async (c)
         status: disbursed.status,
       },
       ip: getClientIp(c),
+    });
+
+    notifyEwaDisbursed({
+      memberName: disbursed.employeeName || 'Karyawan',
+      memberCode: disbursed.employeeNip || undefined,
+      amountRequested: Number(disbursed.amountRequested),
+      feeAmount: Number(disbursed.feeAmount || 0),
+      disbursedAmount: Number(disbursed.disbursedAmount),
+      destinationBank: disbursed.destinationBank || undefined,
+      destinationAccount: disbursed.destinationAccount || undefined,
+      destinationName: disbursed.destinationName || undefined,
+      processedBy: actor,
+      db,
     });
 
     return c.json({

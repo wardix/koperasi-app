@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import {
   getWaNotificationConfig,
   getAppBaseUrl,
@@ -6,6 +6,7 @@ import {
   sendWaNotification,
   sendWaTestMessage,
   notifyEwaRequest,
+  notifyEwaDisbursed,
   notifySavingsWithdrawal,
   notifySavingsDeposit,
   notifyLoanApplication,
@@ -251,6 +252,48 @@ describe('WhatsApp Notification Service', () => {
       expect(sentText).toContain('EMP-01');
       expect(sentText).toContain('Rp 500.000');
       expect(sentText).toContain('https://portal.example.com/ewa');
+    });
+
+    it('notifyEwaDisbursed builds confirmation message with disbursement breakdown', async () => {
+      let sentText = '';
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body);
+        sentText = body.text;
+        return new Response('ok');
+      }) as any;
+
+      const mockDb: any = {
+        query: () => ({
+          all: async () => [
+            { key: 'waNotificationEnabled', value: 'true' },
+            { key: 'waWebhookUrl', value: 'https://gateway.mock' },
+            { key: 'waNotificationTarget', value: '628123456789' },
+          ],
+        }),
+      };
+
+      await notifyEwaDisbursed({
+        memberName: 'Budi Santoso',
+        memberCode: 'EMP-1024',
+        amountRequested: 500000,
+        feeAmount: 15000,
+        disbursedAmount: 500000,
+        destinationBank: 'BCA',
+        destinationAccount: '1234567890',
+        destinationName: 'Budi Santoso',
+        processedBy: 'Admin Kasir',
+        db: mockDb,
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(sentText).toContain('Pencairan Kasbon (EWA) Berhasil');
+      expect(sentText).toContain('Budi Santoso');
+      expect(sentText).toContain('EMP-1024');
+      expect(sentText).toContain('Rp 500.000');
+      expect(sentText).toContain('Rp 15.000');
+      expect(sentText).toContain('BCA - 1234567890');
+      expect(sentText).toContain('Admin Kasir');
     });
 
     it('notifySavingsWithdrawal builds message for voluntary savings withdrawal', async () => {

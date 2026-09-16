@@ -221,6 +221,41 @@ export async function notifyEwaRequest(params: {
   sendWaNotification(msg, { db: params.db }).catch(() => {});
 }
 
+export async function notifyEwaDisbursed(params: {
+  memberName: string;
+  memberCode?: string;
+  amountRequested: number;
+  feeAmount?: number;
+  disbursedAmount: number;
+  destinationBank?: string;
+  destinationAccount?: string;
+  destinationName?: string;
+  processedBy?: string;
+  db?: Db;
+}) {
+  const codeStr = params.memberCode ? ` (${params.memberCode})` : '';
+  const feeStr = params.feeAmount != null ? `\n• Biaya Layanan: *${formatRupiah(params.feeAmount)}*` : '';
+  const bankParts = [params.destinationBank, params.destinationAccount].filter(Boolean);
+  const bankStr =
+    bankParts.length > 0
+      ? `\n• Rekening Tujuan: *${bankParts.join(' - ')}${params.destinationName ? ` (a.n ${params.destinationName})` : ''}*`
+      : '';
+  const adminStr = params.processedBy ? `\n• Diproses oleh: *${params.processedBy}*` : '';
+
+  const msg =
+    `✅ *[Koperasi] Pencairan Kasbon (EWA) Berhasil*\n\n` +
+    `Kasbon atas nama *${params.memberName}*${codeStr} telah berhasil dicairkan.\n\n` +
+    `📋 *Rincian Pencairan:*\n` +
+    `• Nominal Pengajuan: *${formatRupiah(params.amountRequested)}*` +
+    feeStr +
+    `\n• Dana Dicairkan: *${formatRupiah(params.disbursedAmount)}*` +
+    bankStr +
+    adminStr +
+    `\n\nStatus transaksi: *Ditransfer / Selesai*`;
+
+  sendWaNotification(msg, { db: params.db }).catch(() => {});
+}
+
 export async function notifySavingsWithdrawal(params: {
   memberName: string;
   memberCode?: string;
