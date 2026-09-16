@@ -1411,7 +1411,7 @@ export default function MemberPortal() {
                 </VStack>
                 <Card style={{ padding: '8px 16px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
                   <VStack gap={0} hAlign="center">
-                    <Text type="supporting" size="sm">Sisa Kuota Tarik Bulan Ini</Text>
+                    <Text type="supporting" size="sm">Sisa Kuota Siap Ditarik Hari Ini</Text>
                     <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
                   </VStack>
                 </Card>
@@ -2190,40 +2190,152 @@ export default function MemberPortal() {
                       </Card>
                     )}
 
-                    {/* Kuota Grid */}
+                    {/* Kuota Grid - 4 Kartu Metrik Komprehensif */}
                     <Grid gap={4}>
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
+                          <Text type="supporting">Plafon Maksimal Sebulan</Text>
+                          <Heading level={3}>{formatRp(ewaQuota?.maxMonthlyLimit || 0)}</Heading>
+                          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                            {ewaQuota?.coopLoanDeduction && ewaQuota.coopLoanDeduction > 0
+                              ? `Maks. ${ewaQuota?.maxAllowedPercentage || 50}% gaji bersih (setelah pot. cicilan ${formatRp(ewaQuota.coopLoanDeduction)})`
+                              : `Maks. ${ewaQuota?.maxAllowedPercentage || 50}% gaji pokok per siklus`}
+                          </Text>
+                        </VStack>
+                      </Card>
+
+                      <Card style={{ padding: 16 }}>
+                        <VStack gap={1}>
                           <Text type="supporting">
-                            Plafon Hari Ini (Hari {ewaQuota?.currentDayInCycle || 1}/{ewaQuota?.totalDaysInCycle || 31})
+                            Plafon Terbuka Hari Ini (Hari {ewaQuota?.currentDayInCycle || 1}/{ewaQuota?.totalDaysInCycle || 31})
                           </Text>
                           <Heading level={3}>{formatRp(ewaQuota?.dailyAccumulatedLimit ?? ewaQuota?.maxMonthlyLimit ?? 0)}</Heading>
                           <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
                             {ewaQuota?.cycleStartDate && ewaQuota?.cycleEndDate
                               ? `Siklus: ${ewaQuota.cycleStartDate} s/d ${ewaQuota.cycleEndDate}`
-                              : `Plafon Maks Sebulan: ${formatRp(ewaQuota?.maxMonthlyLimit || 0)}`}
+                              : `Akumulasi progresif harian`}
                           </Text>
                         </VStack>
                       </Card>
+
                       <Card style={{ padding: 16 }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Sudah Ditarik Siklus Ini</Text>
+                          <Text type="supporting">Sudah Ditarik Periode Ini</Text>
                           <Heading level={3}>{formatRp(ewaQuota?.totalUsedThisMonth || 0)}</Heading>
                           <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                            Total penarikan periode aktif
+                            Total penarikan periode berjalan
                           </Text>
                         </VStack>
                       </Card>
-                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
+
+                      <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary-subtle, #eff6ff)', border: '1px solid var(--color-primary-500, #0171E3)' }}>
                         <VStack gap={1}>
-                          <Text type="supporting">Sisa Kuota Hari Ini</Text>
+                          <HStack justify="space-between" vAlign="center">
+                            <Text type="supporting" weight="semibold">Sisa Kuota Siap Ditarik</Text>
+                            <Badge variant="info" size="sm" label="Hari Ini" />
+                          </HStack>
                           <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
                           <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                            Maksimal penarikan hari ini
+                            Maksimal pencairan saat ini
                           </Text>
                         </VStack>
                       </Card>
                     </Grid>
+
+                    {/* Progres Visual Alokasi Plafon Siklus Ini */}
+                    {ewaQuota && (ewaQuota.maxMonthlyLimit || 0) > 0 && (() => {
+                      const maxLimit = ewaQuota.maxMonthlyLimit || 1;
+                      const used = Math.min(maxLimit, ewaQuota.totalUsedThisMonth || 0);
+                      const remaining = Math.min(maxLimit - used, ewaQuota.remainingQuota || 0);
+                      const future = Math.max(0, maxLimit - used - remaining);
+
+                      const usedPct = Math.round((used / maxLimit) * 100);
+                      const remainingPct = Math.round((remaining / maxLimit) * 100);
+                      const futurePct = Math.max(0, 100 - usedPct - remainingPct);
+
+                      return (
+                        <Card style={{ padding: 16, border: '1px solid var(--color-border-primary)' }}>
+                          <VStack gap={2}>
+                            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                              <VStack gap={0}>
+                                <Text type="body" weight="bold">
+                                  Alokasi Plafon Siklus Payroll ({ewaQuota.cycleStartDate} s/d {ewaQuota.cycleEndDate})
+                                </Text>
+                                <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
+                                  Plafon EWA bertambah secara proporsional setiap hari kerja berjalan hingga batas bulanan penuh.
+                                </Text>
+                              </VStack>
+                              <Badge
+                                variant="neutral"
+                                size="sm"
+                                label={`Hari ke-${ewaQuota.currentDayInCycle || 1} dari ${ewaQuota.totalDaysInCycle || 30} hari`}
+                              />
+                            </HStack>
+
+                            {/* Bar Visual Progress */}
+                            <div
+                              style={{
+                                height: 12,
+                                borderRadius: 9999,
+                                backgroundColor: 'var(--color-background-secondary, #e4e4e7)',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                width: '100%',
+                                marginTop: 4,
+                              }}
+                            >
+                              {usedPct > 0 && (
+                                <div
+                                  title={`Sudah ditarik: ${formatRp(used)} (${usedPct}%)`}
+                                  style={{
+                                    width: `${usedPct}%`,
+                                    backgroundColor: 'var(--color-warning-500, #f59e0b)',
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              )}
+                              {remainingPct > 0 && (
+                                <div
+                                  title={`Siap ditarik hari ini: ${formatRp(remaining)} (${remainingPct}%)`}
+                                  style={{
+                                    width: `${remainingPct}%`,
+                                    backgroundColor: 'var(--color-primary-500, #0171E3)',
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              )}
+                              {futurePct > 0 && (
+                                <div
+                                  title={`Akan terbuka bertahap: ${formatRp(future)} (${futurePct}%)`}
+                                  style={{
+                                    width: `${futurePct}%`,
+                                    backgroundColor: 'var(--color-border-primary, #cbd5e1)',
+                                    opacity: 0.6,
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              )}
+                            </div>
+
+                            {/* Keterangan Warna / Legend */}
+                            <HStack gap={4} wrap="wrap" style={{ fontSize: 12, marginTop: 4 }}>
+                              <HStack gap={1} vAlign="center">
+                                <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-warning-500, #f59e0b)', display: 'inline-block' }} />
+                                <Text type="supporting" size="sm">Sudah Ditarik: <b>{formatRp(used)}</b> ({usedPct}%)</Text>
+                              </HStack>
+                              <HStack gap={1} vAlign="center">
+                                <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-primary-500, #0171E3)', display: 'inline-block' }} />
+                                <Text type="supporting" size="sm">Siap Ditarik Hari Ini: <b>{formatRp(remaining)}</b> ({remainingPct}%)</Text>
+                              </HStack>
+                              <HStack gap={1} vAlign="center">
+                                <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-border-primary, #94a3b8)', display: 'inline-block' }} />
+                                <Text type="supporting" size="sm" color="secondary">Terbuka Bertahap: <b>{formatRp(future)}</b> ({futurePct}%)</Text>
+                              </HStack>
+                            </HStack>
+                          </VStack>
+                        </Card>
+                      );
+                    })()}
 
                     {/* Form Pengajuan EWA */}
                     <Card style={{ padding: 20, border: '1px solid var(--color-border-primary)' }}>
@@ -2262,7 +2374,7 @@ export default function MemberPortal() {
                             required
                           />
                           <Text type="supporting" size="sm" color="secondary">
-                            Maksimal penarikan hari ini: <b>{formatRp(ewaQuota?.remainingQuota || 0)}</b> ({ewaQuota?.cycleStartDate && ewaQuota?.cycleEndDate ? `Siklus ${ewaQuota.cycleStartDate} s/d ${ewaQuota.cycleEndDate}` : ''})
+                            Maksimal penarikan hari ini: <b>{formatRp(ewaQuota?.remainingQuota || 0)}</b> (dari total plafon sebulan <b>{formatRp(ewaQuota?.maxMonthlyLimit || 0)}</b> • {ewaQuota?.cycleStartDate && ewaQuota?.cycleEndDate ? `Siklus ${ewaQuota.cycleStartDate} s/d ${ewaQuota.cycleEndDate}` : ''})
                           </Text>
                         </VStack>
 
