@@ -21,7 +21,7 @@ export interface FeedbackDialogProps {
   isOpen: boolean;
   onClose: () => void;
   initialScreenshot?: string | null;
-  onRetakeScreenshot?: () => Promise<void> | void;
+  onRetakeScreenshot?: () => Promise<string | null | void> | string | null | void;
   isRetaking?: boolean;
 }
 
@@ -46,6 +46,19 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
   const [isSuccess, setIsSuccess] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTriggerRetake = async () => {
+    if (!onRetakeScreenshot) return;
+    try {
+      const res = await onRetakeScreenshot();
+      if (typeof res === 'string') {
+        setScreenshotData(res);
+        setIncludeScreenshot(true);
+      }
+    } catch (err) {
+      console.error('[Feedback] Retake screenshot error:', err);
+    }
+  };
 
   const processImageFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -188,6 +201,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
       aria-modal="true"
       aria-labelledby="feedback-dialog-title"
       data-feedback-ignore="true"
+      data-html2canvas-ignore="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -559,7 +573,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                   {onRetakeScreenshot && (
                     <button
                       type="button"
-                      onClick={onRetakeScreenshot}
+                      onClick={handleTriggerRetake}
                       disabled={isRetaking}
                       style={{
                         display: 'flex',
@@ -723,7 +737,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         {onRetakeScreenshot && (
                           <button
                             type="button"
-                            onClick={onRetakeScreenshot}
+                            onClick={handleTriggerRetake}
                             disabled={isRetaking}
                             style={{
                               display: 'inline-flex',

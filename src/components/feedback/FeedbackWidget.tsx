@@ -9,24 +9,91 @@ export const FeedbackWidget: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
 
   const captureCurrentScreen = async (): Promise<string | null> => {
+    // Helper to sanitize the cloned document before html2canvas parses styles
+    const sanitizeClone = (clonedDoc: Document) => {
+      try {
+        // Remove ignored nodes (widget triggers, dialogs, cross-origin iframes, videos)
+        clonedDoc
+          .querySelectorAll(
+            '[data-feedback-ignore="true"], [data-html2canvas-ignore="true"], iframe, video, audio, #credential_picker_container, #credential_picker_iframe'
+          )
+          .forEach((el) => {
+            el.remove();
+          });
+
+        const isDark =
+          document.documentElement.classList.contains('dark') ||
+          document.body.classList.contains('dark');
+
+        // Sanitize modern CSS functions (light-dark, oklch, color-mix) in all style tags
+        clonedDoc.querySelectorAll('style').forEach((st) => {
+          if (
+            st.textContent &&
+            (st.textContent.includes('oklch') ||
+              st.textContent.includes('light-dark') ||
+              st.textContent.includes('color-mix'))
+          ) {
+            st.textContent = st.textContent
+              .replace(/light-dark\(([^,]+),\s*([^)]+)\)/g, isDark ? '$2' : '$1')
+              .replace(/oklch\([^)]+\)/g, 'rgba(0, 0, 0, 0.12)')
+              .replace(/color-mix\([^)]+\)/g, 'rgba(0, 0, 0, 0.12)');
+          }
+        });
+
+        // Neutralize box-shadow and text-shadow in cloned document to avoid
+        // unsupported color function parser errors in html2canvas (e.g. Astryx elevation shadows)
+        const overrideStyle = clonedDoc.createElement('style');
+        overrideStyle.setAttribute('type', 'text/css');
+        overrideStyle.textContent = `
+          *, *::before, *::after {
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
+        `;
+        clonedDoc.head.appendChild(overrideStyle);
+      } catch (e) {
+        console.warn('[Feedback] Error during document clone sanitization:', e);
+      }
+    };
+
+    // Ignore predicate for elements during cloning
+    const isIgnored = (element: Element) => {
+      try {
+        if (!element || !element.tagName) return false;
+        const tag = element.tagName.toUpperCase();
+        if (tag === 'IFRAME' || tag === 'VIDEO' || tag === 'AUDIO') return true;
+        if (element.id === 'credential_picker_container' || element.id === 'credential_picker_iframe')
+          return true;
+        if (
+          element.hasAttribute &&
+          (element.hasAttribute('data-feedback-ignore') ||
+            element.hasAttribute('data-html2canvas-ignore'))
+        )
+          return true;
+        if (
+          element.closest &&
+          (element.closest('[data-feedback-ignore="true"]') ||
+            element.closest('[data-html2canvas-ignore="true"]'))
+        )
+          return true;
+      } catch {
+        return false;
+      }
+      return false;
+    };
+
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const target = document.getElementById('root') || document.body;
+      const target = document.body;
       const canvas = await html2canvas(target, {
         useCORS: true,
         allowTaint: false,
         logging: false,
         scale: Math.min(window.devicePixelRatio || 1, 1.5),
-        ignoreElements: (element) => {
-          const tag = element.tagName;
-          if (tag === 'IFRAME' || tag === 'VIDEO' || tag === 'AUDIO') return true;
-          if (element.id === 'credential_picker_container' || element.id === 'credential_picker_iframe') return true;
-          if (element.hasAttribute('data-feedback-ignore')) return true;
-          if (element.closest && element.closest('[data-feedback-ignore="true"]')) return true;
-          return false;
-        },
-        windowWidth: document.documentElement.clientWidth || window.innerWidth,
-        windowHeight: document.documentElement.clientHeight || window.innerHeight,
+        onclone: sanitizeClone,
+        ignoreElements: isIgnored,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
         x: window.scrollX,
         y: window.scrollY,
         width: window.innerWidth,
@@ -34,7 +101,7 @@ export const FeedbackWidget: React.FC = () => {
       });
       return canvas.toDataURL('image/jpeg', 0.85);
     } catch (err) {
-      console.warn('Screenshot capture failed, trying fallback:', err);
+      console.warn('[Feedback] Primary screenshot capture failed, trying fallback without crop offsets:', err);
       try {
         const html2canvas = (await import('html2canvas')).default;
         const target = document.getElementById('root') || document.body;
@@ -43,19 +110,12 @@ export const FeedbackWidget: React.FC = () => {
           allowTaint: false,
           logging: false,
           scale: 1,
-          ignoreElements: (element) => {
-            const tag = element.tagName;
-            return (
-              tag === 'IFRAME' ||
-              tag === 'VIDEO' ||
-              tag === 'AUDIO' ||
-              element.hasAttribute('data-feedback-ignore')
-            );
-          },
+          onclone: sanitizeClone,
+          ignoreElements: isIgnored,
         });
         return canvas.toDataURL('image/jpeg', 0.8);
       } catch (fallbackErr) {
-        console.warn('Screenshot fallback also failed:', fallbackErr);
+        console.error('[Feedback] Screenshot fallback capture also failed:', fallbackErr);
         return null;
       }
     }
@@ -73,10 +133,12 @@ export const FeedbackWidget: React.FC = () => {
     setIsOpen(true);
   };
 
-  const handleRetakeScreenshot = async () => {
+  const handleRetakeScreenshot = async (): Promise<string | null> => {
     setIsCapturing(true);
     // Temporarily hide all feedback ignored elements (dialog backdrop, triggers) during capture
-    const ignoredElems = document.querySelectorAll<HTMLElement>('[data-feedback-ignore="true"]');
+    const ignoredElems = document.querySelectorAll<HTMLElement>(
+      '[data-feedback-ignore="true"], [data-html2canvas-ignore="true"]'
+    );
     ignoredElems.forEach((el) => {
       el.style.visibility = 'hidden';
     });
@@ -90,6 +152,7 @@ export const FeedbackWidget: React.FC = () => {
 
     setScreenshotData(captured);
     setIsCapturing(false);
+    return captured;
   };
 
   return (
@@ -97,6 +160,7 @@ export const FeedbackWidget: React.FC = () => {
       {/* Floating Trigger Button */}
       <div
         data-feedback-ignore="true"
+        data-html2canvas-ignore="true"
         style={{
           position: 'fixed',
           bottom: '24px',
