@@ -31,10 +31,10 @@ export async function calculateMemberAverageSavings(
   const endOfYearMs = Date.parse(endOfYearISO);
   const totalYearMs = endOfYearMs - startOfYearMs + 1;
 
-  // 1. Fetch members
-  let memberQuery = "SELECT id, name, status, joinDate, totalSavings FROM members";
+  // 1. Fetch members (exclude soft-deleted)
+  let memberQuery = "SELECT id, name, status, joinDate, totalSavings FROM members WHERE deletedAt IS NULL";
   if (!includeInactive) {
-    memberQuery += " WHERE status = 'Aktif'";
+    memberQuery += " AND status = 'Aktif'";
   }
   const members = await db.query(memberQuery).all<Pick<MemberRow, "id" | "name" | "status" | "joinDate" | "totalSavings">>();
 

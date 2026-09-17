@@ -540,6 +540,21 @@ describe('SHU Closing', () => {
       const activeAlloc = resultWithoutInactive.alokasiAnggota.find(a => a.id === 'scen-active')
       expect(activeAlloc).toBeDefined()
     })
+
+    it('should always exclude soft-deleted members (deletedAt IS NOT NULL) even when includeInactive is true', async () => {
+      const TEST_YEAR_DEL = '2099'
+      await db.run("DELETE FROM members WHERE id = 'scen-deleted'")
+      await db.run(
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings, deletedAt)
+         VALUES ('scen-deleted', 'Anggota Terhapus', 'Anggota', 'Aktif', '2099-01-01', 1000000, 1000000, 0, 2000000, NOW())`
+      )
+
+      const { calculateMemberAverageSavings } = await import('../services/shuService')
+      const stats = await calculateMemberAverageSavings(TEST_YEAR_DEL, true)
+      expect(stats['scen-deleted']).toBeUndefined()
+
+      await db.run("DELETE FROM members WHERE id = 'scen-deleted'")
+    })
   })
 })
 
