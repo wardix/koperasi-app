@@ -105,6 +105,11 @@ describe("savingsWithdrawalService", () => {
     expect(Number(memberFinal.totalSavings)).toBe(1000000);
 
     // Cleanup
+    const txRow = await db.query("SELECT id FROM transactions WHERE memberId = ?").get<any>(memberId);
+    if (txRow?.id) {
+      await db.run("DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE reference_id = ?)", [txRow.id]);
+      await db.run("DELETE FROM journal_entries WHERE reference_id = ?", [txRow.id]);
+    }
     await db.run("DELETE FROM savings_withdrawals WHERE member_id = ?", [memberId]);
     await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);

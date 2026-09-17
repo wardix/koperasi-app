@@ -14,6 +14,7 @@ describe("API Endpoints", () => {
     // Ensure migrations are applied and seed data is populated
     await import("./db");
     await db.run("UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'");
+    await cleanupTestMembers();
   });
 
   test("setup token", async () => {
@@ -1247,8 +1248,59 @@ describe("API Endpoints", () => {
       await db.run("DELETE FROM admins WHERE id = 'super-admin-1' OR email = 'super-admin-1@koperasi.com'");
       await db.run("DELETE FROM token_blacklist WHERE jti_token IN ('expired-token-xyz', 'valid-token-abc')");
       await db.run("DELETE FROM rate_limits WHERE ip IN ('1.1.1.1', '2.2.2.2')");
+      await cleanupTestMembers();
     } catch {
       // ignore cleanup errors
     }
   });
 });
+
+async function cleanupTestMembers() {
+  const members = await db.query("SELECT id FROM members WHERE joinDate = '01 Jan 2024' OR name ILIKE 'Initial Deposit Test%' OR name IN ('Test Transaction', 'Test Negative Savings', 'Test Loan Member', 'Test Overpayment', 'Test Interest Payment', 'Budi Santoso', 'Updated Name')").all<any>();
+  if (!members || members.length === 0) return;
+  const ids = members.map(m => m.id);
+  const placeholders = ids.map(() => '?').join(',');
+
+  const txs = await db.query(`SELECT id FROM transactions WHERE memberId IN (${placeholders})`).all<any>(...ids);
+  const txIds = txs.map(t => t.id);
+
+  const loans = await db.query(`SELECT id FROM loans WHERE memberId IN (${placeholders})`).all<any>(...ids);
+  const loanIds = loans.map(l => l.id);
+
+  let lpIds: string[] = [];
+  if (loanIds.length > 0) {
+    const lPlaceholders = loanIds.map(() => '?').join(',');
+    const lps = await db.query(`SELECT id FROM loan_payments WHERE loanId IN (${lPlaceholders})`).all<any>(...loanIds);
+    lpIds = lps.map(lp => lp.id);
+  }
+
+  const refIds = [...txIds, ...lpIds];
+  if (refIds.length > 0) {
+    const rPlaceholders = refIds.map(() => '?').join(',');
+    const jes = await db.query(`SELECT id FROM journal_entries WHERE reference_id IN (${rPlaceholders})`).all<any>(...refIds);
+    const jeIds = jes.map(j => j.id);
+    if (jeIds.length > 0) {
+      const jPlaceholders = jeIds.map(() => '?').join(',');
+      await db.run(`DELETE FROM journal_lines WHERE journal_entry_id IN (${jPlaceholders})`, jeIds);
+      await db.run(`DELETE FROM journal_entries WHERE id IN (${jPlaceholders})`, jeIds);
+    }
+  }
+
+  if (lpIds.length > 0) {
+    const lpPlaceholders = lpIds.map(() => '?').join(',');
+    await db.run(`DELETE FROM loan_payments WHERE id IN (${lpPlaceholders})`, lpIds);
+  }
+
+  if (loanIds.length > 0) {
+    const lPlaceholders = loanIds.map(() => '?').join(',');
+    await db.run(`DELETE FROM loan_schedules WHERE loanId IN (${lPlaceholders})`, loanIds);
+    await db.run(`DELETE FROM loans WHERE id IN (${lPlaceholders})`, loanIds);
+  }
+
+  if (txIds.length > 0) {
+    const txPlaceholders = txIds.map(() => '?').join(',');
+    await db.run(`DELETE FROM transactions WHERE id IN (${txPlaceholders})`, txIds);
+  }
+
+  await db.run(`DELETE FROM members WHERE id IN (${placeholders})`, ids);
+}
