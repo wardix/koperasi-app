@@ -165,7 +165,7 @@ export default function AuditLog() {
   return (
     <Layout
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={4}>
           <HStack gap={2} vAlign="center">
             <StackItem size="fill">
               <VStack gap={0}>

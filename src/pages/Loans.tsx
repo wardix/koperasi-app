@@ -407,17 +407,17 @@ export default function LoansTemplate() {
     <Layout
       height="auto"
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={3}>
           <HStack gap={2} vAlign="center">
             <StackItem size="fill">
               <Heading level={1}>Persetujuan Pinjaman</Heading>
             </StackItem>
             {hasPermission('export:reports') && (
               <>
-                <IconButton
-                  label="Unduh"
+                <Button
+                  label="Ekspor Excel"
                   icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                  variant="ghost"
+                  variant="secondary"
                   onClick={async () => {
                     if (loans.length === 0) {
                       toast.show({ type: 'error', message: 'Data kosong' });
@@ -445,10 +445,10 @@ export default function LoansTemplate() {
                     }
                   }}
                 />
-                <IconButton
+                <Button
                   label="Cetak PDF"
                   icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                  variant="ghost"
+                  variant="secondary"
                   onClick={async () => {
                     if (loans.length === 0) {
                       toast.show({ type: 'error', message: 'Data kosong' });

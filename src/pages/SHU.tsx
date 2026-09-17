@@ -187,7 +187,7 @@ export default function SHU() {
   return (
     <Layout
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={4}>
           <HStack gap={3} vAlign="center">
             <StackItem size="fill">
               <HStack gap={3} vAlign="center">

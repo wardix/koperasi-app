@@ -227,7 +227,7 @@ export default function ReportsTemplate() {
     <Layout
       height="auto"
       header={
-        <LayoutHeader hasDivider className="no-print">
+        <LayoutHeader hasDivider padding={3} className="no-print">
           <HStack gap={2} vAlign="center" style={{ width: '100%' }}>
             <StackItem size="fill">
               <HStack gap={3} vAlign="center">

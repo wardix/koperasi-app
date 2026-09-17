@@ -141,7 +141,7 @@ export default function Ledger() {
     <Layout
       height="auto"
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={3}>
           <HStack gap={2} vAlign="center">
             <StackItem size="fill">
               <Heading level={1}>Buku Besar (General Ledger)</Heading>

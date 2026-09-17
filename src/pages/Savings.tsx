@@ -617,7 +617,7 @@ export default function SavingsTemplate() {
       <Layout
         height="auto"
         header={
-          <LayoutHeader hasDivider>
+          <LayoutHeader hasDivider padding={3}>
             <VStack gap={3}>
               <HStack gap={2} vAlign="center">
                 <StackItem size="fill">

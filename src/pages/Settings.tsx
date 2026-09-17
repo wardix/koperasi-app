@@ -255,7 +255,7 @@ export default function SettingsTemplate() {
       height="auto"
       contentWidth={1440}
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={4}>
           <HStack vAlign="center">
             <StackItem size="fill">
               <Heading level={1}>Konfigurasi Koperasi</Heading>

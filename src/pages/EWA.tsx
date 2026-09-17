@@ -926,7 +926,7 @@ export default function EWA() {
   return (
     <Layout
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={4}>
           <HStack gap={3} vAlign="center" wrap="wrap">
             <StackItem size="fill">
               <VStack gap={1}>

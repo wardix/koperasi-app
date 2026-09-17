@@ -236,7 +236,7 @@ export default function Accounting() {
       {dialog.element}
       <Layout
         header={
-          <LayoutHeader hasDivider>
+          <LayoutHeader hasDivider padding={3}>
             <HStack gap={2} vAlign="center">
               <StackItem size="fill">
                 <VStack gap={1}>
@@ -249,7 +249,7 @@ export default function Accounting() {
           </LayoutHeader>
         }
         content={
-          <LayoutContent>
+          <LayoutContent padding={3}>
             <DataStateView
               isLoading={isLoading}
               error={error}

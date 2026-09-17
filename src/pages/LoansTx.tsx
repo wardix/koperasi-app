@@ -147,7 +147,7 @@ export default function LoansTxTemplate() {
       <Layout
         height="auto"
         header={
-          <LayoutHeader hasDivider>
+          <LayoutHeader hasDivider padding={3}>
             <HStack gap={2} vAlign="center">
               <StackItem size="fill">
                 <Heading level={1}>Riwayat Transaksi Pinjaman</Heading>

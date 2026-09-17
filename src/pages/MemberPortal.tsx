@@ -1280,7 +1280,7 @@ export default function MemberPortal() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-background-subtle)' }}>
       <Layout
         header={
-          <LayoutHeader hasDivider style={{ backgroundColor: 'var(--color-background-primary)', borderBottom: '1px solid var(--color-border-primary)' }}>
+          <LayoutHeader hasDivider padding={4} style={{ backgroundColor: 'var(--color-background-primary)', borderBottom: '1px solid var(--color-border-primary)' }}>
             <HStack gap={3} vAlign="center" wrap="wrap">
               <StackItem size="fill">
                 <VStack gap={1}>

@@ -252,7 +252,7 @@ export default function DashboardTemplate() {
     <Layout
       height="auto"
       header={
-        <LayoutHeader hasDivider>
+        <LayoutHeader hasDivider padding={4}>
           <HStack gap={2} vAlign="center">
             <StackItem size="fill">
               <Heading level={1}>Dasbor Utama</Heading>
