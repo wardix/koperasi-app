@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, afterAll } from "bun:test";
 import db from "../db";
 import {
   resolveTransactionCreatedAt,
@@ -6,6 +6,25 @@ import {
   validateSavingsMutation,
 } from "./savingsService";
 import { ServiceError } from "./errors";
+
+async function cleanupMemberAndJournals(memberId: string) {
+  await db.run(
+    `DELETE FROM journal_lines WHERE journal_entry_id IN (
+      SELECT id FROM journal_entries WHERE reference_id IN (
+        SELECT id FROM transactions WHERE memberId = ?
+      )
+    )`,
+    [memberId]
+  );
+  await db.run(
+    `DELETE FROM journal_entries WHERE reference_id IN (
+      SELECT id FROM transactions WHERE memberId = ?
+    )`,
+    [memberId]
+  );
+  await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
+  await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+}
 
 describe("savingsService", () => {
   test("validateSavingsMutation rejects withdrawal beyond balance", () => {
@@ -57,8 +76,7 @@ describe("savingsService", () => {
     expect(Number(tx?.balanceBefore)).toBe(5000);
     expect(Number(tx?.balanceAfter)).toBe(7000);
 
-    await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupMemberAndJournals(memberId);
   });
 
   test("updateMemberSavings respects backdated transactionDate", async () => {
@@ -86,8 +104,7 @@ describe("savingsService", () => {
     expect(d.getMonth()).toBe(2);
     expect(d.getDate()).toBe(10);
 
-    await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await cleanupMemberAndJournals(memberId);
   });
 
   test("updateMemberSavings throws when member is missing", async () => {
@@ -99,5 +116,16 @@ describe("savingsService", () => {
         "savings-service-test"
       )
     ).rejects.toMatchObject({ message: "Not found", status: 404 });
+  });
+
+  afterAll(async () => {
+    const testMembers = await db.query(
+      "SELECT id FROM members WHERE name LIKE 'Savings Member%' OR name LIKE 'Savings Backdate%'"
+    ).all<any>();
+    if (testMembers && testMembers.length > 0) {
+      for (const m of testMembers) {
+        await cleanupMemberAndJournals(m.id);
+      }
+    }
   });
 });

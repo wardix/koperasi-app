@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, afterAll } from "bun:test";
 import db from "../db";
 import { createMember, deleteMember, updateMember } from "./memberService";
 import { ServiceError } from "./errors";
@@ -33,6 +33,20 @@ describe("memberService", () => {
     }[];
     expect(txs.map((t) => t.type)).toEqual(["setor_pokok", "setor_wajib"]);
 
+    await db.run(
+      `DELETE FROM journal_lines WHERE journal_entry_id IN (
+        SELECT id FROM journal_entries WHERE reference_id IN (
+          SELECT id FROM transactions WHERE memberId = ?
+        )
+      )`,
+      [memberId]
+    );
+    await db.run(
+      `DELETE FROM journal_entries WHERE reference_id IN (
+        SELECT id FROM transactions WHERE memberId = ?
+      )`,
+      [memberId]
+    );
     await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
@@ -234,5 +248,39 @@ describe("memberService", () => {
 
     await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  afterAll(async () => {
+    const testMembers = await db.query(
+      `SELECT id FROM members WHERE 
+        name LIKE 'Service Member%' OR 
+        name LIKE 'NIK Member%' OR 
+        name LIKE 'Phone Member%' OR 
+        name LIKE 'Portal Create%' OR 
+        name LIKE 'Old Name%' OR 
+        name LIKE 'New Name%' OR 
+        name LIKE 'FK Member%'`
+    ).all<any>();
+    if (testMembers && testMembers.length > 0) {
+      const ids = testMembers.map(m => m.id);
+      const placeholders = ids.map(() => '?').join(',');
+      await db.run(
+        `DELETE FROM journal_lines WHERE journal_entry_id IN (
+          SELECT id FROM journal_entries WHERE reference_id IN (
+            SELECT id FROM transactions WHERE memberId IN (${placeholders})
+          )
+        )`,
+        ids
+      );
+      await db.run(
+        `DELETE FROM journal_entries WHERE reference_id IN (
+          SELECT id FROM transactions WHERE memberId IN (${placeholders})
+        )`,
+        ids
+      );
+      await db.run(`DELETE FROM transactions WHERE memberId IN (${placeholders})`, ids);
+      await db.run(`DELETE FROM loans WHERE memberId IN (${placeholders})`, ids);
+      await db.run(`DELETE FROM members WHERE id IN (${placeholders})`, ids);
+    }
   });
 });

@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, afterAll } from "bun:test";
 import db from "./db";
 
 describe("db.transaction atomicity", () => {
@@ -113,6 +113,18 @@ describe("db.transaction atomicity", () => {
     expect(threw).toBe(true);
     expect(await db.query("SELECT id FROM members WHERE id = ?").get(id)).toBeNull();
     expect(await db.query("SELECT id FROM transactions WHERE memberId = ?").all(id)).toEqual([]);
+  });
+
+  afterAll(async () => {
+    const testMembers = await db.query(
+      "SELECT id FROM members WHERE name LIKE 'Rollback Member%' OR name LIKE 'Commit Member%' OR name LIKE 'Nested Member%'"
+    ).all<any>();
+    if (testMembers && testMembers.length > 0) {
+      const ids = testMembers.map(m => m.id);
+      const placeholders = ids.map(() => '?').join(',');
+      await db.run(`DELETE FROM transactions WHERE memberId IN (${placeholders})`, ids);
+      await db.run(`DELETE FROM members WHERE id IN (${placeholders})`, ids);
+    }
   });
 });
 

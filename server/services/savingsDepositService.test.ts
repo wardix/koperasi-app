@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, afterAll } from "bun:test";
 import db from "../db";
 import {
   createSavingsDepositRequest,
@@ -10,8 +10,20 @@ import {
 import { ServiceError } from "./errors";
 
 describe("savingsDepositService", () => {
+  let memberId: string;
+
+  afterAll(async () => {
+    if (memberId) {
+      await db.run("DELETE FROM journal_lines WHERE journal_entry_id IN (SELECT id FROM journal_entries WHERE reference_id IN (SELECT id FROM transactions WHERE memberId = ?))", [memberId]);
+      await db.run("DELETE FROM journal_entries WHERE reference_id IN (SELECT id FROM transactions WHERE memberId = ?)", [memberId]);
+      await db.run("DELETE FROM savings_deposits WHERE member_id = ?", [memberId]);
+      await db.run("DELETE FROM transactions WHERE memberId = ?", [memberId]);
+      await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    }
+  });
+
   test("creates, lists, approves, and rejects deposit confirmations", async () => {
-    const memberId = crypto.randomUUID();
+    memberId = crypto.randomUUID();
 
     // 1. Setup member with Pokok=500000, Wajib=100000, Sukarela=0
     await db.run(
