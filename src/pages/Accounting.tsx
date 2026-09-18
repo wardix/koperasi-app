@@ -259,31 +259,31 @@ export default function Accounting() {
               emptyMessage="Transaksi jurnal akan muncul di sini"
             >
               <VStack gap={4}>
-            <div style={{ backgroundColor: 'var(--color-background-surface)', border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+            <div style={{ backgroundColor: 'var(--color-background-surface)', border: '1px solid var(--color-border)', borderRadius: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
                 <thead style={{ backgroundColor: 'var(--color-background-muted)', borderBottom: '1px solid var(--color-border)' }}>
                   <tr>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Tanggal</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Akun / Keterangan</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right' }}>Debit</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right' }}>Kredit</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'center', width: 120 }}>Aksi</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', width: 110, whiteSpace: 'nowrap' }}>Tanggal</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', minWidth: 260 }}>Akun / Keterangan</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right', width: 120, whiteSpace: 'nowrap' }}>Debit</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right', width: 120, whiteSpace: 'nowrap' }}>Kredit</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'center', width: 130, whiteSpace: 'nowrap' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {journalRows.map((entry: any) => (
                     <React.Fragment key={entry.id}>
                       <tr style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-background-muted)' }}>
-                        <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', width: '15%' }}>
+                        <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', width: 110, whiteSpace: 'nowrap' }}>
                            <Text type="supporting" color="secondary" style={{ fontWeight: 500 }}>
                              {new Date(entry.transaction_date).toLocaleDateString('id-ID', {
                                day: '2-digit', month: 'short', year: 'numeric',
                              })}
                            </Text>
                         </td>
-                        <td colSpan={3} style={{ padding: '16px 16px 4px', verticalAlign: 'top' }}>
+                        <td colSpan={3} style={{ padding: '16px 16px 4px', verticalAlign: 'top', wordBreak: 'break-word' }}>
                            <VStack gap={0}>
-                             <Text style={{ fontWeight: 600 }}>{entry.description}</Text>
+                             <Text style={{ fontWeight: 600, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{entry.description}</Text>
                              {entry.reference_type && <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Ref: {entry.reference_type}</Text>}
                            </VStack>
                         </td>
@@ -339,17 +339,18 @@ export default function Accounting() {
                       {entry.lines?.map((line: any) => (
                          <tr key={line.id} style={{ backgroundColor: 'var(--color-background-surface)' }}>
                            <td style={{ padding: '6px 16px' }}></td>
-                           <td style={{ padding: '6px 16px', paddingLeft: line.debit > 0 ? 16 : 48 }}>
+                           <td style={{ padding: '6px 16px', paddingLeft: line.debit > 0 ? 16 : 48, wordBreak: 'break-word' }}>
                              <Text style={{ fontFamily: 'monospace', fontSize: 13, marginRight: 8, color: 'var(--color-text-secondary)' }}>{line.account_code}</Text>
-                             <Text style={{ fontWeight: line.debit > 0 ? 500 : 400 }}>{line.account_name}</Text>
-                             {line.description && <Text type="supporting" color="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{line.description}</Text>}
+                             <Text style={{ fontWeight: line.debit > 0 ? 500 : 400, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{line.account_name}</Text>
+                             {line.description && <Text type="supporting" color="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{line.description}</Text>}
                            </td>
-                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top' }}>
+                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
                              <Text>{line.debit > 0 ? formatRp(line.debit) : ''}</Text>
                            </td>
-                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top' }}>
+                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
                              <Text>{line.credit > 0 ? formatRp(line.credit) : ''}</Text>
                            </td>
+                           <td style={{ padding: '6px 16px' }}></td>
                          </tr>
                       ))}
                       <tr>
