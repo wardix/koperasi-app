@@ -47,8 +47,10 @@ describe("Member Portal SHU & Projections API", () => {
   });
 
   afterAll(async () => {
-    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+    await db.run("DELETE FROM loan_schedules WHERE loanId IN (SELECT id FROM loans WHERE memberId = ?)", [memberId]);
+    await db.run("DELETE FROM loans WHERE memberId = ?", [memberId]);
     await db.run("DELETE FROM shu_member_allocations WHERE memberId = ?", [memberId]);
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
 
   test("GET /api/v1/portal/shu returns realization and projection for current year", async () => {
