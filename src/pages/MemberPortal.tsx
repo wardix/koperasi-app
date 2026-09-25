@@ -12,7 +12,7 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
-import { SunIcon, MoonIcon, BanknotesIcon, ClipboardDocumentCheckIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, BanknotesIcon, ClipboardDocumentCheckIcon, ChartBarIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useThemeMode } from '../contexts/ThemeContext';
 import type { EwaFeeTier } from '../../shared/types';
 
@@ -103,12 +103,18 @@ export default function MemberPortal() {
   const [profile, setProfile] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loans, setLoans] = useState<PortalLoan[]>([]);
-  const [activeTab, setActiveTab] = useState<'savings' | 'loans' | 'reports' | 'ewa'>('savings');
+  const [activeTab, setActiveTab] = useState<'savings' | 'loans' | 'shu' | 'reports' | 'ewa'>('savings');
   const [selectedLoan, setSelectedLoan] = useState<PortalLoan | null>(null);
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
+
+  // SHU State
+  const [shuData, setShuData] = useState<any>(null);
+  const [shuLoading, setShuLoading] = useState(false);
+  const [shuYear, setShuYear] = useState(() => new Date().getFullYear().toString());
+  const [shuError, setShuError] = useState('');
 
   // Voluntary Savings Withdrawal State
   const [savingsWithdrawals, setSavingsWithdrawals] = useState<any[]>([]);
@@ -248,6 +254,28 @@ export default function MemberPortal() {
       setError('Gagal memuat laporan keuangan');
     } finally {
       setReportsLoading(false);
+    }
+  };
+
+  const loadShuData = async (targetYear?: string) => {
+    const token = readPortalToken();
+    if (!token) return;
+    const yearToFetch = targetYear || shuYear || new Date().getFullYear().toString();
+    setShuLoading(true);
+    setShuError('');
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await fetch(`/api/v1/portal/shu?year=${yearToFetch}`, { headers }).then((r) => r.json());
+      if (res.success) {
+        setShuData(res.data);
+        if (res.data.year) setShuYear(res.data.year);
+      } else {
+        setShuError(res.message || 'Gagal memuat informasi SHU');
+      }
+    } catch {
+      setShuError('Terjadi kesalahan jaringan saat memuat informasi SHU');
+    } finally {
+      setShuLoading(false);
     }
   };
 
@@ -1191,6 +1219,59 @@ export default function MemberPortal() {
     },
   ];
 
+  const shuHistoricalCols: TableColumn<any>[] = [
+    {
+      key: 'year',
+      header: 'Tahun Buku',
+      width: pixel(110),
+      renderCell: (i) => <Text weight="bold">Tahun {i.year}</Text>,
+    },
+    {
+      key: 'savingsShare',
+      header: 'Jasa Modal (Simpanan)',
+      width: proportional(1),
+      renderCell: (i) => <Text>{formatRp(i.savingsShare)}</Text>,
+    },
+    {
+      key: 'loansShare',
+      header: 'Jasa Usaha (Pinjaman)',
+      width: proportional(1),
+      renderCell: (i) => <Text>{formatRp(i.loansShare)}</Text>,
+    },
+    {
+      key: 'totalSHU',
+      header: 'Total SHU Diterima',
+      width: proportional(1.2),
+      renderCell: (i) => (
+        <Text type="body" weight="bold" color="primary">
+          {formatRp(i.totalSHU)}
+        </Text>
+      ),
+    },
+    {
+      key: 'closedAt',
+      header: 'Tanggal Pengesahan RAT',
+      width: pixel(180),
+      renderCell: (i) => (
+        <Text type="supporting" color="secondary">
+          {i.closedAt
+            ? new Date(i.closedAt).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '-'}
+        </Text>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: pixel(130),
+      renderCell: () => <Badge variant="success" label="Disahkan RAT" />,
+    },
+  ];
+
   const loanCols: TableColumn<PortalLoan>[] = [
     {
       key: 'createdAt',
@@ -1439,6 +1520,11 @@ export default function MemberPortal() {
                   ]
                 : []),
               { id: 'ewa' as const, label: 'Gaji Awal (EWA)', icon: BanknotesIcon },
+              ...(profile?.isCoopMember !== false && profile?.canViewShu !== false
+                ? [
+                    { id: 'shu' as const, label: 'SHU & Proyeksi', icon: SparklesIcon },
+                  ]
+                : []),
               ...(profile?.isCoopMember !== false
                 ? [
                     { id: 'reports' as const, label: 'Laporan Keuangan', icon: ChartBarIcon },
@@ -1453,6 +1539,9 @@ export default function MemberPortal() {
                   onClick={() => {
                     setActiveTab(tab.id as any);
                     if (tab.id === 'savings') setSelectedLoan(null);
+                    if (tab.id === 'shu' && !shuData) {
+                      loadShuData();
+                    }
                     if (tab.id === 'reports' && (!incomeData || !balanceData)) {
                       loadReports();
                     }
@@ -1491,7 +1580,7 @@ export default function MemberPortal() {
 
           <Card>
             <VStack gap={4}>
-              <HStack justify="space-between" vAlign="center">
+              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
                 <Heading level={4}>
                   {activeTab === 'savings'
                     ? 'Riwayat Simpanan'
@@ -1499,8 +1588,38 @@ export default function MemberPortal() {
                     ? 'Daftar Pinjaman'
                     : activeTab === 'ewa'
                     ? 'Layanan Gaji Awal (EWA)'
+                    : activeTab === 'shu'
+                    ? 'Informasi SHU & Proyeksi Akhir Tahun'
                     : 'Ringkasan Laporan Keuangan Koperasi'}
                 </Heading>
+                {activeTab === 'shu' && shuData?.availableYears && shuData.availableYears.length > 1 && (
+                  <HStack gap={2} vAlign="center">
+                    <Text type="supporting" weight="medium">Tahun Buku:</Text>
+                    <select
+                      value={shuYear}
+                      onChange={(e) => {
+                        setShuYear(e.target.value);
+                        loadShuData(e.target.value);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-md, 6px)',
+                        border: '1px solid var(--color-border-primary, #cbd5e1)',
+                        backgroundColor: 'var(--color-background-primary, #ffffff)',
+                        color: 'var(--color-text-primary, #1e293b)',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {shuData.availableYears.map((yr: string) => (
+                        <option key={yr} value={yr}>
+                          Tahun {yr} {yr === new Date().getFullYear().toString() ? '(Berjalan)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </HStack>
+                )}
                 {activeTab === 'loans' && (
                   <Button
                     label={showApplyForm ? 'Tutup Formulir' : '+ Ajukan Pinjaman Baru'}
@@ -2661,6 +2780,290 @@ export default function MemberPortal() {
                         </VStack>
                       </Card>
                     </VStack>
+                  </VStack>
+                )
+              ) : activeTab === 'shu' ? (
+                shuLoading ? (
+                  <Spinner size="md" />
+                ) : shuError ? (
+                  <Card style={{ padding: 16, borderColor: 'var(--color-danger-500, #ef4444)' }}>
+                    <Text color="danger">{shuError}</Text>
+                  </Card>
+                ) : (
+                  <VStack gap={6}>
+                    {/* 1. Header Banner */}
+                    <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
+                      <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                        <HStack gap={3} vAlign="center">
+                          <div
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--color-primary-500, #3b82f6)',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <SparklesIcon style={{ width: 24, height: 24 }} />
+                          </div>
+                          <VStack gap={1}>
+                            <HStack gap={2} vAlign="center" wrap="wrap">
+                              <Heading level={4}>SHU Anggota Tahun Buku {shuData?.year}</Heading>
+                              {shuData?.isClosed ? (
+                                <Badge variant="success" label="Tutup Buku / Disahkan RAT" />
+                              ) : (
+                                <Badge variant="warning" label="Tahun Berjalan (Proyeksi s/d 31 Des)" />
+                              )}
+                            </HStack>
+                            <Text type="supporting" color="secondary">
+                              {shuData?.isClosed
+                                ? `Tahun buku telah resmi ditutup pada ${shuData.closedAt ? new Date(shuData.closedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}. Angka berikut merupakan pembagian resmi hasil ketetapan RAT.`
+                                : 'Proyeksi dihitung dari realisasi berjalan ditambah simulasi pendapatan bunga dari komitmen angsuran pinjaman aktif Anda sampai 31 Desember.'}
+                            </Text>
+                          </VStack>
+                        </HStack>
+                      </HStack>
+                    </Card>
+
+                    {/* 2. Tiga Kartu Metrik Utama */}
+                    <Grid gap={4}>
+                      {/* Kartu Realisasi Berjalan */}
+                      <Card style={{ padding: 20 }}>
+                        <VStack gap={3}>
+                          <HStack justify="space-between" vAlign="center">
+                            <Text type="supporting" weight="bold">Realisasi Berjalan (YTD)</Text>
+                            <Badge variant="neutral" label="s/d Hari Ini" />
+                          </HStack>
+                          <Heading level={2} color="primary">
+                            {formatRp(shuData?.realization?.member?.shu || 0)}
+                          </Heading>
+                          <Text type="supporting" color="secondary">
+                            Akumulasi hak SHU dari bunga yang sudah terbayar dan saldo simpanan berjalan s/d hari ini.
+                          </Text>
+
+                          <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                            <VStack gap={2}>
+                              <HStack justify="space-between">
+                                <Text type="supporting">Jasa Modal (Simpanan):</Text>
+                                <Text type="body" weight="semibold">
+                                  {formatRp(shuData?.realization?.member?.savingsShare || 0)}
+                                </Text>
+                              </HStack>
+                              <HStack justify="space-between">
+                                <Text type="supporting">Jasa Usaha (Pinjaman):</Text>
+                                <Text type="body" weight="semibold">
+                                  {formatRp(shuData?.realization?.member?.loansShare || 0)}
+                                </Text>
+                              </HStack>
+                            </VStack>
+                          </div>
+                        </VStack>
+                      </Card>
+
+                      {/* Kartu Proyeksi Akhir Tahun */}
+                      <Card
+                        style={{
+                          padding: 20,
+                          border: '2px solid var(--color-primary-500, #3b82f6)',
+                          backgroundColor: 'rgba(59, 130, 246, 0.03)',
+                        }}
+                      >
+                        <VStack gap={3}>
+                          <HStack justify="space-between" vAlign="center">
+                            <HStack gap={1} vAlign="center">
+                              <SparklesIcon style={{ width: 16, height: 16, color: 'var(--color-primary-500, #3b82f6)' }} />
+                              <Text type="supporting" weight="bold" color="primary">
+                                Proyeksi Akhir Tahun (s/d 31 Des)
+                              </Text>
+                            </HStack>
+                            <Badge variant="primary" label="Estimasi RAT" />
+                          </HStack>
+                          <Heading level={2} color="primary">
+                            {formatRp(shuData?.projection?.member?.shu || 0)}
+                          </Heading>
+                          <Text type="supporting" color="secondary">
+                            {shuData?.isClosed
+                              ? 'Hak definitif hasil penetapan penutupan buku tahunan.'
+                              : `Estimasi penuh jika angsuran lancar (+${formatRp(Math.max(0, (shuData?.projection?.member?.shu || 0) - (shuData?.realization?.member?.shu || 0)))} potensi tambahan).`}
+                          </Text>
+
+                          <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                            <VStack gap={2}>
+                              <HStack justify="space-between">
+                                <Text type="supporting">Estimasi Jasa Modal (Simpanan):</Text>
+                                <Text type="body" weight="semibold">
+                                  {formatRp(shuData?.projection?.member?.savingsShare || 0)}
+                                </Text>
+                              </HStack>
+                              <HStack justify="space-between">
+                                <Text type="supporting">Estimasi Jasa Usaha (Pinjaman):</Text>
+                                <Text type="body" weight="semibold">
+                                  {formatRp(shuData?.projection?.member?.loansShare || 0)}
+                                </Text>
+                              </HStack>
+                            </VStack>
+                          </div>
+                        </VStack>
+                      </Card>
+
+                      {/* Kartu Portofolio & Kontribusi Anggota */}
+                      <Card style={{ padding: 20 }}>
+                        <VStack gap={3}>
+                          <Text type="supporting" weight="bold">Portofolio Kontribusi Anda</Text>
+                          <VStack gap={2}>
+                            <VStack gap={1}>
+                              <Text type="supporting">Saldo Rata-Rata Tertimbang (ADB):</Text>
+                              <Heading level={3}>
+                                {formatRp(shuData?.projection?.member?.averageSavings || profile?.totalSavings || 0)}
+                              </Heading>
+                              <Text type="supporting" color="secondary">
+                                Basis pembagian Jasa Modal (Simpanan).
+                              </Text>
+                            </VStack>
+                            <div style={{ paddingTop: 8, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+                              <VStack gap={1}>
+                                <Text type="supporting">Porsi Simpanan Anda:</Text>
+                                <Text type="body" weight="bold" color="primary">
+                                  {shuData?.projection?.totalCoopSavings > 0
+                                    ? `${(((shuData?.projection?.member?.averageSavings || 0) / shuData.projection.totalCoopSavings) * 100).toFixed(3)}%`
+                                    : '0%'}
+                                  {' '}
+                                  <Text type="supporting" color="secondary" style={{ display: 'inline', fontWeight: 'normal' }}>
+                                    dari total simpanan koperasi
+                                  </Text>
+                                </Text>
+                              </VStack>
+                            </div>
+                          </VStack>
+                        </VStack>
+                      </Card>
+                    </Grid>
+
+                    {/* 3. Breakdown Transparansi Rumus & Pilar Pembagian */}
+                    <VStack gap={3}>
+                      <Heading level={4}>Transparansi Alokasi & Rumus Pembagian SHU</Heading>
+                      <Grid gap={4}>
+                        {/* Pilar Jasa Simpanan */}
+                        <Card style={{ padding: 18 }}>
+                          <VStack gap={3}>
+                            <HStack justify="space-between" vAlign="center">
+                              <Text type="body" weight="bold">1. Jasa Modal / Simpanan</Text>
+                              <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaSimpananPct || 50}% Bagian Anggota`} />
+                            </HStack>
+                            <Text type="supporting" color="secondary">
+                              Dihitung berdasarkan perbandingan saldo harian rata-rata (*Average Daily Balance*) simpanan Anda terhadap seluruh simpanan anggota koperasi.
+                            </Text>
+                            <div style={{ backgroundColor: 'var(--color-background-secondary)', padding: 14, borderRadius: 8 }}>
+                              <VStack gap={2}>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Rata-rata Simpanan Anda:</Text>
+                                  <Text type="body" weight="medium">{formatRp(shuData?.projection?.member?.averageSavings || 0)}</Text>
+                                </HStack>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Total Simpanan Koperasi:</Text>
+                                  <Text type="body" weight="medium">{formatRp(shuData?.projection?.totalCoopSavings || 0)}</Text>
+                                </HStack>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Proporsi Kontribusi:</Text>
+                                  <Text type="body" weight="bold" color="primary">
+                                    {shuData?.projection?.totalCoopSavings > 0
+                                      ? `${(((shuData?.projection?.member?.averageSavings || 0) / shuData.projection.totalCoopSavings) * 100).toFixed(3)}%`
+                                      : '0%'}
+                                  </Text>
+                                </HStack>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Dana Pool Jasa Simpanan (Proyeksi):</Text>
+                                  <Text type="body" weight="semibold">{formatRp(shuData?.projection?.jasaSimpananPool || 0)}</Text>
+                                </HStack>
+                                <div style={{ borderTop: '1px dashed var(--color-border-primary, #cbd5e1)', paddingTop: 6 }}>
+                                  <HStack justify="space-between">
+                                    <Text type="body" weight="bold">Estimasi Jasa Modal Anda:</Text>
+                                    <Text type="body" weight="bold" color="primary">
+                                      {formatRp(shuData?.projection?.member?.savingsShare || 0)}
+                                    </Text>
+                                  </HStack>
+                                </div>
+                              </VStack>
+                            </div>
+                          </VStack>
+                        </Card>
+
+                        {/* Pilar Jasa Pinjaman */}
+                        <Card style={{ padding: 18 }}>
+                          <VStack gap={3}>
+                            <HStack justify="space-between" vAlign="center">
+                              <Text type="body" weight="bold">2. Jasa Usaha / Pinjaman</Text>
+                              <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaPinjamanPct || 50}% Bagian Anggota`} />
+                            </HStack>
+                            <Text type="supporting" color="secondary">
+                              Dihitung berdasarkan partisipasi bunga pinjaman yang Anda bayarkan ke koperasi sepanjang tahun buku berjalan.
+                            </Text>
+                            <div style={{ backgroundColor: 'var(--color-background-secondary)', padding: 14, borderRadius: 8 }}>
+                              <VStack gap={2}>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Realisasi Bunga Terbayar YTD:</Text>
+                                  <Text type="body" weight="medium">
+                                    {formatRp(shuData?.realization?.member?.loansShare || 0)} (Alokasi YTD)
+                                  </Text>
+                                </HStack>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Proyeksi Angsuran s/d 31 Des:</Text>
+                                  <Text type="body" weight="medium">Termasuk sisa jadwal aktif</Text>
+                                </HStack>
+                                <HStack justify="space-between">
+                                  <Text type="supporting">Dana Pool Jasa Pinjaman (Proyeksi):</Text>
+                                  <Text type="body" weight="semibold">{formatRp(shuData?.projection?.jasaPinjamanPool || 0)}</Text>
+                                </HStack>
+                                <div style={{ borderTop: '1px dashed var(--color-border-primary, #cbd5e1)', paddingTop: 6 }}>
+                                  <HStack justify="space-between">
+                                    <Text type="body" weight="bold">Estimasi Jasa Pinjaman Anda:</Text>
+                                    <Text type="body" weight="bold" color="primary">
+                                      {formatRp(shuData?.projection?.member?.loansShare || 0)}
+                                    </Text>
+                                  </HStack>
+                                </div>
+                              </VStack>
+                            </div>
+                          </VStack>
+                        </Card>
+                      </Grid>
+                    </VStack>
+
+                    {/* 4. Riwayat SHU Tahun Lalu (Telah Disahkan RAT) */}
+                    {shuData?.historical && shuData.historical.length > 0 && (
+                      <VStack gap={3}>
+                        <Heading level={4}>Riwayat Realisasi SHU Tahun-Tahun Sebelumnya</Heading>
+                        <Table data={shuData.historical} columns={shuHistoricalCols} idKey="year" density="balanced" />
+                      </VStack>
+                    )}
+
+                    {/* 5. Catatan & Disclaimer RAT */}
+                    <Card
+                      style={{
+                        padding: 18,
+                        backgroundColor: 'var(--color-background-secondary)',
+                        borderLeft: '4px solid var(--color-warning-500, #f59e0b)',
+                      }}
+                    >
+                      <VStack gap={2}>
+                        <HStack gap={2} vAlign="center">
+                          <Text type="body" weight="bold">💡 Catatan Ketentuan Pembagian SHU & RAT</Text>
+                        </HStack>
+                        <Text type="supporting" color="secondary">
+                          1. <strong>Proyeksi Akhir Tahun</strong> dihitung secara matematis berdasarkan pendapatan berjalan ditambah simulasi kelancaran seluruh jadwal pembayaran angsuran aktif Anda sampai tanggal 31 Desember.
+                        </Text>
+                        <Text type="supporting" color="secondary">
+                          2. Angka final pembagian SHU definitif dan persetujuan pencairannya sah diputuskan dalam <strong>Rapat Anggota Tahunan (RAT)</strong> sesuai ketentuan Anggaran Dasar dan Anggaran Rumah Tangga (AD/ART) koperasi.
+                        </Text>
+                        <Text type="supporting" color="secondary">
+                          3. Anda dapat mengoptimalkan perolehan SHU dengan mempertahankan atau menambah saldo simpanan serta disiplin membayar angsuran tepat waktu.
+                        </Text>
+                      </VStack>
+                    </Card>
                   </VStack>
                 )
               ) : loans.length > 0 ? (

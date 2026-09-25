@@ -40,6 +40,7 @@ import {
   notifySavingsDeposit,
   notifyLoanApplication,
 } from '../services/waNotificationService';
+import { calculateSHU } from '../services/shuService';
 
 // Get member / employee profile and savings summary
 memberSelfService.get('/profile', async (c) => {
@@ -69,13 +70,15 @@ memberSelfService.get('/profile', async (c) => {
 
   const isCoopMember = !!member;
   const settingsRows = await db
-    .query("SELECT key, value FROM settings WHERE key IN ('bungaPinjaman', 'coopBankName', 'coopBankAccountNumber', 'coopBankAccountName', 'koperasiName')")
+    .query("SELECT key, value FROM settings WHERE key IN ('bungaPinjaman', 'coopBankName', 'coopBankAccountNumber', 'coopBankAccountName', 'koperasiName', 'viewReports', 'viewMemberShu')")
     .all<{ key: string; value: string }>();
   const settingsMap: Record<string, string> = {};
   for (const s of settingsRows) {
     settingsMap[s.key] = s.value;
   }
   const loanInterestRate = parseFloat(settingsMap['bungaPinjaman'] || "0");
+  const canViewReports = settingsMap['viewReports'] === 'true';
+  const canViewShu = settingsMap['viewMemberShu'] !== 'false';
 
   const profileData = {
     id: member?.id || employee?.id,
@@ -95,6 +98,8 @@ memberSelfService.get('/profile', async (c) => {
     simpananSukarela: Number(member?.simpananSukarela || 0),
     totalSavings: Number(member?.totalSavings || 0),
     isCoopMember,
+    canViewReports,
+    canViewShu,
     loanInterestRate,
     coopBank: {
       bankName: settingsMap['coopBankName'] || 'Bank Mandiri',
@@ -630,6 +635,162 @@ memberSelfService.get('/reports/cashflow-statement', async (c) => {
       cashAccounts: cashAccounts.map((a: any) => ({ ...a, balance: Number(a.balance || 0) })),
     },
   });
+});
+
+// ---------------------------------------------------------------------------
+// Member SHU & Year-End Projections Endpoint
+// ---------------------------------------------------------------------------
+memberSelfService.get('/shu', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
+  const memberId = payload.sub;
+
+  const member = await db.query(
+    "SELECT id, name, role, status, totalSavings, joinDate FROM members WHERE id = ? AND deletedAt IS NULL"
+  ).get<any>(memberId);
+
+  if (!member) {
+    return c.json({
+      success: false,
+      message: 'Layanan informasi SHU hanya tersedia bagi anggota koperasi terdaftar.',
+    }, 404);
+  }
+
+  // Check if feature is enabled in settings
+  const settingRow = await db.query("SELECT value FROM settings WHERE key = 'viewMemberShu'").get<{ value: string }>();
+  const isEnabled = settingRow ? settingRow.value !== 'false' : true;
+  if (!isEnabled) {
+    return c.json({
+      success: false,
+      message: 'Fitur informasi dan proyeksi SHU saat ini dinonaktifkan oleh pengurus koperasi.',
+    }, 403);
+  }
+
+  const currentCalendarYear = new Date().getFullYear().toString();
+  const year = c.req.query('year') || currentCalendarYear;
+
+  try {
+    // 1. Full-Year Projection (s/d 31 Desember)
+    const projectionData = await calculateSHU(year, { mode: 'projection' });
+    const myProjection = projectionData.alokasiAnggota.find((a: any) => a.id === memberId) || {
+      id: memberId,
+      name: member.name,
+      status: member.status || 'Aktif',
+      totalSavings: Number(member.totalSavings || 0),
+      averageSavings: 0,
+      savingsShare: 0,
+      loansShare: 0,
+      shu: 0,
+    };
+
+    const totalCoopSavings = projectionData.alokasiAnggota.reduce(
+      (sum: number, a: any) => sum + (Number(a.averageSavings ?? a.totalSavings) || 0),
+      0
+    );
+    const jasaSimpananPoolProj = Math.round(
+      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaSimpananPct || 50) / 100)
+    );
+    const jasaPinjamanPoolProj = Math.round(
+      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaPinjamanPct || 50) / 100)
+    );
+
+    // 2. Realisasi Berjalan (YTD) jika tahun tersebut belum tutup buku
+    let myRealization = null;
+    let realizationSummary = null;
+
+    if (!projectionData.isClosed) {
+      const realizationData = await calculateSHU(year, { mode: 'realization' });
+      const myReal = realizationData.alokasiAnggota.find((a: any) => a.id === memberId) || {
+        id: memberId,
+        name: member.name,
+        status: member.status || 'Aktif',
+        totalSavings: Number(member.totalSavings || 0),
+        averageSavings: 0,
+        savingsShare: 0,
+        loansShare: 0,
+        shu: 0,
+      };
+      myRealization = myReal;
+
+      const jasaSimpananPoolReal = Math.round(
+        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaSimpananPct || 50) / 100)
+      );
+      const jasaPinjamanPoolReal = Math.round(
+        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaPinjamanPct || 50) / 100)
+      );
+
+      realizationSummary = {
+        pendapatan: realizationData.pendapatan,
+        biayaOperasional: realizationData.biayaOperasional,
+        shuNetto: realizationData.shuNetto,
+        distribusiAnggota: realizationData.distribusi.anggota,
+        jasaSimpananPool: jasaSimpananPoolReal,
+        jasaPinjamanPool: jasaPinjamanPoolReal,
+      };
+    }
+
+    // 3. Historical closed allocations for this member
+    const historical = await db.query(`
+      SELECT 
+        sma.year,
+        sma.savingsShare,
+        sma.loansShare,
+        sma.totalSHU,
+        sma."averageSavings",
+        sc.closedAt,
+        sc.closedBy,
+        sc.shuNetto as "coopShuNetto"
+      FROM shu_member_allocations sma
+      JOIN shu_closes sc ON sma.year = sc.year
+      WHERE sma.memberId = ?
+      ORDER BY sma.year DESC
+    `).all<any>(memberId);
+
+    // 4. Available fiscal years (closed years + current year)
+    const closedYears = await db.query("SELECT year FROM shu_closes ORDER BY year DESC").all<{ year: string }>();
+    const yearSet = new Set<string>([currentCalendarYear, ...closedYears.map((cy) => cy.year)]);
+    const availableYears = Array.from(yearSet).sort((a, b) => b.localeCompare(a));
+
+    return c.json({
+      success: true,
+      data: {
+        year,
+        isCurrentYear: year === currentCalendarYear,
+        isClosed: projectionData.isClosed,
+        closedAt: (projectionData as any).closedAt || null,
+        projection: {
+          totalRevenue: projectionData.pendapatan,
+          realizedRevenue: projectionData.realizedPendapatan,
+          projectedRevenue: projectionData.projectedPendapatan,
+          biayaOperasional: projectionData.biayaOperasional,
+          shuNetto: projectionData.shuNetto,
+          distribusiAnggota: projectionData.distribusi?.anggota || 0,
+          jasaSimpananPool: jasaSimpananPoolProj,
+          jasaPinjamanPool: jasaPinjamanPoolProj,
+          totalCoopSavings,
+          member: myProjection,
+        },
+        realization: myRealization
+          ? {
+              summary: realizationSummary,
+              member: myRealization,
+            }
+          : null,
+        config: projectionData.config,
+        historical: historical.map((h: any) => ({
+          year: h.year,
+          savingsShare: Number(h.savingsShare || 0),
+          loansShare: Number(h.loansShare || 0),
+          totalSHU: Number(h.totalSHU || 0),
+          averageSavings: Number(h.averageSavings || 0),
+          closedAt: h.closedAt,
+          coopShuNetto: Number(h.coopShuNetto || 0),
+        })),
+        availableYears,
+      },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal menghitung SHU' }, 500);
+  }
 });
 
 export default memberSelfService;

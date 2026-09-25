@@ -348,6 +348,7 @@ export const ALLOWED_SETTINGS_KEYS = [
   'bungaSimpanan',
   'denda',
   'viewReports',
+  'viewMemberShu',
   'selfRegister',
   'ssoAutoRegister',
   'coopBankName',

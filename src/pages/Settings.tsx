@@ -93,6 +93,7 @@ export default function SettingsTemplate() {
   const [denda, setDenda] = useState('0.5');
   
   const [viewReports, setViewReports] = useState(false);
+  const [viewMemberShu, setViewMemberShu] = useState(true);
   const [selfRegister, setSelfRegister] = useState(true);
   const [ssoAutoRegister, setSsoAutoRegister] = useState(true);
 
@@ -129,6 +130,7 @@ export default function SettingsTemplate() {
       if (settingsData.bungaSimpanan) setBungaSimpanan(settingsData.bungaSimpanan);
       if (settingsData.denda) setDenda(settingsData.denda);
       if (settingsData.viewReports !== undefined) setViewReports(settingsData.viewReports === 'true' || settingsData.viewReports === true);
+      if (settingsData.viewMemberShu !== undefined) setViewMemberShu(settingsData.viewMemberShu === 'true' || settingsData.viewMemberShu === true);
       if (settingsData.selfRegister !== undefined) setSelfRegister(settingsData.selfRegister === 'true' || settingsData.selfRegister === true);
       if (settingsData.ssoAutoRegister !== undefined) setSsoAutoRegister(settingsData.ssoAutoRegister === 'true' || settingsData.ssoAutoRegister === true);
       if (settingsData.waNotificationEnabled !== undefined) {
@@ -154,6 +156,7 @@ export default function SettingsTemplate() {
         coopBankName, coopBankAccountNumber, coopBankAccountName,
         bungaPinjaman, bungaSimpanan, denda,
         viewReports: String(viewReports),
+        viewMemberShu: String(viewMemberShu),
         selfRegister: String(selfRegister),
         ssoAutoRegister: String(ssoAutoRegister),
         waNotificationEnabled: String(waNotificationEnabled),
@@ -382,6 +385,13 @@ export default function SettingsTemplate() {
                       description="Anggota biasa dapat mengunduh laporan neraca tahunan."
                       value={viewReports}
                       onChange={setViewReports}
+                      disabled={!hasPermission('update:settings')}
+                    />
+                    <CheckboxInput
+                      label="Izinkan Anggota Melihat Info & Proyeksi SHU"
+                      description="Anggota dapat melihat estimasi realisasi dan proyeksi SHU akhir tahun pribadi di portal."
+                      value={viewMemberShu}
+                      onChange={setViewMemberShu}
                       disabled={!hasPermission('update:settings')}
                     />
                     <CheckboxInput
