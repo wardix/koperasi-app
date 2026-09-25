@@ -18,6 +18,7 @@ import {
   ArrowRightOnRectangleIcon,
   SunIcon,
   MoonIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import {HomeIcon} from '@heroicons/react/24/solid';
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
@@ -47,6 +48,7 @@ const Accounting = React.lazy(() => import('../pages/Accounting'));
 const Ledger = React.lazy(() => import('../pages/Ledger'));
 const EWA = React.lazy(() => import('../pages/EWA'));
 const Letters = React.lazy(() => import('../pages/Letters'));
+const Feedbacks = React.lazy(() => import('../pages/Feedbacks'));
 const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
 
 function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
@@ -236,6 +238,12 @@ export default function Shell() {
                 />
               </>
             )}
+            <SideNavItem
+              label="Kotak Masukan & Bug"
+              icon={ChatBubbleLeftRightIcon}
+              isSelected={path === '/feedbacks' || path === '/feedback'}
+              onClick={() => navigate('/feedbacks')}
+            />
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={logout} />
           </SideNavSection>
         </SideNav>
@@ -263,6 +271,8 @@ export default function Shell() {
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/accounting" element={<Accounting />} />
           <Route path="/ledger" element={<Ledger />} />
+          <Route path="/feedbacks" element={<Feedbacks />} />
+          <Route path="/feedback" element={<Navigate to="/feedbacks" replace />} />
         </Routes>
       </Suspense>
     </AppShell>

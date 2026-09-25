@@ -61,4 +61,12 @@ describe("Shell Component", () => {
     expect(screen.getByText("Arus Kas")).toBeTruthy();
     expect(screen.getByText("Kredit Macet (NPL)")).toBeTruthy();
   });
+
+  test("shows Kotak Masukan & Bug nav item", async () => {
+    localStorage.setItem("token", "test-token");
+    localStorage.setItem("role", "admin");
+    spyOn(apiModule.api, "get").mockResolvedValue({});
+    renderShell();
+    await waitFor(() => expect(screen.getByText("Kotak Masukan & Bug")).toBeTruthy());
+  });
 });

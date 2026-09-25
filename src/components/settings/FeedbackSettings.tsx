@@ -54,7 +54,11 @@ export interface FeedbackStats {
   };
 }
 
-export const FeedbackSettings: React.FC = () => {
+export interface FeedbackSettingsProps {
+  hideHeader?: boolean;
+}
+
+export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader = false }) => {
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
   const [stats, setStats] = useState<FeedbackStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,14 +174,16 @@ export const FeedbackSettings: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header Description */}
-      <VStack gap={1}>
-        <Heading level={3}>
-          Laporan Masukan, Bug & Usulan Fitur
-        </Heading>
-        <Text type="supporting" color="secondary">
-          Kelola seluruh feedback dan kendala yang dilaporkan oleh anggota koperasi dan pengguna sistem lengkap dengan tangkapan layar.
-        </Text>
-      </VStack>
+      {!hideHeader && (
+        <VStack gap={1}>
+          <Heading level={3}>
+            Laporan Masukan, Bug & Usulan Fitur
+          </Heading>
+          <Text type="supporting" color="secondary">
+            Kelola seluruh feedback dan kendala yang dilaporkan oleh anggota koperasi dan pengguna sistem lengkap dengan tangkapan layar.
+          </Text>
+        </VStack>
+      )}
 
       {/* Stats Summary Cards */}
       {stats && (

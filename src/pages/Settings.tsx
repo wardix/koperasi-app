@@ -39,7 +39,6 @@ import {ParameterSettings} from '../components/settings/ParameterSettings';
 import {TwoFactorSettings} from '../components/settings/TwoFactorSettings';
 import {WaNotificationSettings} from '../components/settings/WaNotificationSettings';
 import {ShuSettings, type ShuSettingsValues} from '../components/settings/ShuSettings';
-import {FeedbackSettings} from '../components/settings/FeedbackSettings';
 
 const NAV_ITEMS = [
   'Profil Koperasi',
@@ -48,7 +47,6 @@ const NAV_ITEMS = [
   'Notifikasi WhatsApp',
   'Hak Akses',
   'Keamanan',
-  'Laporan & Masukan',
 ];
 
 const SETTINGS_ITEMS: SearchableItem[] = [
@@ -303,11 +301,7 @@ export default function SettingsTemplate() {
               </VStack>
             )}
             
-            {activeNav === 'Laporan & Masukan' ? (
-              <FeedbackSettings />
-            ) : (
-              <>
-                <ProfileSettings
+            <ProfileSettings
                   koperasiName={koperasiName}
                   alamat={alamat}
                   telepon={telepon}
@@ -426,8 +420,6 @@ export default function SettingsTemplate() {
                     )}
                   </VStack>
                 </Grid>
-              </>
-            )}
           </VStack>
           </DataStateView>
         </LayoutContent>
