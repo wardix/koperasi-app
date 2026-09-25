@@ -124,7 +124,7 @@ describe("Member Portal SHU & Projections API", () => {
     );
 
     await db.run(
-      `INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, "averageSavings")
+      `INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, averageSavings)
        VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT (year, memberId) DO UPDATE SET totalSHU = EXCLUDED.totalSHU`,
       [pastYear, memberId, 150000, 250000, 400000, 4500000]
@@ -151,6 +151,9 @@ describe("Member Portal SHU & Projections API", () => {
   });
 
   test("GET /api/v1/portal/shu projection includes future scheduled loan interest", async () => {
+    const origPinjaman = await db.query("SELECT value FROM settings WHERE key = 'shu_jasa_pinjaman_pct'").get<{ value: string }>();
+    await db.run("UPDATE settings SET value = '50' WHERE key = 'shu_jasa_pinjaman_pct'");
+
     const loanId = crypto.randomUUID();
     // Insert loan
     await db.run(
@@ -181,5 +184,8 @@ describe("Member Portal SHU & Projections API", () => {
     // Cleanup
     await db.run("DELETE FROM loan_schedules WHERE id = ?", [scheduleId]);
     await db.run("DELETE FROM loans WHERE id = ?", [loanId]);
+    if (origPinjaman) {
+      await db.run("UPDATE settings SET value = ? WHERE key = 'shu_jasa_pinjaman_pct'", [origPinjaman.value]);
+    }
   });
 });

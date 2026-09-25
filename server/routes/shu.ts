@@ -115,7 +115,7 @@ shu.post('/close', requirePermission('approve:loans'), async (c) => {
     // 2. Insert member allocations into shu_member_allocations
     for (const a of result.alokasiAnggota) {
       await db.run(`
-        INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, "averageSavings")
+        INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, averageSavings)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [year, a.id, a.savingsShare, a.loansShare, a.shu, a.averageSavings ?? a.totalSavings]);
     }

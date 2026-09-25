@@ -735,7 +735,7 @@ memberSelfService.get('/shu', async (c) => {
         sma.savingsShare,
         sma.loansShare,
         sma.totalSHU,
-        sma."averageSavings",
+        sma.averageSavings,
         sc.closedAt,
         sc.closedBy,
         sc.shuNetto as "coopShuNetto"
