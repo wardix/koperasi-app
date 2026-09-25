@@ -36,6 +36,8 @@ export default function EWA() {
   const [requests, setRequests] = useState<EWARequest[]>([]);
   const [reqLoading, setReqLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const [reqSearch, setReqSearch] = useState('');
+  const [debouncedReqSearch, setDebouncedReqSearch] = useState('');
   const [reqPage, setReqPage] = useState(1);
   const [reqLimit, setReqLimit] = useState(20);
   const [reqTotal, setReqTotal] = useState(0);
@@ -86,12 +88,21 @@ export default function EWA() {
   const [saveTierLoading, setSaveTierLoading] = useState(false);
   const [tierError, setTierError] = useState('');
 
+  // Debounce search for requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedReqSearch(reqSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [reqSearch]);
+
   // Fetch Requests
   const fetchRequests = async () => {
     setReqLoading(true);
     try {
       const q = new URLSearchParams();
       if (statusFilter) q.append('status', statusFilter);
+      if (debouncedReqSearch.trim()) q.append('search', debouncedReqSearch.trim());
       q.append('page', String(reqPage));
       q.append('limit', String(reqLimit));
       const res = await apiFetch(`/api/v1/ewa/requests?${q.toString()}`);
@@ -162,7 +173,7 @@ export default function EWA() {
 
   useEffect(() => {
     fetchRequests();
-  }, [statusFilter, reqPage, reqLimit]);
+  }, [statusFilter, debouncedReqSearch, reqPage, reqLimit]);
 
   useEffect(() => {
     fetchEmployees();
@@ -1054,28 +1065,74 @@ export default function EWA() {
               <VStack gap={4}>
                 <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
                   <Heading level={4}>Daftar Pengajuan Penarikan Gaji Awal</Heading>
-                  <HStack gap={2} vAlign="center">
-                    <Text type="supporting">Status:</Text>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => {
-                        setStatusFilter(e.target.value);
-                        setReqPage(1);
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        border: '1px solid var(--color-border-primary)',
-                        backgroundColor: 'var(--color-background-primary)',
-                        color: 'var(--color-text-primary)',
-                      }}
-                    >
-                      <option value="">Semua Status</option>
-                      <option value="PENDING">Menunggu Cair</option>
-                      <option value="DISBURSED">Sudah Cair</option>
-                      <option value="PAID_SETTLED">Lunas Payroll</option>
-                      <option value="REJECTED">Ditolak</option>
-                    </select>
+                  <HStack gap={3} vAlign="center" wrap="wrap">
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Cari nama karyawan / NIP..."
+                        value={reqSearch}
+                        onChange={(e) => {
+                          setReqSearch(e.target.value);
+                          setReqPage(1);
+                        }}
+                        style={{
+                          padding: '6px 30px 6px 12px',
+                          borderRadius: 6,
+                          border: '1px solid var(--color-border-primary)',
+                          backgroundColor: 'var(--color-background-primary)',
+                          color: 'var(--color-text-primary)',
+                          width: 240,
+                          fontSize: 13,
+                        }}
+                      />
+                      {reqSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReqSearch('');
+                            setReqPage(1);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: 8,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--color-text-secondary)',
+                            padding: 0,
+                            fontSize: 14,
+                            lineHeight: 1,
+                          }}
+                          title="Hapus pencarian"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <HStack gap={2} vAlign="center">
+                      <Text type="supporting">Status:</Text>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setReqPage(1);
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 6,
+                          border: '1px solid var(--color-border-primary)',
+                          backgroundColor: 'var(--color-background-primary)',
+                          color: 'var(--color-text-primary)',
+                          fontSize: 13,
+                        }}
+                      >
+                        <option value="">Semua Status</option>
+                        <option value="PENDING">Menunggu Cair</option>
+                        <option value="DISBURSED">Sudah Cair</option>
+                        <option value="PAID_SETTLED">Lunas Payroll</option>
+                        <option value="REJECTED">Ditolak</option>
+                      </select>
+                    </HStack>
                   </HStack>
                 </HStack>
 
@@ -1093,7 +1150,9 @@ export default function EWA() {
                   </VStack>
                 ) : (
                   <Text type="supporting" color="secondary">
-                    Belum ada data pengajuan EWA
+                    {reqSearch || statusFilter
+                      ? 'Tidak ditemukan pengajuan EWA yang sesuai dengan filter pencarian.'
+                      : 'Belum ada data pengajuan EWA'}
                   </Text>
                 )}
               </VStack>

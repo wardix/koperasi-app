@@ -39,6 +39,7 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
   const employeeId = c.req.query('employeeId');
   const periodMonth = c.req.query('periodMonth');
   const status = c.req.query('status');
+  const search = c.req.query('search') || c.req.query('q');
   const page = Number(c.req.query('page') || 1);
   const limit = Number(c.req.query('limit') || 20);
 
@@ -46,6 +47,7 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
     employeeId,
     periodMonth,
     status,
+    search,
     page,
     limit,
   });

@@ -680,6 +680,7 @@ export async function getEwaRequestsList(
     employeeId?: string;
     periodMonth?: string;
     status?: string;
+    search?: string;
     page?: number;
     limit?: number;
   }
@@ -710,11 +711,16 @@ export async function getEwaRequestsList(
       params.push(s);
     }
   }
+  if (options.search && options.search.trim()) {
+    conditions.push("(e.name ILIKE ? OR e.nip ILIKE ?)");
+    const term = `%${options.search.trim()}%`;
+    params.push(term, term);
+  }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const totalRes = await db
-    .query(`SELECT COUNT(*) as count FROM withdrawal_requests r ${whereClause}`)
+    .query(`SELECT COUNT(*) as count FROM withdrawal_requests r JOIN employees e ON r.employee_id = e.id ${whereClause}`)
     .get<any>(...params);
   const total = Number(totalRes?.count || 0);
 
