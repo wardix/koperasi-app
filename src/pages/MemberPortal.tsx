@@ -2952,7 +2952,7 @@ export default function MemberPortal() {
                           <VStack gap={3}>
                             <HStack justify="space-between" vAlign="center">
                               <Text type="body" weight="bold">1. Jasa Modal / Simpanan</Text>
-                              <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaSimpananPct || 50}% Bagian Anggota`} />
+                              <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaSimpananPct ?? 50}% Bagian Anggota`} />
                             </HStack>
                             <Text type="supporting" color="secondary">
                               Dihitung berdasarkan perbandingan saldo harian rata-rata (*Average Daily Balance*) simpanan Anda terhadap seluruh simpanan anggota koperasi.
@@ -2997,10 +2997,12 @@ export default function MemberPortal() {
                           <VStack gap={3}>
                             <HStack justify="space-between" vAlign="center">
                               <Text type="body" weight="bold">2. Jasa Usaha / Pinjaman</Text>
-                              <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaPinjamanPct || 50}% Bagian Anggota`} />
+                              <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaPinjamanPct ?? 50}% Bagian Anggota`} />
                             </HStack>
                             <Text type="supporting" color="secondary">
-                              Dihitung berdasarkan partisipasi bunga pinjaman yang Anda bayarkan ke koperasi sepanjang tahun buku berjalan.
+                              {(shuData?.config?.jasaPinjamanPct ?? 50) === 0
+                                ? 'Koperasi menetapkan 0% alokasi untuk pilar jasa pinjaman (100% dialokasikan ke simpanan anggota).'
+                                : 'Dihitung berdasarkan partisipasi bunga pinjaman yang Anda bayarkan ke koperasi sepanjang tahun buku berjalan.'}
                             </Text>
                             <div style={{ backgroundColor: 'var(--color-background-secondary)', padding: 14, borderRadius: 8 }}>
                               <VStack gap={2}>

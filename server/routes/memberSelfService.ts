@@ -687,10 +687,10 @@ memberSelfService.get('/shu', async (c) => {
       0
     );
     const jasaSimpananPoolProj = Math.round(
-      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaSimpananPct || 50) / 100)
+      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaSimpananPct ?? 50) / 100)
     );
     const jasaPinjamanPoolProj = Math.round(
-      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaPinjamanPct || 50) / 100)
+      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaPinjamanPct ?? 50) / 100)
     );
 
     // 2. Realisasi Berjalan (YTD) jika tahun tersebut belum tutup buku
@@ -712,10 +712,10 @@ memberSelfService.get('/shu', async (c) => {
       myRealization = myReal;
 
       const jasaSimpananPoolReal = Math.round(
-        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaSimpananPct || 50) / 100)
+        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaSimpananPct ?? 50) / 100)
       );
       const jasaPinjamanPoolReal = Math.round(
-        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaPinjamanPct || 50) / 100)
+        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaPinjamanPct ?? 50) / 100)
       );
 
       realizationSummary = {
