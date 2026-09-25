@@ -130,7 +130,7 @@ export default function CashflowTemplate() {
       content={
         <LayoutContent padding={3}>
           <DataStateView isLoading={isLoading} error={error} onRetry={fetchCashflow} errorTitle="Gagal Memuat Arus Kas">
-            <VStack gap={4}>
+            <VStack gap={4} style={{ paddingBottom: '80px' }}>
               <Grid columns={{minWidth: 240, repeat: 'fit'}} gap={4}>
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>

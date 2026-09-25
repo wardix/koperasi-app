@@ -174,7 +174,7 @@ export default function NPLTemplate() {
       content={
         <LayoutContent padding={3}>
           <DataStateView isLoading={isLoading} error={error} onRetry={fetchNpl} errorTitle="Gagal Memuat Analisis NPL">
-            <VStack gap={4}>
+            <VStack gap={4} style={{ paddingBottom: '80px' }}>
               <Grid columns={{minWidth: 240, repeat: 'fit'}} gap={4}>
                 <Card style={{ padding: '20px' }}>
                   <VStack gap={2}>

@@ -729,7 +729,8 @@ export default function SavingsTemplate() {
         }
         content={
           <LayoutContent padding={3}>
-            {activeTab === 'transactions' ? (
+            <div style={{ paddingBottom: '80px' }}>
+              {activeTab === 'transactions' ? (
               <DataStateView isLoading={isLoading} error={error} onRetry={fetchTransactions} errorTitle="Gagal Memuat Riwayat Transaksi">
                 <VStack gap={4}>
                   <PowerSearch
@@ -923,6 +924,7 @@ export default function SavingsTemplate() {
                 </VStack>
               </DataStateView>
             )}
+            </div>
           </LayoutContent>
         }
       />

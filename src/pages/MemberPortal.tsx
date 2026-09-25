@@ -1310,7 +1310,7 @@ export default function MemberPortal() {
         }
       >
         <LayoutContent padding={4}>
-          <VStack gap={6}>
+          <VStack gap={6} style={{ paddingBottom: '80px' }}>
             {isPreview && (
               <Card
                 style={{

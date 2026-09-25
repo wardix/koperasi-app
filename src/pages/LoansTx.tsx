@@ -166,7 +166,7 @@ export default function LoansTxTemplate() {
         content={
           <LayoutContent padding={3}>
             <DataStateView isLoading={isLoading} error={error} onRetry={fetchPayments} errorTitle="Gagal Memuat Riwayat Pembayaran">
-              <VStack gap={4}>
+              <VStack gap={4} style={{ paddingBottom: '80px' }}>
                 <PowerSearch
                   config={config}
                   filters={filters}

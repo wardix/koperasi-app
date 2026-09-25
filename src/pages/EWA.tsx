@@ -980,7 +980,7 @@ export default function EWA() {
       }
     >
       <LayoutContent padding={4}>
-        <VStack gap={6}>
+        <VStack gap={6} style={{ paddingBottom: '80px' }}>
           {actionMessage && (
             <Card
               style={{

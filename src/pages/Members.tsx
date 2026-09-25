@@ -345,7 +345,7 @@ export default function MembersTemplate() {
       }
       content={
         <LayoutContent padding={3}>
-          <VStack gap={4}>
+          <VStack gap={4} style={{ paddingBottom: '80px' }}>
             <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
               <StackItem size="fill">
                 <TextInput

@@ -157,14 +157,15 @@ export const FeedbackWidget: React.FC = () => {
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating Trigger Button: Right-edge Side Tab */}
       <div
         data-feedback-ignore="true"
         data-html2canvas-ignore="true"
         style={{
           position: 'fixed',
-          bottom: '24px',
-          right: '24px',
+          top: '50%',
+          right: 0,
+          transform: 'translateY(-50%)',
           zIndex: 8999,
           display: isOpen ? 'none' : 'flex',
           alignItems: 'center',
@@ -175,26 +176,32 @@ export const FeedbackWidget: React.FC = () => {
           onClick={handleOpenWidget}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          onFocus={() => setIsHovered(true)}
+          onBlur={() => setIsHovered(false)}
           disabled={isCapturing}
           title="Kirim Masukan atau Laporkan Kendala"
           aria-label="Kirim Masukan atau Laporkan Kendala"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
+            padding: isHovered || isCapturing ? '10px 14px 10px 12px' : '10px 10px 10px 10px',
             backgroundColor: 'var(--color-primary-500, #0171E3)',
             color: '#ffffff',
             border: 'none',
-            borderRadius: '9999px',
+            borderTopLeftRadius: '12px',
+            borderBottomLeftRadius: '12px',
+            borderTopRightRadius: '0px',
+            borderBottomRightRadius: '0px',
             cursor: isCapturing ? 'wait' : 'pointer',
             boxShadow: isHovered
-              ? '0 10px 25px -5px rgba(1, 113, 227, 0.45), 0 8px 10px -6px rgba(1, 113, 227, 0.2)'
-              : '0 4px 14px 0 rgba(0, 0, 0, 0.15)',
-            transform: isHovered ? 'translateY(-2px)' : 'none',
-            transition: 'all 0.2s ease-in-out',
+              ? '-4px 8px 24px -2px rgba(1, 113, 227, 0.45)'
+              : '-2px 4px 14px 0 rgba(0, 0, 0, 0.16)',
+            transform: isHovered ? 'translateX(-3px)' : 'none',
+            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             fontSize: '0.85rem',
             fontWeight: 600,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
           }}
         >
           {isCapturing ? (
@@ -207,14 +214,26 @@ export const FeedbackWidget: React.FC = () => {
                   borderTopColor: '#ffffff',
                   borderRadius: '50%',
                   animation: 'spin 0.8s linear infinite',
+                  flexShrink: 0,
                 }}
               />
-              <span>Menangkap Layar...</span>
+              <span style={{ marginLeft: '8px' }}>Menangkap Layar...</span>
             </>
           ) : (
             <>
-              <ChatBubbleLeftRightIcon style={{ width: '18px', height: '18px' }} />
-              <span>Feedback & Bug</span>
+              <ChatBubbleLeftRightIcon style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+              <span
+                style={{
+                  maxWidth: isHovered ? '140px' : '0px',
+                  opacity: isHovered ? 1 : 0,
+                  overflow: 'hidden',
+                  transition: 'max-width 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-in-out, margin-left 0.2s ease-in-out',
+                  marginLeft: isHovered ? '8px' : '0px',
+                  display: 'inline-block',
+                }}
+              >
+                Feedback & Bug
+              </span>
             </>
           )}
         </button>
