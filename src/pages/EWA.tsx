@@ -316,11 +316,10 @@ export default function EWA() {
   // Export Payroll CSV for HRD
   const exportPayrollCsv = () => {
     if (!payrollRecap?.items || payrollRecap.items.length === 0) return;
-    const headers = ['NIP', 'Nama Karyawan', 'Departemen', 'Status Koperasi', 'Total Kasbon EWA', 'Biaya Layanan (Fee)', 'Total Potongan Gaji'];
+    const headers = ['NIP', 'Nama Karyawan', 'Status Koperasi', 'Total Kasbon EWA', 'Biaya Layanan (Fee)', 'Total Potongan Gaji'];
     const rows = payrollRecap.items.map((it: any) => [
       `"${it.nip}"`,
       `"${it.name}"`,
-      `"${it.department || '-'}"`,
       `"${it.isMember ? 'Anggota' : 'Bukan Anggota'}"`,
       it.totalAdvances,
       it.totalFee,
@@ -664,17 +663,6 @@ export default function EWA() {
           <VStack gap={0}>
             <Text type="body" weight="semibold">{e.name}</Text>
             <Text type="supporting" color="secondary">{e.email}</Text>
-          </VStack>
-        ),
-      },
-      {
-        key: 'dept',
-        header: 'Departemen / Posisi',
-        width: proportional(1.2),
-        renderCell: (e: CompanyEmployee) => (
-          <VStack gap={0}>
-            <Text type="body">{e.department || '-'}</Text>
-            <Text type="supporting" color="secondary">{e.position || '-'}</Text>
           </VStack>
         ),
       },
@@ -1291,7 +1279,6 @@ export default function EWA() {
                             <tr style={{ borderBottom: '2px solid var(--color-border-primary)' }}>
                               <th style={{ padding: '10px 12px' }}>NIP</th>
                               <th style={{ padding: '10px 12px' }}>Nama Karyawan</th>
-                              <th style={{ padding: '10px 12px' }}>Departemen</th>
                               <th style={{ padding: '10px 12px' }}>Status Anggota</th>
                               <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Kasbon EWA</th>
                               <th style={{ padding: '10px 12px', textAlign: 'right' }}>Fee Layanan</th>
@@ -1303,7 +1290,6 @@ export default function EWA() {
                               <tr key={it.employeeId} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                                 <td style={{ padding: '10px 12px' }}>{it.nip}</td>
                                 <td style={{ padding: '10px 12px', fontWeight: 600 }}>{it.name}</td>
-                                <td style={{ padding: '10px 12px' }}>{it.department || '-'}</td>
                                 <td style={{ padding: '10px 12px' }}>
                                   <Badge variant={it.isMember ? 'success' : 'neutral'} size="sm" label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
                                 </td>
