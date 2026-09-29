@@ -1,6 +1,40 @@
 import { ServiceError } from "../services/errors";
 
 /**
+ * Configurable application timezone with fallback to 'Asia/Jakarta' (WIB / UTC+7).
+ * Reads from APP_TIMEZONE or TZ environment variables if specified.
+ */
+export const APP_TIMEZONE =
+  process.env.APP_TIMEZONE ||
+  process.env.TZ ||
+  'Asia/Jakarta';
+
+/**
+ * Returns today's calendar date in the configured app timezone as YYYY-MM-DD.
+ */
+export function getLocalTodayYmd(timeZone = APP_TIMEZONE): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
+}
+
+/**
+ * Converts a Date or ISO timestamp string to YYYY-MM-DD in the configured app timezone.
+ * If already YYYY-MM-DD, returns as-is.
+ */
+export function toLocalYmd(dateOrIso?: Date | string | null, timeZone = APP_TIMEZONE): string {
+  if (!dateOrIso) return getLocalTodayYmd(timeZone);
+  if (typeof dateOrIso === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOrIso)) return dateOrIso;
+    const d = new Date(dateOrIso);
+    if (!Number.isNaN(d.getTime())) {
+      return new Intl.DateTimeFormat('en-CA', { timeZone }).format(d);
+    }
+  } else if (dateOrIso instanceof Date && !Number.isNaN(dateOrIso.getTime())) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone }).format(dateOrIso);
+  }
+  return getLocalTodayYmd(timeZone);
+}
+
+/**
  * Resolve ISO timestamp for a calendar date (YYYY-MM-DD).
  * Uses local noon so toLocaleDateString stays on the same day.
  * Defaults to now when omitted.

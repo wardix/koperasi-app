@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { isEndOfMonthStr, generateLoanDueDates } from "./dates";
+import { isEndOfMonthStr, generateLoanDueDates, toLocalYmd, getLocalTodayYmd } from "./dates";
 
 describe("dates helper functions", () => {
   describe("isEndOfMonthStr", () => {
@@ -64,6 +64,30 @@ describe("dates helper functions", () => {
 
     it("throws ServiceError for invalid date format", () => {
       expect(() => generateLoanDueDates("invalid-date", 3)).toThrow("Format tanggal angsuran pertama tidak valid");
+    });
+  });
+
+  describe("timezone helpers (toLocalYmd & getLocalTodayYmd)", () => {
+    it("converts late-night UTC timestamp (which is past midnight in Jakarta) to the correct local date", () => {
+      // 18:08:42 UTC on Sep 29 is 01:08:42 WIB on Sep 30
+      const utcIso = "2026-09-29T18:08:42.067Z";
+      expect(toLocalYmd(utcIso, "Asia/Jakarta")).toBe("2026-09-30");
+    });
+
+    it("leaves already formatted YYYY-MM-DD strings untouched", () => {
+      expect(toLocalYmd("2026-09-30", "Asia/Jakarta")).toBe("2026-09-30");
+      expect(toLocalYmd("2026-08-15", "Asia/Jakarta")).toBe("2026-08-15");
+    });
+
+    it("returns today in YYYY-MM-DD format", () => {
+      const today = getLocalTodayYmd("Asia/Jakarta");
+      expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it("falls back to local today when null or undefined is passed", () => {
+      const today = getLocalTodayYmd("Asia/Jakarta");
+      expect(toLocalYmd(null, "Asia/Jakarta")).toBe(today);
+      expect(toLocalYmd(undefined, "Asia/Jakarta")).toBe(today);
     });
   });
 });

@@ -1,6 +1,7 @@
 
 import db from '../db'
 import type { AccountRow } from '../db/entities'
+import { toLocalYmd } from '../lib/dates'
 
 export type JournalLineInput = {
   account_code: string;
@@ -49,12 +50,15 @@ export async function recordAutoJournal(input: AutoJournalInput): Promise<string
 
   if (totalDebit <= 0) return entryId; // Skip if no value
 
+  // Normalize transaction_date to local calendar date YYYY-MM-DD (e.g. Asia/Jakarta)
+  const normalizedTxDate = toLocalYmd(input.transaction_date);
+
   await db.transaction(async () => {
     // 2. Insert Header
     await db.run(`
       INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id)
       VALUES ($1, $2, $3, $4, $5)
-    `, [entryId, input.transaction_date, input.description, input.reference_type, input.reference_id]);
+    `, [entryId, normalizedTxDate, input.description, input.reference_type, input.reference_id]);
 
     // 3. Insert Lines
     for (const line of input.lines) {

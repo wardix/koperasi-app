@@ -4,6 +4,7 @@ import { requirePermission } from '../middleware'
 import { z } from 'zod'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { audit, getActor, getClientIp, getJwtPayload } from '../lib/audit'
+import { getLocalTodayYmd } from '../lib/dates'
 import type { AccountRow, JournalEntryRow, JournalLineRow } from '../db/entities'
 import { parsePagination } from '../services/pagination'
 
@@ -233,7 +234,7 @@ accounting.post('/journals/:id/reverse', requirePermission('create:accounting'),
 
   try {
     const reversalId = crypto.randomUUID()
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalTodayYmd()
 
     await db.transaction(async () => {
       // Insert reversal header

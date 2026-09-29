@@ -1,5 +1,6 @@
 import type { Db } from "../db";
 import { ServiceError } from "./errors";
+import { getLocalTodayYmd } from "../lib/dates";
 import type { CompanyEmployee, EWARequest, EwaQuotaInfo, EwaFeeTier } from "../../shared/types";
 
 export const EWA_MAX_PERCENTAGE = 50; // 50% from monthly base salary
@@ -549,7 +550,7 @@ export async function disburseEwa(
 
   if (sourceAccountId && payrollReceivableAcc?.id) {
     journalEntryId = crypto.randomUUID();
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalTodayYmd();
 
     // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
     await db.query(
@@ -878,7 +879,7 @@ export async function settlePayroll(
 
   if (bankAccountId && payrollReceivableAcc?.id && totalAmount > 0) {
     journalEntryId = crypto.randomUUID();
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalTodayYmd();
 
     // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
     await db.query(
