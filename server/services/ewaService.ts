@@ -532,15 +532,14 @@ export async function disburseEwa(
 
   let journalEntryId: string | null = null;
 
-  // Verify valid admin ID in admins table
+  // Verify valid admin ID for withdrawal_requests.disbursed_by (matching UUID or email)
   let validAdminId: string | null = null;
   if (adminId) {
-    const adminRow = await db.query("SELECT id FROM admins WHERE id = ?").get<{ id: string }>(adminId);
+    const adminRow = await db
+      .query("SELECT id FROM admins WHERE id = ? OR LOWER(email) = LOWER(?)")
+      .get<{ id: string }>(adminId, adminId);
     if (adminRow?.id) {
       validAdminId = adminRow.id;
-    } else {
-      const firstAdmin = await db.query("SELECT id FROM admins LIMIT 1").get<{ id: string }>();
-      validAdminId = firstAdmin?.id || null;
     }
   }
 
@@ -552,15 +551,15 @@ export async function disburseEwa(
     journalEntryId = crypto.randomUUID();
     const today = new Date().toISOString().split("T")[0];
 
+    // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
     await db.query(
       `INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by, created_at)
-       VALUES (?, ?, ?, 'ewa_disbursement', ?, ?, NOW())`
+       VALUES (?, ?, ?, 'ewa_disbursement', ?, NULL, NOW())`
     ).run(
       journalEntryId,
       today,
       `Pencairan EWA Kasbon Karyawan: ${req.employee_name} (${req.employee_nip})`,
-      requestId,
-      validAdminId
+      requestId
     );
 
     // Dr. Piutang Potong Gaji
@@ -881,27 +880,15 @@ export async function settlePayroll(
     journalEntryId = crypto.randomUUID();
     const today = new Date().toISOString().split("T")[0];
 
-    // Verify valid admin ID in admins table
-    let validAdminId: string | null = null;
-    if (adminId) {
-      const adminRow = await db.query("SELECT id FROM admins WHERE id = ?").get<{ id: string }>(adminId);
-      if (adminRow?.id) {
-        validAdminId = adminRow.id;
-      } else {
-        const firstAdmin = await db.query("SELECT id FROM admins LIMIT 1").get<{ id: string }>();
-        validAdminId = firstAdmin?.id || null;
-      }
-    }
-
+    // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
     await db.query(
       `INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by, created_at)
-       VALUES (?, ?, ?, 'ewa_payroll_settlement', ?, ?, NOW())`
+       VALUES (?, ?, ?, 'ewa_payroll_settlement', ?, NULL, NOW())`
     ).run(
       journalEntryId,
       today,
       `Pelunasan Payroll Potong Gaji EWA Periode ${periodMonth} (${recap.totalEmployees} Karyawan)`,
-      periodMonth,
-      validAdminId
+      periodMonth
     );
 
     // Dr. Kas / Bank (penerimaan uang pelunasan dari holding company)

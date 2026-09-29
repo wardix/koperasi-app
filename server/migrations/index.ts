@@ -34,6 +34,7 @@ import { createAddShuAverageSavingsMigration } from "./0036_add_shu_average_savi
 import { createAddLoanRejectionReasonMigration } from "./0037_add_loan_rejection_reason";
 import { createAddUserFeedbacksMigration } from "./0038_add_user_feedbacks";
 import { createSyncLetterSequencesMigration } from "./0039_sync_letter_sequences";
+import { createSetEwaJournalCreatorSystemMigration } from "./0040_set_ewa_journal_creator_system";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -86,6 +87,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddLoanRejectionReasonMigration(db),
     createAddUserFeedbacksMigration(db),
     createSyncLetterSequencesMigration(db),
+    createSetEwaJournalCreatorSystemMigration(db),
   ];
 }
 
