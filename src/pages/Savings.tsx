@@ -20,6 +20,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
 import {useApiQuery} from '../hooks/useApiQuery';
+import {apiFetch} from '../config';
 import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
@@ -314,7 +315,7 @@ export default function SavingsTemplate() {
                         onClose={() => dialog.hide()}
                         onConfirm={async (payload) => {
                           try {
-                            const res = await fetch(`/api/savings/withdrawals/${item.id}/approve`, {
+                            const res = await apiFetch(`/api/v1/savings/withdrawals/${item.id}/approve`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify(payload),
@@ -345,7 +346,7 @@ export default function SavingsTemplate() {
                         onClose={() => dialog.hide()}
                         onConfirm={async (rejectionReason) => {
                           try {
-                            const res = await fetch(`/api/savings/withdrawals/${item.id}/reject`, {
+                            const res = await apiFetch(`/api/v1/savings/withdrawals/${item.id}/reject`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ rejectionReason }),
@@ -525,7 +526,7 @@ export default function SavingsTemplate() {
                         onClose={() => dialog.hide()}
                         onConfirm={async (payload) => {
                           try {
-                            const res = await fetch(`/api/savings/deposits/${item.id}/approve`, {
+                            const res = await apiFetch(`/api/v1/savings/deposits/${item.id}/approve`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify(payload),
@@ -556,7 +557,7 @@ export default function SavingsTemplate() {
                         onClose={() => dialog.hide()}
                         onConfirm={async (reason) => {
                           try {
-                            const res = await fetch(`/api/savings/deposits/${item.id}/reject`, {
+                            const res = await apiFetch(`/api/v1/savings/deposits/${item.id}/reject`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ rejectionReason: reason }),
