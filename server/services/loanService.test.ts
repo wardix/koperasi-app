@@ -283,51 +283,57 @@ describe("loanService", () => {
     const principal = 10_000_000;
     const customRate = 12;
 
-    await db.run("UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'");
-    await db.run(
-      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
-    );
-    await db.run(
-      `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [loanId, memberId, loanName, principal, 12, "Test", "Menunggu", "2024-01-01T00:00:00.000Z"]
-    );
+    const origBunga = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | null;
+    try {
+      await db.run("UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'");
+      await db.run(
+        `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [memberId, loanName, "Anggota", "Aktif", "01 Jan 2024", 1000, 0, 0, 1000]
+      );
+      await db.run(
+        `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [loanId, memberId, loanName, principal, 12, "Test", "Menunggu", "2024-01-01T00:00:00.000Z"]
+      );
 
-    await updateLoanStatus(db, loanId, "Disetujui", {
-      approvedDate: "2024-01-01",
-      interestRate: customRate,
-    });
+      await updateLoanStatus(db, loanId, "Disetujui", {
+        approvedDate: "2024-01-01",
+        interestRate: customRate,
+      });
 
-    const loan = await db
-      .query("SELECT interestRate, monthlyPayment, totalAmount, interestAmount FROM loans WHERE id = ?")
-      .get<{
-        interestRate: number;
-        monthlyPayment: number;
-        totalAmount: number;
-        interestAmount: number;
-      }>(loanId);
+      const loan = await db
+        .query("SELECT interestRate, monthlyPayment, totalAmount, interestAmount FROM loans WHERE id = ?")
+        .get<{
+          interestRate: number;
+          monthlyPayment: number;
+          totalAmount: number;
+          interestAmount: number;
+        }>(loanId);
 
-    const expected = calculateLoanInterest(principal, 12, customRate);
-    expect(Number(loan?.interestRate)).toBe(customRate);
-    expect(Number(loan?.monthlyPayment)).toBe(expected.monthlyPayment);
-    expect(Number(loan?.totalAmount)).toBe(expected.totalAmount);
+      const expected = calculateLoanInterest(principal, 12, customRate);
+      expect(Number(loan?.interestRate)).toBe(customRate);
+      expect(Number(loan?.monthlyPayment)).toBe(expected.monthlyPayment);
+      expect(Number(loan?.totalAmount)).toBe(expected.totalAmount);
 
-    const schedules = await db
-      .query(
-        `SELECT installmentNo, principalAmount, interestAmount FROM loan_schedules
-         WHERE loanId = ? ORDER BY installmentNo ASC`
-      )
-      .all<{ installmentNo: number; principalAmount: number; interestAmount: number }>(loanId);
+      const schedules = await db
+        .query(
+          `SELECT installmentNo, principalAmount, interestAmount FROM loan_schedules
+           WHERE loanId = ? ORDER BY installmentNo ASC`
+        )
+        .all<{ installmentNo: number; principalAmount: number; interestAmount: number }>(loanId);
 
-    expect(schedules).toHaveLength(12);
-    // First month interest ≈ principal * monthly rate (declining balance)
-    expect(Number(schedules[0].interestAmount)).toBe(Math.round(principal * (customRate / 1200)));
-    expect(Number(schedules[0].principalAmount)).toBeLessThan(Number(schedules[1].principalAmount));
-    expect(Number(schedules[0].interestAmount)).toBeGreaterThan(Number(schedules[1].interestAmount));
-
-    await cleanupTestLoan(loanId, memberId);
+      expect(schedules).toHaveLength(12);
+      // First month interest ≈ principal * monthly rate (declining balance)
+      expect(Number(schedules[0].interestAmount)).toBe(Math.round(principal * (customRate / 1200)));
+      expect(Number(schedules[0].principalAmount)).toBeLessThan(Number(schedules[1].principalAmount));
+      expect(Number(schedules[0].interestAmount)).toBeGreaterThan(Number(schedules[1].interestAmount));
+    } finally {
+      if (origBunga?.value) {
+        await db.run("UPDATE settings SET value = ? WHERE key = 'bungaPinjaman'", [origBunga.value]);
+      }
+      await cleanupTestLoan(loanId, memberId);
+    }
   });
 
   test("updateLoanStatus Disetujui records auto-journal crediting selected paymentSourceAccountId", async () => {

@@ -13,12 +13,12 @@ describe("API Endpoints", () => {
   beforeAll(async () => {
     // Ensure migrations are applied and seed data is populated
     await import("./db");
-    await db.run("UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'");
     await cleanupTestMembers();
+    token = await sign({ sub: "super-admin-1", email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
   });
 
   test("setup token", async () => {
-    token = await sign({ sub: "super-admin-1", email: "test@example.com", role: "superadmin", exp: Math.floor(Date.now() / 1000) + 60 * 60 }, secretKey);
+    expect(token).toBeTruthy();
   });
 
   test("GET /api/v1/stats returns stats", async () => {
@@ -755,40 +755,49 @@ describe("API Endpoints", () => {
   });
 
   test("PUT /api/v1/settings allows valid keys and rejects invalid ones", async () => {
-    // 1. Valid settings update
-    const reqValid = new Request("http://localhost/api/v1/settings", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ koperasiName: "Koperasi Baru" })
-    });
-    const resValid = await server.fetch(reqValid);
-    expect(resValid.status).toBe(200);
-    const bodyValid = (await resValid.json()) as any;
-    expect(bodyValid.success).toBe(true);
+    const origSetting = await db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string } | null;
+    try {
+      // 1. Valid settings update
+      const reqValid = new Request("http://localhost/api/v1/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ koperasiName: "Koperasi Baru" })
+      });
+      const resValid = await server.fetch(reqValid);
+      expect(resValid.status).toBe(200);
+      const bodyValid = (await resValid.json()) as any;
+      expect(bodyValid.success).toBe(true);
 
-    // Verify it updated in DB
-    const setting = await db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string };
-    expect(setting.value).toBe("Koperasi Baru");
+      // Verify it updated in DB
+      const setting = await db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string };
+      expect(setting.value).toBe("Koperasi Baru");
 
-    // 2. Invalid settings update (injection attempt)
-    const reqInvalid = new Request("http://localhost/api/v1/settings", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ maliciousKey: "someValue" })
-    });
-    const resInvalid = await server.fetch(reqInvalid);
-    expect(resInvalid.status).toBe(400);
-    const bodyInvalid = (await resInvalid.json()) as any;
-    expect(bodyInvalid.success).toBe(false);
+      // 2. Invalid settings update (injection attempt)
+      const reqInvalid = new Request("http://localhost/api/v1/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ maliciousKey: "someValue" })
+      });
+      const resInvalid = await server.fetch(reqInvalid);
+      expect(resInvalid.status).toBe(400);
+      const bodyInvalid = (await resInvalid.json()) as any;
+      expect(bodyInvalid.success).toBe(false);
+    } finally {
+      if (origSetting?.value) {
+        await db.run("UPDATE settings SET value = ? WHERE key = 'koperasiName'", [origSetting.value]);
+      }
+    }
   });
 
   test("GET /api/v1/stats caching and invalidation works", async () => {
+    const origSetting = await db.query("SELECT value FROM settings WHERE key = 'koperasiName'").get() as { value: string } | null;
+
     // 1. Initial call to populate cache
     const req1 = new Request("http://localhost/api/v1/stats", {
       headers: { "Authorization": `Bearer ${token}` }
@@ -829,6 +838,9 @@ describe("API Endpoints", () => {
     } finally {
       // Clean up members table - revert changes
       await db.run("UPDATE members SET simpananSukarela = simpananSukarela - 1000000, totalSavings = totalSavings - 1000000");
+      if (origSetting?.value) {
+        await db.run("UPDATE settings SET value = ? WHERE key = 'koperasiName'", [origSetting.value]);
+      }
     }
   });
 

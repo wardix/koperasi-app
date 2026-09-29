@@ -54,6 +54,7 @@ describe('Loan Interest Snapshot', () => {
   })
 
   it('should not change loan terms when bungaPinjaman setting is updated', async () => {
+    const origBunga = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get() as { value: string } | null;
     // Get initial snapshot values
     const initialLoan = await db.query("SELECT interestRate, totalAmount FROM loans WHERE id = ?").get(approvedLoanId) as any;
 
@@ -68,7 +69,9 @@ describe('Loan Interest Snapshot', () => {
       expect(Number(updatedLoan.totalAmount)).toBe(Number(initialLoan.totalAmount));
     } finally {
       // Restore setting to avoid test pollution
-      await db.run(`UPDATE settings SET value = '18' WHERE key = 'bungaPinjaman'`);
+      if (origBunga?.value) {
+        await db.run("UPDATE settings SET value = ? WHERE key = 'bungaPinjaman'", [origBunga.value]);
+      }
     }
   })
 
