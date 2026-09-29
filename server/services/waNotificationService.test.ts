@@ -13,6 +13,7 @@ import {
   notifySavingsDeposit,
   notifyLoanApplication,
   notifyLoanRejection,
+  notifyNewFeedback,
 } from './waNotificationService';
 
 describe('WhatsApp Notification Service', () => {
@@ -510,6 +511,47 @@ describe('WhatsApp Notification Service', () => {
       expect(sentText).toContain('Rp 3.000.000');
       expect(sentText).toContain('Dokumen pendukung belum lengkap');
       expect(targetRecipient).toBe('628123999999');
+    });
+
+    it('notifyNewFeedback builds message with category, user details, and URL', async () => {
+      let sentText = '';
+      let targetRecipient = '';
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body);
+        sentText = body.text;
+        targetRecipient = body.to;
+        return new Response('ok');
+      }) as any;
+
+      const mockDb: any = {
+        query: () => ({
+          all: async () => [
+            { key: 'waNotificationEnabled', value: 'true' },
+            { key: 'waWebhookUrl', value: 'https://gateway.mock' },
+            { key: 'waNotificationTarget', value: '628123456789' },
+          ],
+        }),
+      };
+
+      process.env.APP_URL = 'https://portal.example.com';
+
+      await notifyNewFeedback({
+        userName: 'Budi Pratama',
+        userRole: 'member',
+        type: 'bug',
+        title: 'Tombol tidak bisa diklik',
+        description: 'Saat mau mengajukan pinjaman terjadi error jaringan',
+        pageUrl: '/member/loans',
+        db: mockDb,
+      });
+
+      expect(targetRecipient).toBe('628123456789');
+      expect(sentText).toContain('*Budi Pratama* (member)');
+      expect(sentText).toContain('🐛 Laporan Kendala (Bug)');
+      expect(sentText).toContain('Tombol tidak bisa diklik');
+      expect(sentText).toContain('Saat mau mengajukan pinjaman terjadi error jaringan');
+      expect(sentText).toContain('/member/loans');
+      expect(sentText).toContain('https://portal.example.com/feedbacks');
     });
   });
 });

@@ -417,3 +417,50 @@ export async function notifyLoanRejection(params: {
     sendWaNotification(msg, { db: params.db, overrideTarget: params.memberPhone }).catch(() => {});
   }
 }
+
+export async function notifyNewFeedback(params: {
+  userName: string;
+  userRole?: string;
+  type: string;
+  title?: string | null;
+  description: string;
+  pageUrl?: string | null;
+  db?: Db;
+}): Promise<boolean> {
+  const baseUrl = getAppBaseUrl();
+  const cta = baseUrl ? `\n\nSilakan periksa & tindak lanjuti:\n🔗 ${baseUrl}/feedbacks` : '';
+
+  let categoryLabel = '💬 Masukan Umum';
+  if (params.type === 'bug') {
+    categoryLabel = '🐛 Laporan Kendala (Bug)';
+  } else if (params.type === 'feature') {
+    categoryLabel = '💡 Usulan Fitur Baru';
+  }
+
+  const roleStr = params.userRole ? ` (${params.userRole})` : '';
+  const titleStr = params.title ? `\n• Judul: *${params.title}*` : '';
+  const pageStr = params.pageUrl ? `\n• Halaman: ${params.pageUrl}` : '';
+
+  const cleanDesc = params.description.trim();
+  const truncatedDesc = cleanDesc.length > 300 ? cleanDesc.slice(0, 300) + '...' : cleanDesc;
+
+  const msg =
+    `🔔 *[Koperasi] Masukan / Laporan Pengguna Baru*\n\n` +
+    `Masukan baru dari: *${params.userName}*${roleStr}\n` +
+    `• Kategori: *${categoryLabel}*` +
+    titleStr +
+    `\n• Pesan:\n"${truncatedDesc}"` +
+    pageStr +
+    cta;
+
+  let sent = false;
+  try {
+    sent = await sendWaNotification(msg, { db: params.db });
+    if (!sent) {
+      console.warn(`[WA-Notification] notifyNewFeedback: delivery failed or disabled for feedback from ${params.userName}`);
+    }
+  } catch (err: any) {
+    console.warn(`[WA-Notification] notifyNewFeedback encountered error:`, err?.message || err);
+  }
+  return sent;
+}
