@@ -69,4 +69,32 @@ describe("Shell Component", () => {
     renderShell();
     await waitFor(() => expect(screen.getByText("Kotak Masukan & Bug")).toBeTruthy());
   });
+
+  test("shows badge counters when pending actions exist", async () => {
+    localStorage.setItem("token", "test-token");
+    localStorage.setItem("role", "admin");
+    spyOn(apiModule.api, "get").mockImplementation(async (path: string) => {
+      if (path.includes("pending-actions")) {
+        return {
+          totalPending: 5,
+          pendingLoans: 2,
+          pendingEwa: 1,
+          pendingSavingsDeposits: 1,
+          pendingSavingsWithdrawals: 1,
+          openFeedbacks: 3,
+          overdueLoansCount: 4,
+        };
+      }
+      return {};
+    });
+    renderShell();
+    await waitFor(() => {
+      expect(screen.getByText("Kotak Masukan & Bug")).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText("2").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("3").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("4").length).toBeGreaterThan(0);
+    });
+  });
 });

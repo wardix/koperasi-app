@@ -17,6 +17,16 @@ export interface DashboardData {
   recentActivities: Array<{id: string; activity: string; name: string; amount: number; date: string}>;
 }
 
+export interface PendingActionsData {
+  totalPending: number;
+  pendingLoans: number;
+  pendingEwa: number;
+  pendingSavingsDeposits: number;
+  pendingSavingsWithdrawals: number;
+  openFeedbacks: number;
+  overdueLoansCount: number;
+}
+
 export interface PermissionDefinition {
   id: string;
   name: string;

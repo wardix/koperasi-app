@@ -213,4 +213,43 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
   return c.json({ success: true, data: cachedStats })
 })
 
+stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
+  const [
+    loansRes,
+    ewaRes,
+    depositsRes,
+    withdrawalsRes,
+    feedbacksRes,
+    overdueRes,
+  ] = await Promise.all([
+    db.query("SELECT COUNT(*) as count FROM loans WHERE status = 'Menunggu' AND deletedAt IS NULL").get<{ count: number | string }>(),
+    db.query("SELECT COUNT(*) as count FROM withdrawal_requests WHERE status IN ('pending_transfer', 'pending', 'approved')").get<{ count: number | string }>(),
+    db.query("SELECT COUNT(*) as count FROM savings_deposits WHERE status = 'Menunggu'").get<{ count: number | string }>(),
+    db.query("SELECT COUNT(*) as count FROM savings_withdrawals WHERE status = 'Menunggu'").get<{ count: number | string }>(),
+    db.query("SELECT COUNT(*) as count FROM user_feedbacks WHERE status = 'open'").get<{ count: number | string }>(),
+    db.query("SELECT COUNT(DISTINCT loanId) as count FROM loan_schedules WHERE status = 'Pending' AND dueDate < CURRENT_DATE").get<{ count: number | string }>(),
+  ]);
+
+  const pendingLoans = Number(loansRes?.count || 0);
+  const pendingEwa = Number(ewaRes?.count || 0);
+  const pendingSavingsDeposits = Number(depositsRes?.count || 0);
+  const pendingSavingsWithdrawals = Number(withdrawalsRes?.count || 0);
+  const openFeedbacks = Number(feedbacksRes?.count || 0);
+  const overdueLoansCount = Number(overdueRes?.count || 0);
+  const totalPending = pendingLoans + pendingEwa + pendingSavingsDeposits + pendingSavingsWithdrawals + openFeedbacks;
+
+  return c.json({
+    success: true,
+    data: {
+      totalPending,
+      pendingLoans,
+      pendingEwa,
+      pendingSavingsDeposits,
+      pendingSavingsWithdrawals,
+      openFeedbacks,
+      overdueLoansCount,
+    },
+  });
+})
+
 export default stats

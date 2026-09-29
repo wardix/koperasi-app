@@ -24,9 +24,10 @@ import {HomeIcon} from '@heroicons/react/24/solid';
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import React, { Suspense, type ReactNode } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
+import { Badge } from '@astryxdesign/core/Badge';
 import { useAuth } from '../hooks/useAuth';
 import type { Permission } from '../../shared/permissions';
-import type { SettingsData } from '../../shared/types';
+import type { SettingsData, PendingActionsData } from '../../shared/types';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -68,6 +69,7 @@ export default function Shell() {
   const { hasPermission, logout } = useAuth();
   const { mode, setMode } = useThemeMode();
   const { data: settings, refetch: refetchSettings } = useApiQuery<SettingsData>('/api/settings');
+  const { data: pendingActions, refetch: refetchPendingActions } = useApiQuery<PendingActionsData>('/api/v1/stats/pending-actions');
 
   const path = location.pathname;
   const isDark = mode === 'dark';
@@ -84,6 +86,19 @@ export default function Shell() {
     window.addEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
   }, [refetchSettings]);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      refetchPendingActions();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [refetchPendingActions]);
+
+  const pendingSavingsCount = (pendingActions?.pendingSavingsDeposits ?? 0) + (pendingActions?.pendingSavingsWithdrawals ?? 0);
+  const pendingEwaCount = pendingActions?.pendingEwa ?? 0;
+  const pendingLoansCount = pendingActions?.pendingLoans ?? 0;
+  const openFeedbacksCount = pendingActions?.openFeedbacks ?? 0;
+  const overdueLoansCount = pendingActions?.overdueLoansCount ?? 0;
 
   return (
     <AppShell
@@ -150,6 +165,9 @@ export default function Shell() {
               icon={FolderIcon} 
               isSelected={path === '/savings'}
               onClick={() => navigate('/savings')}
+              endContent={pendingSavingsCount > 0 ? (
+                <Badge variant="warning" size="sm" label={String(pendingSavingsCount)} />
+              ) : undefined}
             />
             <SideNavItem 
               label="Pinjaman" 
@@ -162,6 +180,9 @@ export default function Shell() {
               icon={BanknotesIcon} 
               isSelected={path === '/ewa'}
               onClick={() => navigate('/ewa')}
+              endContent={pendingEwaCount > 0 ? (
+                <Badge variant="warning" size="sm" label={String(pendingEwaCount)} />
+              ) : undefined}
             />
           </SideNavSection>
           <SideNavSection title="Keuangan">
@@ -199,6 +220,9 @@ export default function Shell() {
               icon={ClipboardDocumentCheckIcon} 
               isSelected={path === '/loans'}
               onClick={() => navigate('/loans')}
+              endContent={pendingLoansCount > 0 ? (
+                <Badge variant="critical" size="sm" label={String(pendingLoansCount)} />
+              ) : undefined}
             />
             <SideNavItem
               label="Buku Agenda Surat"
@@ -212,6 +236,9 @@ export default function Shell() {
                 icon={ExclamationTriangleIcon}
                 isSelected={path === '/npl'}
                 onClick={() => navigate('/npl')}
+                endContent={overdueLoansCount > 0 ? (
+                  <Badge variant="critical" size="sm" label={String(overdueLoansCount)} />
+                ) : undefined}
               />
             )}
           </SideNavSection>
@@ -243,6 +270,9 @@ export default function Shell() {
               icon={ChatBubbleLeftRightIcon}
               isSelected={path === '/feedbacks' || path === '/feedback'}
               onClick={() => navigate('/feedbacks')}
+              endContent={openFeedbacksCount > 0 ? (
+                <Badge variant="info" size="sm" label={String(openFeedbacksCount)} />
+              ) : undefined}
             />
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={logout} />
           </SideNavSection>

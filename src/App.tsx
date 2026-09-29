@@ -17,7 +17,9 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
 import {IconButton} from '@astryxdesign/core/IconButton';
+import {Badge} from '@astryxdesign/core/Badge';
 import React, {useState, useEffect} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
 import {formatRp, formatCompactRp, formatDate} from './utils/format';
@@ -41,12 +43,20 @@ import {
   ArrowPathIcon,
   ArrowUpIcon,
   ArrowDownIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ClipboardDocumentCheckIcon,
+  BanknotesIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ChatBubbleLeftRightIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import {StopIcon} from '@heroicons/react/24/solid';
 
 // ============= DATA & INTERFACES =============
 
-import type {DashboardData} from '../shared/types';
+import type {DashboardData, PendingActionsData} from '../shared/types';
 import { chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps } from './design/chartTheme';
 
 // ============= CHART COMPONENTS =============
@@ -221,13 +231,191 @@ function DashboardSkeleton() {
   );
 }
 
+// ============= PENDING ACTIONS COMPONENT =============
+
+function PendingActionsWidget({
+  data,
+  onNavigate,
+}: {
+  data: PendingActionsData;
+  onNavigate: (path: string) => void;
+}) {
+  const items = [
+    {
+      id: 'loans',
+      title: 'Persetujuan Pinjaman',
+      count: data.pendingLoans,
+      badgeLabel: `${data.pendingLoans} Permohonan`,
+      badgeVariant: 'critical' as const,
+      description: 'Permohonan pinjaman baru menunggu verifikasi & persetujuan pengurus.',
+      path: '/loans',
+      buttonLabel: 'Tinjau Pinjaman',
+      icon: ClipboardDocumentCheckIcon,
+    },
+    {
+      id: 'ewa',
+      title: 'Pencairan Gaji Awal (EWA)',
+      count: data.pendingEwa,
+      badgeLabel: `${data.pendingEwa} Antrean`,
+      badgeVariant: 'warning' as const,
+      description: 'Permohonan pencairan gaji awal (EWA) siap ditransfer dan diverifikasi.',
+      path: '/ewa',
+      buttonLabel: 'Buka EWA',
+      icon: BanknotesIcon,
+    },
+    {
+      id: 'savings-deposits',
+      title: 'Setoran Simpanan Sukarela',
+      count: data.pendingSavingsDeposits,
+      badgeLabel: `${data.pendingSavingsDeposits} Setoran`,
+      badgeVariant: 'primary' as const,
+      description: 'Setoran simpanan masuk menunggu verifikasi bukti transfer.',
+      path: '/savings',
+      buttonLabel: 'Verifikasi Setoran',
+      icon: ArrowDownTrayIcon,
+    },
+    {
+      id: 'savings-withdrawals',
+      title: 'Penarikan Simpanan Sukarela',
+      count: data.pendingSavingsWithdrawals,
+      badgeLabel: `${data.pendingSavingsWithdrawals} Penarikan`,
+      badgeVariant: 'warning' as const,
+      description: 'Permohonan penarikan simpanan menunggu transfer & persetujuan.',
+      path: '/savings',
+      buttonLabel: 'Proses Penarikan',
+      icon: ArrowUpTrayIcon,
+    },
+    {
+      id: 'feedbacks',
+      title: 'Kotak Masukan & Bug',
+      count: data.openFeedbacks,
+      badgeLabel: `${data.openFeedbacks} Masukan Baru`,
+      badgeVariant: 'info' as const,
+      description: 'Laporan kendala, bug, atau masukan baru dari anggota koperasi.',
+      path: '/feedbacks',
+      buttonLabel: 'Lihat Masukan',
+      icon: ChatBubbleLeftRightIcon,
+    },
+    {
+      id: 'npl',
+      title: 'Kredit Macet / Jatuh Tempo',
+      count: data.overdueLoansCount,
+      badgeLabel: `${data.overdueLoansCount} Terlambat`,
+      badgeVariant: 'critical' as const,
+      description: 'Cicilan pinjaman yang telah melewati tanggal jatuh tempo pembayaran.',
+      path: '/npl',
+      buttonLabel: 'Tinjau NPL',
+      icon: ExclamationTriangleIcon,
+    },
+  ];
+
+  const activeItems = items.filter((item) => item.count > 0);
+  const totalCount = data.totalPending + data.overdueLoansCount;
+
+  if (totalCount === 0) {
+    return (
+      <Card style={{ borderLeft: '4px solid var(--color-success, #16a34a)', padding: '16px 20px' }}>
+        <HStack gap={3} vAlign="center">
+          <Icon icon={CheckCircleIcon} size="md" color="success" />
+          <VStack gap={1}>
+            <HStack gap={2} vAlign="center">
+              <Heading level={4}>Semua Antrean Bersih</Heading>
+              <Badge variant="success" size="sm" label="Semua Tertangani" />
+            </HStack>
+            <Text type="supporting" color="secondary">
+              Tidak ada permohonan tertunda atau cicilan jatuh tempo yang memerlukan perhatian pengurus saat ini.
+            </Text>
+          </VStack>
+        </HStack>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      style={{
+        borderLeft: '4px solid var(--color-warning-500, #f59e0b)',
+        backgroundColor: 'var(--color-background-secondary, rgba(0, 0, 0, 0.02))',
+        padding: '20px',
+      }}
+    >
+      <VStack gap={4}>
+        <HStack hAlign="between" vAlign="center" style={{ flexWrap: 'wrap', gap: '8px' }}>
+          <HStack gap={3} vAlign="center">
+            <Icon icon={ExclamationTriangleIcon} size="md" color="warning" />
+            <VStack gap={1}>
+              <HStack gap={2} vAlign="center">
+                <Heading level={3}>Tindakan yang Memerlukan Perhatian</Heading>
+                <Badge
+                  variant={data.pendingLoans > 0 || data.overdueLoansCount > 0 ? 'critical' : 'warning'}
+                  size="sm"
+                  label={`${totalCount} Perlu Ditindaklanjuti`}
+                />
+              </HStack>
+              <Text type="supporting" color="secondary">
+                Tinjau dan tindak lanjuti permohonan anggota serta tugas operasional koperasi di bawah ini:
+              </Text>
+            </VStack>
+          </HStack>
+        </HStack>
+
+        <Grid columns={{ minWidth: 260, repeat: 'fit' }} gap={3}>
+          {activeItems.map((item) => (
+            <Card
+              key={item.id}
+              className="hover-card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                padding: '16px',
+                backgroundColor: 'var(--color-background-primary, #ffffff)',
+                border: '1px solid var(--color-border-primary, rgba(0, 0, 0, 0.08))',
+              }}
+            >
+              <VStack gap={3}>
+                <HStack hAlign="between" vAlign="start" gap={2}>
+                  <HStack gap={2} vAlign="center">
+                    <Icon icon={item.icon} size="sm" />
+                    <Heading level={4}>{item.title}</Heading>
+                  </HStack>
+                  <Badge variant={item.badgeVariant} size="sm" label={item.badgeLabel} />
+                </HStack>
+                <Text type="supporting" color="secondary">
+                  {item.description}
+                </Text>
+              </VStack>
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  label={item.buttonLabel}
+                  size="sm"
+                  variant="secondary"
+                  endContent={<Icon icon={ArrowRightIcon} size="xsm" />}
+                  onClick={() => onNavigate(item.path)}
+                />
+              </div>
+            </Card>
+          ))}
+        </Grid>
+      </VStack>
+    </Card>
+  );
+}
+
 // ============= MAIN COMPONENT =============
 
 export default function DashboardTemplate() {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<
     Array<{ label: string; value: string; change?: string; positive?: boolean }>
   >([]);
   const { data: dashboardData, isLoading, error, refetch: fetchStats } = useApiQuery<DashboardData>('/api/stats');
+  const { data: pendingActions, refetch: fetchPending } = useApiQuery<PendingActionsData>('/api/v1/stats/pending-actions');
+
+  const handleRefresh = () => {
+    fetchStats();
+    fetchPending();
+  };
 
   useEffect(() => {
     if (dashboardData) {
@@ -261,15 +449,20 @@ export default function DashboardTemplate() {
               label="Muat Ulang"
               variant="ghost"
               icon={<Icon icon={ArrowPathIcon} size="sm" />}
-              onClick={fetchStats}
+              onClick={handleRefresh}
             />
           </HStack>
         </LayoutHeader>
       }
       content={
         <LayoutContent padding={4}>
-          <DataStateView isLoading={isLoading} error={error} onRetry={fetchStats} errorTitle="Gagal Memuat Dasbor" loadingComponent={<DashboardSkeleton />}>
+          <DataStateView isLoading={isLoading} error={error} onRetry={handleRefresh} errorTitle="Gagal Memuat Dasbor" loadingComponent={<DashboardSkeleton />}>
           <VStack gap={6}>
+            {/* Pending Actions / Action Items */}
+            {pendingActions && (
+              <PendingActionsWidget data={pendingActions} onNavigate={navigate} />
+            )}
+
             {/* Trend Chart */}
             <VStack gap={4}>
               <Heading level={3}>Tren Pertumbuhan Koperasi</Heading>
