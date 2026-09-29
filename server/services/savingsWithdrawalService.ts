@@ -288,6 +288,9 @@ export async function approveSavingsWithdrawal(
         sw.id,
         sw.member_id as "memberId",
         m.name as "memberName",
+        m.phone as "memberPhone",
+        m.nik as "memberCode",
+        a.name as "paymentSourceName",
         sw.amount::double precision as amount,
         sw.destination_bank as "destinationBank",
         sw.destination_account as "destinationAccount",
@@ -302,6 +305,7 @@ export async function approveSavingsWithdrawal(
         sw.updated_at as "updatedAt"
       FROM savings_withdrawals sw
       LEFT JOIN members m ON sw.member_id = m.id
+      LEFT JOIN accounts a ON sw.payment_source_account_id = a.id
       WHERE sw.id = ?`
     )
     .get<any>(id);
@@ -353,6 +357,8 @@ export async function rejectSavingsWithdrawal(
         sw.id,
         sw.member_id as "memberId",
         m.name as "memberName",
+        m.phone as "memberPhone",
+        m.nik as "memberCode",
         sw.amount::double precision as amount,
         sw.destination_bank as "destinationBank",
         sw.destination_account as "destinationAccount",

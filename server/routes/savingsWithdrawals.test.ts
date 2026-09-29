@@ -186,4 +186,44 @@ describe("Savings Withdrawals API Endpoints", () => {
     expect(Number(member.simpananSukarela)).toBe(600000);
     expect(Number(member.totalSavings)).toBe(1300000);
   });
+
+  test("POST /api/v1/savings/withdrawals/:id/reject rejects request", async () => {
+    // Submit a new withdrawal request to reject
+    const submitRes = await server.fetch(
+      new Request("http://localhost/api/v1/portal/savings/withdraw", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${memberToken}`,
+        },
+        body: JSON.stringify({
+          amount: 100000,
+          destinationBank: "Bank Mandiri",
+          destinationAccount: "1234567890",
+          destinationName: "Anggota Uji Penarikan",
+        }),
+      })
+    );
+    expect(submitRes.status).toBe(201);
+    const submitBody = await submitRes.json();
+    const rejectId = submitBody.data.id;
+
+    const res = await server.fetch(
+      new Request(`http://localhost/api/v1/savings/withdrawals/${rejectId}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          rejectionReason: "Rekening tujuan tidak sesuai",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.status).toBe("Ditolak");
+    expect(body.data.rejectionReason).toBe("Rekening tujuan tidak sesuai");
+  });
 });

@@ -8,6 +8,8 @@ import {
   notifyEwaRequest,
   notifyEwaDisbursed,
   notifySavingsWithdrawal,
+  notifySavingsWithdrawalApproved,
+  notifySavingsWithdrawalRejected,
   notifySavingsDeposit,
   notifyLoanApplication,
   notifyLoanRejection,
@@ -327,6 +329,83 @@ describe('WhatsApp Notification Service', () => {
       expect(sentText).toContain('Jane Smith');
       expect(sentText).toContain('Rp 1.000.000');
       expect(sentText).toContain('https://portal.example.com/savings');
+    });
+
+    it('notifySavingsWithdrawalApproved builds confirmation message with bank breakdown', async () => {
+      const sentMessages: Array<{ target: string; text: string }> = [];
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body);
+        sentMessages.push({ target: body.to, text: body.text });
+        return new Response('ok');
+      }) as any;
+
+      const mockDb: any = {
+        query: () => ({
+          all: async () => [
+            { key: 'waNotificationEnabled', value: 'true' },
+            { key: 'waWebhookUrl', value: 'https://gateway.mock' },
+            { key: 'waNotificationTarget', value: '628123456789' },
+          ],
+        }),
+      };
+
+      await notifySavingsWithdrawalApproved({
+        memberName: 'Jane Smith',
+        memberCode: '0201999',
+        memberPhone: '62899887766',
+        amount: 500000,
+        destinationBank: 'Bank Mandiri',
+        destinationAccount: '1234567890',
+        destinationName: 'Jane Smith',
+        paymentSourceName: 'Kas Operasional',
+        approvedBy: 'Admin Koperasi',
+        db: mockDb,
+      });
+
+      expect(sentMessages.length).toBe(2);
+      expect(sentMessages[0].target).toBe('628123456789'); // Pengurus target
+      expect(sentMessages[0].text).toContain('*Jane Smith* (0201999)');
+      expect(sentMessages[0].text).toContain('Rp 500.000');
+      expect(sentMessages[0].text).toContain('Bank Mandiri - 1234567890 (a.n Jane Smith)');
+      expect(sentMessages[0].text).toContain('Kas Operasional');
+      expect(sentMessages[0].text).toContain('Admin Koperasi');
+
+      expect(sentMessages[1].target).toBe('62899887766'); // Member target
+      expect(sentMessages[1].text).toContain('Rp 500.000');
+    });
+
+    it('notifySavingsWithdrawalRejected builds rejection message with reason', async () => {
+      let sentTarget = '';
+      let sentText = '';
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body);
+        sentTarget = body.to;
+        sentText = body.text;
+        return new Response('ok');
+      }) as any;
+
+      const mockDb: any = {
+        query: () => ({
+          all: async () => [
+            { key: 'waNotificationEnabled', value: 'true' },
+            { key: 'waWebhookUrl', value: 'https://gateway.mock' },
+            { key: 'waNotificationTarget', value: '628123456789' },
+          ],
+        }),
+      };
+
+      await notifySavingsWithdrawalRejected({
+        memberName: 'Jane Smith',
+        memberPhone: '62899887766',
+        amount: 500000,
+        reason: 'Saldo simpanan sukarela tidak mencukupi',
+        db: mockDb,
+      });
+
+      expect(sentTarget).toBe('62899887766');
+      expect(sentText).toContain('Jane Smith');
+      expect(sentText).toContain('Rp 500.000');
+      expect(sentText).toContain('Saldo simpanan sukarela tidak mencukupi');
     });
 
     it('notifySavingsDeposit builds message for transfer deposit confirmation', async () => {

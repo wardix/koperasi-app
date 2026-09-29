@@ -22,6 +22,10 @@ import {
   approveSavingsDeposit,
   rejectSavingsDeposit,
 } from '../services/savingsDepositService'
+import {
+  notifySavingsWithdrawalApproved,
+  notifySavingsWithdrawalRejected,
+} from '../services/waNotificationService'
 import { audit, getActor, getClientIp } from '../lib/audit'
 import { clearStatsCache } from './stats'
 
@@ -175,6 +179,19 @@ savings.post('/withdrawals/:id/approve', requirePermission('update:savings'), as
 
     clearStatsCache()
 
+    notifySavingsWithdrawalApproved({
+      memberName: result.memberName || 'Anggota',
+      memberCode: result.memberCode,
+      memberPhone: result.memberPhone,
+      amount: result.amount,
+      destinationBank: result.destinationBank,
+      destinationAccount: result.destinationAccount,
+      destinationName: result.destinationName,
+      paymentSourceName: result.paymentSourceName,
+      approvedBy: actor,
+      db,
+    }).catch((err) => console.warn('[WA-Notification] Failed to notify savings withdrawal approval:', err));
+
     return c.json({
       success: true,
       message: `Penarikan simpanan sukarela sebesar Rp ${Number(result.amount).toLocaleString('id-ID')} berhasil disetujui dan dibukukan.`,
@@ -218,6 +235,14 @@ savings.post('/withdrawals/:id/reject', requirePermission('update:savings'), asy
     })
 
     clearStatsCache()
+
+    notifySavingsWithdrawalRejected({
+      memberName: result.memberName || 'Anggota',
+      memberPhone: result.memberPhone,
+      amount: result.amount,
+      reason: parsed.data.rejectionReason,
+      db,
+    }).catch((err) => console.warn('[WA-Notification] Failed to notify savings withdrawal rejection:', err));
 
     return c.json({
       success: true,

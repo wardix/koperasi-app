@@ -261,7 +261,7 @@ export async function notifySavingsWithdrawal(params: {
   memberCode?: string;
   amount: number;
   db?: Db;
-}) {
+}): Promise<boolean> {
   const baseUrl = getAppBaseUrl();
   const cta = baseUrl ? `\n\nSilakan periksa & proses:\n🔗 ${baseUrl}/savings` : '';
   const codeStr = params.memberCode ? ` (${params.memberCode})` : '';
@@ -270,7 +270,98 @@ export async function notifySavingsWithdrawal(params: {
     `*${params.memberName}*${codeStr} mengajukan penarikan Simpanan Sukarela sebesar *${formatRupiah(params.amount)}*.` +
     cta;
 
-  sendWaNotification(msg, { db: params.db }).catch(() => {});
+  try {
+    const success = await sendWaNotification(msg, { db: params.db });
+    if (!success) {
+      console.warn(`[WA-Notification] notifySavingsWithdrawal: delivery failed or disabled for ${params.memberName}`);
+    }
+    return success;
+  } catch (err: any) {
+    console.warn(`[WA-Notification] notifySavingsWithdrawal encountered error:`, err?.message || err);
+    return false;
+  }
+}
+
+export async function notifySavingsWithdrawalApproved(params: {
+  memberName: string;
+  memberCode?: string;
+  memberPhone?: string;
+  amount: number;
+  destinationBank?: string;
+  destinationAccount?: string;
+  destinationName?: string;
+  paymentSourceName?: string;
+  approvedBy?: string;
+  db?: Db;
+}): Promise<boolean> {
+  const codeStr = params.memberCode ? ` (${params.memberCode})` : '';
+  const bankParts = [params.destinationBank, params.destinationAccount].filter(Boolean);
+  const bankStr =
+    bankParts.length > 0
+      ? `\n• Rekening Tujuan: *${bankParts.join(' - ')}${params.destinationName ? ` (a.n ${params.destinationName})` : ''}*`
+      : '';
+  const sourceStr = params.paymentSourceName ? `\n• Sumber Dana: *${params.paymentSourceName}*` : '';
+  const adminStr = params.approvedBy ? `\n• Diproses oleh: *${params.approvedBy}*` : '';
+
+  const msg =
+    `✅ *[Koperasi] Pencairan Simpanan Sukarela Berhasil*\n\n` +
+    `Permohonan penarikan Simpanan Sukarela atas nama *${params.memberName}*${codeStr} telah disetujui dan dicairkan.\n\n` +
+    `📋 *Rincian Pencairan:*\n` +
+    `• Nominal Penarikan: *${formatRupiah(params.amount)}*` +
+    bankStr +
+    sourceStr +
+    adminStr +
+    `\n\nStatus transaksi: *Disetujui / Selesai*`;
+
+  let sent = false;
+  try {
+    // 1. Notify pengurus target
+    sent = await sendWaNotification(msg, { db: params.db });
+    if (!sent) {
+      console.warn(`[WA-Notification] notifySavingsWithdrawalApproved: delivery failed or disabled for pengurus target`);
+    }
+
+    // 2. Also notify member's personal WhatsApp if phone is recorded
+    if (params.memberPhone) {
+      const memberSent = await sendWaNotification(msg, { db: params.db, overrideTarget: params.memberPhone });
+      if (!memberSent) {
+        console.warn(`[WA-Notification] notifySavingsWithdrawalApproved: delivery failed to member phone: ${params.memberPhone}`);
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[WA-Notification] notifySavingsWithdrawalApproved encountered error:`, err?.message || err);
+  }
+  return sent;
+}
+
+export async function notifySavingsWithdrawalRejected(params: {
+  memberName: string;
+  memberPhone?: string;
+  amount: number;
+  reason: string;
+  db?: Db;
+}): Promise<boolean> {
+  const msg =
+    `ℹ️ *[Koperasi] Permohonan Penarikan Simpanan Ditolak*\n\n` +
+    `Halo *${params.memberName}*,\n` +
+    `Mohon maaf, permohonan penarikan Simpanan Sukarela Anda sebesar *${formatRupiah(params.amount)}* belum dapat disetujui.\n\n` +
+    `*Alasan Penolakan:*\n${params.reason}\n\n` +
+    `Untuk informasi lebih lanjut, silakan menghubungi pengurus koperasi.`;
+
+  let sent = false;
+  try {
+    if (params.memberPhone) {
+      sent = await sendWaNotification(msg, { db: params.db, overrideTarget: params.memberPhone });
+      if (!sent) {
+        console.warn(`[WA-Notification] notifySavingsWithdrawalRejected: delivery failed to member phone: ${params.memberPhone}`);
+      }
+    } else {
+      sent = await sendWaNotification(msg, { db: params.db });
+    }
+  } catch (err: any) {
+    console.warn(`[WA-Notification] notifySavingsWithdrawalRejected encountered error:`, err?.message || err);
+  }
+  return sent;
 }
 
 export async function notifySavingsDeposit(params: {

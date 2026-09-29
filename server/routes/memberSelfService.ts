@@ -292,9 +292,10 @@ memberSelfService.post('/savings/withdraw', async (c) => {
   try {
     const result = await createSavingsWithdrawalRequest(db, memberId, parsed.data);
 
-    const member = await db.query("SELECT name FROM members WHERE id = ?").get<{ name: string }>(memberId);
-    notifySavingsWithdrawal({
+    const member = await db.query("SELECT name, nik FROM members WHERE id = ?").get<{ name: string; nik?: string }>(memberId);
+    await notifySavingsWithdrawal({
       memberName: member?.name || 'Anggota',
+      memberCode: member?.nik || undefined,
       amount: parsed.data.amount,
       db,
     });
