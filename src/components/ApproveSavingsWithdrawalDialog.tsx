@@ -4,6 +4,7 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
+import { CopyableAccountNumber } from './CopyableAccountNumber';
 import type { SavingsWithdrawalRow } from '../shared/types';
 
 interface Props {
@@ -71,11 +72,13 @@ export function ApproveSavingsWithdrawalDialogContent({
             <Text type="supporting" color="secondary">Nominal Penarikan:</Text>
             <Text type="body" weight="bold" color="primary">{formatRp(withdrawal.amount)}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
-            <Text type="supporting" color="secondary">Rekening Tujuan:</Text>
-            <Text type="body" weight="medium">
-              {withdrawal.destinationBank} - {withdrawal.destinationAccount} (a.n. {withdrawal.destinationName})
-            </Text>
+          <HStack justify="space-between" vAlign="flex-start">
+            <Text type="supporting" color="secondary" style={{ paddingTop: 2 }}>Rekening Tujuan:</Text>
+            <CopyableAccountNumber
+              bankName={withdrawal.destinationBank}
+              accountNumber={withdrawal.destinationAccount}
+              accountHolder={withdrawal.destinationName}
+            />
           </HStack>
           {withdrawal.notes && (
             <HStack justify="space-between" vAlign="flex-start">

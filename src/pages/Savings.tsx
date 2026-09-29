@@ -22,6 +22,7 @@ import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {apiFetch} from '../config';
 import {formatRp} from '../utils/format';
+import {CopyableAccountNumber} from '../components/CopyableAccountNumber';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 import {useA11yDialog} from '../hooks/useA11yDialog';
@@ -266,12 +267,11 @@ export default function SavingsTemplate() {
       header: 'Rekening Tujuan',
       width: proportional(2.5),
       renderCell: (item: SavingsWithdrawalRow) => (
-        <VStack gap={0}>
-          <Text type="body" weight="medium">{item.destinationBank} - {item.destinationAccount}</Text>
-          <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
-            a.n. {item.destinationName}
-          </Text>
-        </VStack>
+        <CopyableAccountNumber
+          bankName={item.destinationBank}
+          accountNumber={item.destinationAccount}
+          accountHolder={item.destinationName}
+        />
       ),
     },
     {
