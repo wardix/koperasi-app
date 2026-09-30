@@ -3,6 +3,7 @@ import db from '../db'
 import type { MemberRow, GroupCount, MonthTotal } from '../db/entities'
 import type { DashboardData } from '../../shared/types'
 import { requirePermission } from '../middleware'
+import { getPaymentTolerance } from '../services/loanService'
 
 const stats = new Hono()
 
@@ -214,6 +215,8 @@ stats.get('/', requirePermission('read:stats'), async (c) => {
 })
 
 stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
+  const tolerance = getPaymentTolerance();
+
   const [
     loansRes,
     ewaRes,
@@ -233,14 +236,35 @@ stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
     db.query("SELECT COUNT(*) as count FROM savings_deposits WHERE status = 'Menunggu'").get<{ count: number | string }>(),
     db.query("SELECT COUNT(*) as count FROM savings_withdrawals WHERE status = 'Menunggu'").get<{ count: number | string }>(),
     db.query("SELECT COUNT(*) as count FROM user_feedbacks WHERE status = 'open'").get<{ count: number | string }>(),
-    db.query("SELECT COUNT(DISTINCT loanId) as count FROM loan_schedules WHERE status = 'Pending' AND dueDate < CURRENT_DATE").get<{ count: number | string }>(),
+    db.query(`
+      SELECT COUNT(DISTINCT ls.loanId) as count 
+      FROM loan_schedules ls
+      JOIN loans l ON l.id = ls.loanId
+      WHERE l.status IN ('Disetujui', 'Macet')
+        AND l.deletedAt IS NULL
+        AND ls.status != 'Paid'
+        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+        AND ls.dueDate < CURRENT_DATE
+    `).get<{ count: number | string }>(tolerance),
 
     db.query("SELECT id, name, amount, createdAt FROM loans WHERE status = 'Menunggu' AND deletedAt IS NULL ORDER BY createdAt DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
     db.query("SELECT id, destination_account_holder as name, amount, requested_at as \"createdAt\" FROM withdrawal_requests WHERE status IN ('pending_transfer', 'pending', 'approved') ORDER BY requested_at DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
     db.query("SELECT id, sender_name as name, amount, created_at as \"createdAt\" FROM savings_deposits WHERE status = 'Menunggu' ORDER BY created_at DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
     db.query("SELECT id, destination_name as name, amount, created_at as \"createdAt\" FROM savings_withdrawals WHERE status = 'Menunggu' ORDER BY created_at DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
     db.query("SELECT id, type, title, user_name as name, created_at as \"createdAt\" FROM user_feedbacks WHERE status = 'open' ORDER BY created_at DESC LIMIT 5").all<{ id: string; type: string; title: string; name: string; createdAt: string }>(),
-    db.query("SELECT ls.id, ls.loanId, ls.installmentNo, (ls.principalAmount + ls.interestAmount) as amount, ls.dueDate as \"createdAt\", l.name FROM loan_schedules ls JOIN loans l ON l.id = ls.loanId WHERE ls.status = 'Pending' AND ls.dueDate < CURRENT_DATE ORDER BY ls.dueDate ASC LIMIT 5").all<{ id: string; loanId: string; installmentNo: number; amount: number; createdAt: string; name: string }>(),
+    db.query(`
+      SELECT ls.id, ls.loanId, ls.installmentNo, 
+             (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) as amount, 
+             ls.dueDate as "createdAt", l.name 
+      FROM loan_schedules ls 
+      JOIN loans l ON l.id = ls.loanId 
+      WHERE l.status IN ('Disetujui', 'Macet')
+        AND l.deletedAt IS NULL
+        AND ls.status != 'Paid' 
+        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
+        AND ls.dueDate < CURRENT_DATE 
+      ORDER BY ls.dueDate ASC LIMIT 5
+    `).all<{ id: string; loanId: string; installmentNo: number; amount: number; createdAt: string; name: string }>(tolerance),
   ]);
 
   const pendingLoans = Number(loansRes?.count || 0);
