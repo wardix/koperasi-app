@@ -6,7 +6,6 @@ import db from '../db';
 import type { UserFeedbackRow } from '../db/entities';
 import { secretKey } from '../middleware';
 import { createFeedbackSchema, updateFeedbackStatusSchema } from '../schemas';
-import { notifyNewFeedback } from '../services/waNotificationService';
 
 const feedbacks = new Hono();
 
@@ -129,17 +128,6 @@ feedbacks.post('/', async (c) => {
       effectiveUserEmail,
       effectiveUserRole
     );
-
-    // Trigger WhatsApp notification to pengurus
-    await notifyNewFeedback({
-      userName: effectiveUserName,
-      userRole: effectiveUserRole,
-      type,
-      title: title || undefined,
-      description,
-      pageUrl: pageUrl || undefined,
-      db,
-    }).catch((err) => console.warn('[WA-Notification] Failed to notify new feedback:', err));
 
     return c.json({
       success: true,
