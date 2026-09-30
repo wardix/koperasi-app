@@ -99,7 +99,7 @@ export function NotificationBell({
   const totalPending = pendingActions?.totalPending ?? 0;
   const overdueCount = pendingActions?.overdueLoansCount ?? 0;
   const totalCount = totalPending + overdueCount;
-  const hasCritical = (pendingActions?.pendingLoans ?? 0) > 0 || overdueCount > 0;
+  const hasCritical = overdueCount > 0;
   const items = pendingActions?.items ?? [];
 
   const handleItemClick = (route: string) => {
@@ -108,7 +108,7 @@ export function NotificationBell({
   };
 
   const categories = [
-    { label: 'Pinjaman', count: pendingActions?.pendingLoans ?? 0, route: '/loans', variant: 'critical' as const },
+    { label: 'Pinjaman', count: pendingActions?.pendingLoans ?? 0, route: '/loans', variant: 'warning' as const },
     { label: 'EWA', count: pendingActions?.pendingEwa ?? 0, route: '/ewa', variant: 'warning' as const },
     {
       label: 'Simpanan',
@@ -117,7 +117,7 @@ export function NotificationBell({
       variant: 'warning' as const,
     },
     { label: 'Masukan', count: pendingActions?.openFeedbacks ?? 0, route: '/feedbacks', variant: 'info' as const },
-    { label: 'Jatuh Tempo', count: overdueCount, route: '/npl', variant: 'critical' as const },
+    { label: 'Jatuh Tempo', count: overdueCount, route: '/npl', variant: 'error' as const },
   ].filter((c) => c.count > 0);
 
   const popoverContent = (
@@ -151,7 +151,7 @@ export function NotificationBell({
         <HStack gap={2} vAlign="center">
           {totalCount > 0 ? (
             <Badge
-              variant={hasCritical ? 'critical' : 'warning'}
+              variant={hasCritical ? 'error' : 'warning'}
               size="sm"
               label={`${totalCount} Menunggu`}
             />

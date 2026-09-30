@@ -36,7 +36,7 @@ describe("NotificationBell Component", () => {
         subtitle: "Permohonan baru pinjaman sebesar Rp 15.000.000",
         amount: 15000000,
         route: "/loans",
-        severity: "critical",
+        severity: "warning",
       },
       {
         id: "feedback-1",

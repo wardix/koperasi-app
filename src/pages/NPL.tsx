@@ -140,10 +140,10 @@ export default function NPLTemplate() {
       renderCell: (item: NplRow) => {
         const col = item.collectibility || (item.status === 'Macet' ? 'Macet' : item.dpd && item.dpd > 90 ? 'Macet' : 'Lancar');
         if (col === 'Macet') {
-          return <Badge variant="critical" label="Macet (Kol 5)" />;
+          return <Badge variant="error" label="Macet (Kol 5)" />;
         }
         if (col === 'Diragukan') {
-          return <Badge variant="critical" label="Diragukan (Kol 4)" />;
+          return <Badge variant="error" label="Diragukan (Kol 4)" />;
         }
         if (col === 'Kurang Lancar') {
           return <Badge variant="warning" label="Kurang Lancar (Kol 3)" />;

@@ -267,7 +267,7 @@ stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
       amount: Number(l.amount || 0),
       route: '/loans',
       date: l.createdAt ? new Date(l.createdAt).toISOString() : undefined,
-      severity: 'critical',
+      severity: 'warning',
     });
   }
 

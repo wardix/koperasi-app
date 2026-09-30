@@ -150,7 +150,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'bug':
-        return <Badge variant="critical" size="sm" label="Bug" />;
+        return <Badge variant="error" size="sm" label="Bug" />;
       case 'feature':
         return <Badge variant="info" size="sm" label="Usulan Fitur" />;
       default:

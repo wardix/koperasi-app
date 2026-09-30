@@ -229,7 +229,7 @@ export default function Shell() {
               isSelected={path === '/loans'}
               onClick={() => navigate('/loans')}
               endContent={pendingLoansCount > 0 ? (
-                <Badge variant="critical" size="sm" label={String(pendingLoansCount)} />
+                <Badge variant="warning" size="sm" label={String(pendingLoansCount)} />
               ) : undefined}
             />
             <SideNavItem
@@ -245,7 +245,7 @@ export default function Shell() {
                 isSelected={path === '/npl'}
                 onClick={() => navigate('/npl')}
                 endContent={overdueLoansCount > 0 ? (
-                  <Badge variant="critical" size="sm" label={String(overdueLoansCount)} />
+                  <Badge variant="error" size="sm" label={String(overdueLoansCount)} />
                 ) : undefined}
               />
             )}

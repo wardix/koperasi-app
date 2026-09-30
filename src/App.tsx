@@ -246,7 +246,7 @@ function PendingActionsWidget({
       title: 'Persetujuan Pinjaman',
       count: data.pendingLoans,
       badgeLabel: `${data.pendingLoans} Permohonan`,
-      badgeVariant: 'critical' as const,
+      badgeVariant: 'warning' as const,
       description: 'Permohonan pinjaman baru menunggu verifikasi & persetujuan pengurus.',
       path: '/loans',
       buttonLabel: 'Tinjau Pinjaman',
@@ -268,7 +268,7 @@ function PendingActionsWidget({
       title: 'Setoran Simpanan Sukarela',
       count: data.pendingSavingsDeposits,
       badgeLabel: `${data.pendingSavingsDeposits} Setoran`,
-      badgeVariant: 'primary' as const,
+      badgeVariant: 'warning' as const,
       description: 'Setoran simpanan masuk menunggu verifikasi bukti transfer.',
       path: '/savings',
       buttonLabel: 'Verifikasi Setoran',
@@ -301,7 +301,7 @@ function PendingActionsWidget({
       title: 'Kredit Macet / Jatuh Tempo',
       count: data.overdueLoansCount,
       badgeLabel: `${data.overdueLoansCount} Terlambat`,
-      badgeVariant: 'critical' as const,
+      badgeVariant: 'error' as const,
       description: 'Cicilan pinjaman yang telah melewati tanggal jatuh tempo pembayaran.',
       path: '/npl',
       buttonLabel: 'Tinjau NPL',
@@ -347,7 +347,7 @@ function PendingActionsWidget({
               <HStack gap={2} vAlign="center">
                 <Heading level={3}>Tindakan yang Memerlukan Perhatian</Heading>
                 <Badge
-                  variant={data.pendingLoans > 0 || data.overdueLoansCount > 0 ? 'critical' : 'warning'}
+                  variant={data.overdueLoansCount > 0 ? 'error' : 'warning'}
                   size="sm"
                   label={`${totalCount} Perlu Ditindaklanjuti`}
                 />
