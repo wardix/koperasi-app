@@ -3,9 +3,10 @@
 'use client';
 
 import {AppShell} from '@astryxdesign/core/AppShell';
-import {VStack} from '@astryxdesign/core/Stack';
+import {VStack, HStack} from '@astryxdesign/core/Stack';
 import {TopNav, TopNavHeading} from '@astryxdesign/core/TopNav';
 import {SideNav, SideNavItem, SideNavSection} from '@astryxdesign/core/SideNav';
+import { NotificationBell } from './NotificationBell';
 import {
   ChartBarIcon,
   FolderIcon,
@@ -126,12 +127,19 @@ export default function Shell() {
             />
           }
           endContent={
-            <IconButton
-              label={isDark ? "Aktifkan Mode Terang" : "Aktifkan Mode Gelap"}
-              icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
-              variant="ghost"
-              onClick={() => setMode(isDark ? 'light' : 'dark')}
-            />
+            <HStack gap={2} vAlign="center">
+              <NotificationBell
+                pendingActions={pendingActions}
+                onNavigate={(route) => navigate(route)}
+                onRefresh={refetchPendingActions}
+              />
+              <IconButton
+                label={isDark ? "Aktifkan Mode Terang" : "Aktifkan Mode Gelap"}
+                icon={<Icon icon={isDark ? SunIcon : MoonIcon} size="sm" />}
+                variant="ghost"
+                onClick={() => setMode(isDark ? 'light' : 'dark')}
+              />
+            </HStack>
           }
         />
       }

@@ -17,6 +17,17 @@ export interface DashboardData {
   recentActivities: Array<{id: string; activity: string; name: string; amount: number; date: string}>;
 }
 
+export interface PendingActionDetailItem {
+  id: string;
+  category: 'loan' | 'ewa' | 'savings_deposit' | 'savings_withdrawal' | 'feedback' | 'overdue_loan';
+  title: string;
+  subtitle: string;
+  amount?: number;
+  route: string;
+  date?: string;
+  severity: 'critical' | 'warning' | 'info';
+}
+
 export interface PendingActionsData {
   totalPending: number;
   pendingLoans: number;
@@ -25,6 +36,7 @@ export interface PendingActionsData {
   pendingSavingsWithdrawals: number;
   openFeedbacks: number;
   overdueLoansCount: number;
+  items?: PendingActionDetailItem[];
 }
 
 export interface PermissionDefinition {

@@ -221,6 +221,12 @@ stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
     withdrawalsRes,
     feedbacksRes,
     overdueRes,
+    loansList,
+    ewaList,
+    depositsList,
+    withdrawalsList,
+    feedbacksList,
+    overdueList,
   ] = await Promise.all([
     db.query("SELECT COUNT(*) as count FROM loans WHERE status = 'Menunggu' AND deletedAt IS NULL").get<{ count: number | string }>(),
     db.query("SELECT COUNT(*) as count FROM withdrawal_requests WHERE status IN ('pending_transfer', 'pending', 'approved')").get<{ count: number | string }>(),
@@ -228,6 +234,13 @@ stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
     db.query("SELECT COUNT(*) as count FROM savings_withdrawals WHERE status = 'Menunggu'").get<{ count: number | string }>(),
     db.query("SELECT COUNT(*) as count FROM user_feedbacks WHERE status = 'open'").get<{ count: number | string }>(),
     db.query("SELECT COUNT(DISTINCT loanId) as count FROM loan_schedules WHERE status = 'Pending' AND dueDate < CURRENT_DATE").get<{ count: number | string }>(),
+
+    db.query("SELECT id, name, amount, createdAt FROM loans WHERE status = 'Menunggu' AND deletedAt IS NULL ORDER BY createdAt DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
+    db.query("SELECT id, destination_account_holder as name, amount, requested_at as \"createdAt\" FROM withdrawal_requests WHERE status IN ('pending_transfer', 'pending', 'approved') ORDER BY requested_at DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
+    db.query("SELECT id, sender_name as name, amount, created_at as \"createdAt\" FROM savings_deposits WHERE status = 'Menunggu' ORDER BY created_at DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
+    db.query("SELECT id, destination_name as name, amount, created_at as \"createdAt\" FROM savings_withdrawals WHERE status = 'Menunggu' ORDER BY created_at DESC LIMIT 5").all<{ id: string; name: string; amount: number; createdAt: string }>(),
+    db.query("SELECT id, type, title, user_name as name, created_at as \"createdAt\" FROM user_feedbacks WHERE status = 'open' ORDER BY created_at DESC LIMIT 5").all<{ id: string; type: string; title: string; name: string; createdAt: string }>(),
+    db.query("SELECT ls.id, ls.loanId, ls.installmentNo, (ls.principalAmount + ls.interestAmount) as amount, ls.dueDate as \"createdAt\", l.name FROM loan_schedules ls JOIN loans l ON l.id = ls.loanId WHERE ls.status = 'Pending' AND ls.dueDate < CURRENT_DATE ORDER BY ls.dueDate ASC LIMIT 5").all<{ id: string; loanId: string; installmentNo: number; amount: number; createdAt: string; name: string }>(),
   ]);
 
   const pendingLoans = Number(loansRes?.count || 0);
@@ -237,6 +250,96 @@ stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
   const openFeedbacks = Number(feedbacksRes?.count || 0);
   const overdueLoansCount = Number(overdueRes?.count || 0);
   const totalPending = pendingLoans + pendingEwa + pendingSavingsDeposits + pendingSavingsWithdrawals + openFeedbacks;
+
+  const formatRpBackend = (amount?: number | string | null) => {
+    const num = Number(amount || 0);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+  };
+
+  const items = [];
+
+  for (const l of loansList) {
+    items.push({
+      id: `loan-${l.id}`,
+      category: 'loan',
+      title: `Pinjaman: ${l.name}`,
+      subtitle: `Permohonan baru pinjaman sebesar ${formatRpBackend(l.amount)}`,
+      amount: Number(l.amount || 0),
+      route: '/loans',
+      date: l.createdAt ? new Date(l.createdAt).toISOString() : undefined,
+      severity: 'critical',
+    });
+  }
+
+  for (const e of ewaList) {
+    items.push({
+      id: `ewa-${e.id}`,
+      category: 'ewa',
+      title: `Gaji Awal (EWA): ${e.name}`,
+      subtitle: `Permohonan pencairan sebesar ${formatRpBackend(e.amount)}`,
+      amount: Number(e.amount || 0),
+      route: '/ewa',
+      date: e.createdAt ? new Date(e.createdAt).toISOString() : undefined,
+      severity: 'warning',
+    });
+  }
+
+  for (const d of depositsList) {
+    items.push({
+      id: `deposit-${d.id}`,
+      category: 'savings_deposit',
+      title: `Setoran Simpanan: ${d.name}`,
+      subtitle: `Verifikasi setoran sukarela ${formatRpBackend(d.amount)}`,
+      amount: Number(d.amount || 0),
+      route: '/savings',
+      date: d.createdAt ? new Date(d.createdAt).toISOString() : undefined,
+      severity: 'info',
+    });
+  }
+
+  for (const w of withdrawalsList) {
+    items.push({
+      id: `withdrawal-${w.id}`,
+      category: 'savings_withdrawal',
+      title: `Penarikan Simpanan: ${w.name}`,
+      subtitle: `Pencairan penarikan sukarela ${formatRpBackend(w.amount)}`,
+      amount: Number(w.amount || 0),
+      route: '/savings',
+      date: w.createdAt ? new Date(w.createdAt).toISOString() : undefined,
+      severity: 'warning',
+    });
+  }
+
+  for (const f of feedbacksList) {
+    items.push({
+      id: `feedback-${f.id}`,
+      category: 'feedback',
+      title: `${f.type === 'bug' ? 'Laporan Bug' : 'Masukan'}: ${f.title}`,
+      subtitle: `Dari ${f.name || 'Anggota'}`,
+      route: '/feedbacks',
+      date: f.createdAt ? new Date(f.createdAt).toISOString() : undefined,
+      severity: 'info',
+    });
+  }
+
+  for (const o of overdueList) {
+    items.push({
+      id: `overdue-${o.id}`,
+      category: 'overdue_loan',
+      title: `Jatuh Tempo: ${o.name}`,
+      subtitle: `Cicilan ke-${o.installmentNo} (${formatRpBackend(o.amount)}) terlambat bayar`,
+      amount: Number(o.amount || 0),
+      route: '/npl',
+      date: o.createdAt ? new Date(o.createdAt).toISOString() : undefined,
+      severity: 'critical',
+    });
+  }
+
+  items.sort((a, b) => {
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   return c.json({
     success: true,
@@ -248,6 +351,7 @@ stats.get('/pending-actions', requirePermission('read:stats'), async (c) => {
       pendingSavingsWithdrawals,
       openFeedbacks,
       overdueLoansCount,
+      items,
     },
   });
 })

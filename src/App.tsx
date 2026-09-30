@@ -418,7 +418,7 @@ export default function DashboardTemplate() {
   };
 
   useEffect(() => {
-    if (dashboardData) {
+    if (dashboardData && (dashboardData.activeMembers !== undefined || dashboardData.totalSavings !== undefined)) {
       const approvedCount = dashboardData.approvedLoansCount ?? 0;
       setMetrics([
         { label: 'Total Anggota Aktif', value: String(dashboardData.activeMembers) },

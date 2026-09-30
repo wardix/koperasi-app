@@ -50,6 +50,8 @@ describe("Stats API Endpoints", () => {
     expect(typeof data.openFeedbacks).toBe("number");
     expect(typeof data.overdueLoansCount).toBe("number");
 
+    expect(Array.isArray(data.items)).toBe(true);
+
     expect(data.totalPending).toBe(
       data.pendingLoans +
       data.pendingEwa +
