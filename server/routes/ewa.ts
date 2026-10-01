@@ -297,7 +297,8 @@ ewa.post('/payroll/settle', requirePermission('approve:loans'), async (c) => {
       db,
       parsed.data.periodMonth,
       actor,
-      parsed.data.targetAccountId
+      parsed.data.targetAccountId,
+      parsed.data.transactionDate
     );
 
     await audit(db, {

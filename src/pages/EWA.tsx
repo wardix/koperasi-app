@@ -66,14 +66,37 @@ export default function EWA() {
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState('');
 
+  // Helper to resolve the default settlement date (last day of the payroll period month)
+  function getDefaultSettleDate(periodMonth: string): string {
+    if (!periodMonth) return new Date().toISOString().split('T')[0];
+    const parts = periodMonth.split('-');
+    if (parts.length < 2) return new Date().toISOString().split('T')[0];
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    if (isNaN(year) || isNaN(month)) return new Date().toISOString().split('T')[0];
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${periodMonth}-${String(lastDay).padStart(2, '0')}`;
+  }
+
   // Payroll Recap State
   const [payrollMonth, setPayrollMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [settleDate, setSettleDate] = useState<string>(() => {
+    const d = new Date();
+    const curMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return `${curMonth}-${String(lastDay).padStart(2, '0')}`;
+  });
   const [payrollRecap, setPayrollRecap] = useState<any>(null);
   const [payrollLoading, setPayrollLoading] = useState(false);
   const [settleLoading, setSettleLoading] = useState(false);
+
+  const handlePayrollMonthChange = (newMonth: string) => {
+    setPayrollMonth(newMonth);
+    setSettleDate(getDefaultSettleDate(newMonth));
+  };
 
   // Fee Tiers State
   const [feeTiers, setFeeTiers] = useState<EwaFeeTier[]>([]);
@@ -287,7 +310,8 @@ export default function EWA() {
   // Handle Settle Payroll
   const handleSettlePayroll = async () => {
     if (!payrollRecap || payrollRecap.totalEmployees === 0) return;
-    if (!confirm(`Konfirmasi pembukuan pelunasan payroll periode ${payrollMonth} sebesar ${formatRp(payrollRecap.totalDeduction)}? Seluruh tagihan piutang EWA periode ini akan ditutup lunas.`)) {
+    const effectiveDate = settleDate || getDefaultSettleDate(payrollMonth);
+    if (!confirm(`Konfirmasi pembukuan pelunasan payroll periode ${payrollMonth} sebesar ${formatRp(payrollRecap.totalDeduction)} dengan tanggal transaksi jurnal ${effectiveDate}? Seluruh tagihan piutang EWA periode ini akan ditutup lunas.`)) {
       return;
     }
     setSettleLoading(true);
@@ -296,7 +320,10 @@ export default function EWA() {
       const res = await apiFetch('/api/v1/ewa/payroll/settle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ periodMonth: payrollMonth }),
+        body: JSON.stringify({ 
+          periodMonth: payrollMonth,
+          transactionDate: effectiveDate,
+        }),
       });
       const data = await res.json();
 
@@ -1216,7 +1243,7 @@ export default function EWA() {
                       <input
                         type="month"
                         value={payrollMonth}
-                        onChange={(e) => setPayrollMonth(e.target.value)}
+                        onChange={(e) => handlePayrollMonthChange(e.target.value)}
                         style={{
                           padding: '6px 12px',
                           borderRadius: 6,
@@ -1304,16 +1331,36 @@ export default function EWA() {
                         </table>
                       </div>
 
-                      <HStack justify="end" gap={3}>
+                      <HStack justify="end" gap={3} vAlign="center" wrap="wrap">
                         {payrollRecap.isFullySettled ? (
                           <Badge variant="success" size="lg" label="✅ Periode Ini Sudah Lunas Payroll" />
                         ) : (
-                          <Button
-                            label={settleLoading ? 'Memproses...' : 'Bukukan Pelunasan Payroll Dari Perusahaan'}
-                            variant="primary"
-                            isDisabled={settleLoading}
-                            onClick={handleSettlePayroll}
-                          />
+                          <>
+                            <HStack gap={2} vAlign="center">
+                              <Text type="supporting" weight="medium">
+                                Tanggal Transaksi:
+                              </Text>
+                              <input
+                                type="date"
+                                value={settleDate}
+                                onChange={(e) => setSettleDate(e.target.value)}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: 6,
+                                  border: '1px solid var(--color-border-primary)',
+                                  backgroundColor: 'var(--color-background-primary)',
+                                  color: 'var(--color-text-primary)',
+                                  fontSize: '13px',
+                                }}
+                              />
+                            </HStack>
+                            <Button
+                              label={settleLoading ? 'Memproses...' : 'Bukukan Pelunasan Payroll Dari Perusahaan'}
+                              variant="primary"
+                              isDisabled={settleLoading || !settleDate}
+                              onClick={handleSettlePayroll}
+                            />
+                          </>
                         )}
                       </HStack>
                     </VStack>

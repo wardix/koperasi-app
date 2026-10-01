@@ -568,6 +568,7 @@ export const ewaRejectSchema = z.object({
 export const ewaPayrollSettleSchema = z.object({
   periodMonth: z.string().regex(/^\d{4}-\d{2}$/, "Format periode harus YYYY-MM"),
   targetAccountId: z.string().uuid("Akun kas/bank pelunasan tidak valid").optional(),
+  transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal transaksi harus YYYY-MM-DD").optional(),
 });
 
 export const ewaFeeTierItemSchema = z.object({

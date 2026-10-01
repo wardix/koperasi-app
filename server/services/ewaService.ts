@@ -857,7 +857,8 @@ export async function settlePayroll(
   db: Db,
   periodMonth: string,
   adminId?: string,
-  targetAccountId?: string
+  targetAccountId?: string,
+  transactionDate?: string
 ): Promise<{ settledCount: number; totalSettledAmount: number }> {
   const recap = await getPayrollRecap(db, periodMonth);
   if (recap.totalEmployees === 0) {
@@ -879,7 +880,7 @@ export async function settlePayroll(
 
   if (bankAccountId && payrollReceivableAcc?.id && totalAmount > 0) {
     journalEntryId = crypto.randomUUID();
-    const today = getLocalTodayYmd();
+    const effectiveDate = transactionDate || getLocalTodayYmd();
 
     // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
     await db.query(
@@ -887,7 +888,7 @@ export async function settlePayroll(
        VALUES (?, ?, ?, 'ewa_payroll_settlement', ?, NULL, NOW())`
     ).run(
       journalEntryId,
-      today,
+      effectiveDate,
       `Pelunasan Payroll Potong Gaji EWA Periode ${periodMonth} (${recap.totalEmployees} Karyawan)`,
       periodMonth
     );
