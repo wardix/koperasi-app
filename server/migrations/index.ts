@@ -37,6 +37,7 @@ import { createSyncLetterSequencesMigration } from "./0039_sync_letter_sequences
 import { createSetEwaJournalCreatorSystemMigration } from "./0040_set_ewa_journal_creator_system";
 import { createFixDidiIrawanJournalDateMigration } from "./0041_fix_didi_irawan_journal_date";
 import { createSetDefaultBungaPinjamanMigration } from "./0042_set_default_bunga_pinjaman";
+import { createFixEwaSeptemberPayrollJournalDateMigration } from "./0043_fix_ewa_september_payroll_journal_date";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -92,6 +93,7 @@ export function buildMigrations(db: AppDb): Migration[] {
     createSetEwaJournalCreatorSystemMigration(db),
     createFixDidiIrawanJournalDateMigration(db),
     createSetDefaultBungaPinjamanMigration(db),
+    createFixEwaSeptemberPayrollJournalDateMigration(db),
   ];
 }
 
