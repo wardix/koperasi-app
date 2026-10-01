@@ -175,7 +175,7 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
                   disabled={isSubmitting}
                 />
                 <TextInput
-                  label="Jasa Pengurus & Pengawas (%)"
+                  label="Jasa Pengurus (%)"
                   type="number"
                   value={form.pengurusPct}
                   onChange={(v) => setForm((p) => ({ ...p, pengurusPct: v }))}

@@ -127,7 +127,7 @@ export function ShuSettings({
               disabled={!canUpdate || isLoading}
             />
             <TextInput
-              label="Jasa Pengurus & Pengawas (%)"
+              label="Jasa Pengurus (%)"
               type="number"
               value={formValues.pengurusPct}
               onChange={(v) => handleChange('pengurusPct', v)}

@@ -60,7 +60,7 @@ describe('SHU Page', () => {
     // Active items (> 0%) should be visible
     expect(screen.getByText(/Alokasi Anggota \(50%\)/)).toBeTruthy();
     expect(screen.getByText(/Dana Cadangan \(30%\)/)).toBeTruthy();
-    expect(screen.getByText(/Jasa Pengurus & Pengawas \(20%\)/)).toBeTruthy();
+    expect(screen.getByText(/Jasa Pengurus \(20%\)/)).toBeTruthy();
 
     // 0% items should NOT be in the document
     expect(screen.queryByText(/Dana Sosial \(0%\)/)).toBeNull();

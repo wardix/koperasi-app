@@ -69,7 +69,7 @@ export default function SHU() {
     const all = [
       { key: 'anggota', label: 'Alokasi Anggota', pct: cfg.anggotaPct, value: data.distribusi.anggota },
       { key: 'cadangan', label: 'Dana Cadangan', pct: cfg.cadanganPct, value: data.distribusi.cadangan },
-      { key: 'pengurus', label: 'Jasa Pengurus & Pengawas', pct: cfg.pengurusPct, value: data.distribusi.pengurus },
+      { key: 'pengurus', label: 'Jasa Pengurus', pct: cfg.pengurusPct, value: data.distribusi.pengurus },
       { key: 'sosial', label: 'Dana Sosial', pct: cfg.sosialPct, value: data.distribusi.sosial },
       { key: 'pembangunan', label: 'Dana Pembangunan Kerja', pct: cfg.pembangunanPct, value: data.distribusi.pembangunan },
     ];
