@@ -1756,9 +1756,6 @@ export default function MemberPortal() {
                             <Text type="body" weight="semibold">
                               {uploadingAttachment ? '⏳ Sedang mengunggah file...' : '📎 Klik untuk Unggah Dokumen / Foto Pendukung'}
                             </Text>
-                            <Text type="supporting" size="sm" color="secondary">
-                              Contoh: Slip Gaji, Foto KTP, Invoice / Rencana Anggaran Biaya, Surat Permohonan
-                            </Text>
                           </VStack>
                         </div>
                       ) : (
